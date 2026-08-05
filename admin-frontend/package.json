@@ -1,0 +1,24 @@
+{
+  "name": "cs2-auction-admin",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CS2 skinlar auksioni — Admin Mini App (2-band: to'liq avtomatlashtirilgan, oddiy dizayn)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host --port 5174",
+    "build": "vite build",
+    "preview": "vite preview --host --port 5174"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "vite": "^5.4.8"
+  }
+}

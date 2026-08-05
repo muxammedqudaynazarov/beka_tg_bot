@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body, #root { height: 100%; background-color: #0F1115; }
+body { font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+::-webkit-scrollbar { height: 0; width: 0; }

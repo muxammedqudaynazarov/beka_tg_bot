@@ -1,0 +1,32 @@
+version: "3.8"
+
+# Ushbu fayl faqat MA'LUMOTLAR BAZASINI (PostgreSQL) lokal ishga tushirish uchun.
+# Backend va frontend hozircha oddiy "node" / "npm run dev" bilan ishga tushiriladi
+# (README.md ga qarang). Xohlasangiz, ularni ham shu compose fayliga qo'shib,
+# to'liq konteynerlashtirilgan holga keltirishingiz mumkin.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cs2_auction_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cs2_user
+      POSTGRES_PASSWORD: cs2_password
+      POSTGRES_DB: cs2_auction
+    ports:
+      - "5432:5432"
+    volumes:
+      - cs2_auction_pgdata:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer:latest
+    container_name: cs2_auction_adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  cs2_auction_pgdata:

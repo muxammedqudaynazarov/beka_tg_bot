@@ -1,0 +1,251 @@
+// ============================================================================
+// CS2 SKINS AUKSION TIZIMI — Ma'lumotlar bazasi sxemasi (PostgreSQL + Prisma)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// FOYDALANUVCHILAR
+// ------------------------------------------------------------------
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+model User {
+  id            String   @id @default(uuid())
+  telegramId    BigInt   @unique // Telegram foydalanuvchi ID (user bot orqali)
+  username      String? // @username (bo'lishi shart emas)
+  firstName     String?
+  lastName      String?
+  role          UserRole @default(USER)
+
+  balance       Decimal  @default(0) @db.Decimal(14, 2) // asosiy hisob (erkin mablag')
+  holdBalance   Decimal  @default(0) @db.Decimal(14, 2) // auksion uchun "zaklad" sifatida bloklangan mablag'
+
+  // Steam Trade URL — g'olib bo'lgan skin shu havola orqali foydalanuvchi
+  // inventariga yuboriladi (8-band). Format: https://steamcommunity.com/tradeoffer/new/?partner=...&token=...
+  tradeUrl      String?  @db.VarChar(255)
+
+  ratingScore   Int      @default(0) // avtomatik reyting (faollik + xaridlar asosida)
+  discountPct   Int      @default(0) // adminning tasdig'i bilan beriladigan skidka foizi (0-100)
+
+  isBanned      Boolean  @default(false)
+  bannedReason  String?
+  bannedAt      DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bids          Bid[]
+  wonAuctions   Auction[]        @relation("AuctionWinner")
+  transactions  Transaction[]
+  createdAuctions Auction[]      @relation("AuctionCreatedBy")
+  ratingEvents  RatingEvent[]
+  auditLogs     AdminAuditLog[]  @relation("AuditActor")
+
+  @@index([role])
+  @@index([isBanned])
+}
+
+// Foydalanuvchi reytingini oshiradigan har bir hodisa (shaffoflik va audit uchun)
+enum RatingEventType {
+  BID_PLACED     // taklif berdi (auksionni yutmasa ham ozgina ball beradi)
+  AUCTION_WON    // auksionni yutib oldi (ko'proq ball)
+  MANUAL_ADJUST  // admin tomonidan qo'lda o'zgartirilgan
+}
+
+model RatingEvent {
+  id        String          @id @default(uuid())
+  user      User            @relation(fields: [userId], references: [id])
+  userId    String
+  type      RatingEventType
+  points    Int
+  note      String?
+  createdAt DateTime        @default(now())
+}
+
+// ------------------------------------------------------------------
+// KATEGORIYALAR (qurol turlari: AK-47, Glock, USP-S, pichoqlar va h.k.)
+// ------------------------------------------------------------------
+
+model WeaponCategory {
+  id          String    @id @default(uuid())
+  name        String    @unique // masalan: "AK-47", "Desert Eagle", "Karambit"
+  slug        String    @unique
+  iconUrl     String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  auctions    Auction[]
+}
+
+// ------------------------------------------------------------------
+// AUKSION / SKIN E'LONI
+// ------------------------------------------------------------------
+
+enum SkinRarity {
+  CONSUMER    // oq / "Consumer Grade"
+  INDUSTRIAL  // ochiq ko'k
+  MILSPEC     // ko'k ("qizil, fiolet, ko'k, oq" ro'yxatidagi ko'k)
+  RESTRICTED  // fiolet
+  CLASSIFIED  // pushti
+  COVERT      // qizil
+  GOLD        // pichoq / qo'lqop (noyob, oltin)
+}
+
+enum WearCondition {
+  FN // Factory New
+  MW // Minimal Wear
+  FT // Field-Tested
+  WW // Well-Worn
+  BS // Battle-Scarred
+}
+
+enum AuctionStatus {
+  DRAFT             // admin tayyorlamoqda, hali chiqarilmagan
+  ACTIVE            // hozir savdoda
+  AWAITING_PAYMENT  // savdo tugadi, g'olib bor — qolgan 75% uchun 5 soatlik muddat ketmoqda (3-band)
+  PAID              // qolgan 75% to'liq to'landi, lekin Steam orqali hali yuborilmagan
+  DELIVERED         // admin skinni g'olibning Steam inventariga (Trade URL orqali) yuborganini tasdiqladi
+  PAYMENT_EXPIRED   // 5 soat ichida to'lanmadi — zakladning 50% qaytarildi, 50% jarima sifatida ushlab qolindi
+  CANCELLED         // admin tomonidan bekor qilingan
+  UNSOLD            // muddati tugadi, hech kim taklif bermagan
+}
+
+model Auction {
+  id              String         @id @default(uuid())
+
+  skinName        String         // masalan: "AK-47 | Redline"
+  imageUrl        String
+  category        WeaponCategory @relation(fields: [categoryId], references: [id])
+  categoryId      String
+
+  rarity          SkinRarity
+  floatValue      Decimal        @db.Decimal(9, 7) // masalan 0.1325410
+  wearCondition   WearCondition
+  isStatTrak      Boolean        @default(false)
+
+  startPrice      Decimal        @db.Decimal(14, 2)
+  currentPrice    Decimal        @db.Decimal(14, 2)
+  buyNowPrice     Decimal?       @db.Decimal(14, 2) // ixtiyoriy: "hoziroq sotib olish" narxi
+
+  status          AuctionStatus  @default(DRAFT)
+
+  startsAt        DateTime       @default(now())
+  endsAt          DateTime       // dinamik ravishda 5-daqiqalik qoidaga ko'ra uzayishi mumkin
+  originalEndsAt  DateTime       // boshlang'ich (admin belgilagan) tugash vaqti, tarixiy ma'lumot uchun
+
+  // 3-band: savdo tugab, g'olib aniqlangach, qolgan 75%ni to'lash uchun muddat
+  // (odatda endsAt + 5 soat). Faqat status=AWAITING_PAYMENT bo'lganda ahamiyatli.
+  paymentDueAt    DateTime?
+  paidAt          DateTime?  // qolgan 75% to'liq to'langan payt
+  deliveredAt     DateTime?  // admin Steam orqali yuborganini tasdiqlagan payt
+  deliveredById   String?    // qaysi admin "yuborildi" deb belgiladi (audit uchun)
+
+  // Auksion versiyasi — optimistik lokировка (parallel takliflarda poyga holatini oldini olish uchun)
+  version         Int            @default(0)
+
+  currentLeader     User?        @relation("AuctionWinner", fields: [currentLeaderId], references: [id])
+  currentLeaderId   String?
+  consecutiveRaises  Int         @default(0) // joriy yetakchining ketma-ket oshirishlar soni (max 10)
+
+  createdBy       User           @relation("AuctionCreatedBy", fields: [createdById], references: [id])
+  createdById     String
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  bids            Bid[]
+  transactions    Transaction[]
+
+  @@index([status])
+  @@index([endsAt])
+  @@index([categoryId])
+  @@index([rarity])
+}
+
+// Har bir taklif tarixi (audit va "kim qachon qancha taklif berdi" uchun)
+model Bid {
+  id          String   @id @default(uuid())
+  auction     Auction  @relation(fields: [auctionId], references: [id])
+  auctionId   String
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  amount      Decimal  @db.Decimal(14, 2)
+  holdAmount  Decimal  @db.Decimal(14, 2) // ushbu taklif uchun ushlab qolingan zaklad (25%)
+  isWinning   Boolean  @default(false) // hozirda eng yuqori taklifmi
+  createdAt   DateTime @default(now())
+
+  @@index([auctionId])
+  @@index([userId])
+}
+
+// ------------------------------------------------------------------
+// TRANZAKSIYALAR (hisob to'ldirish, zaklad ushlab qolish/qaytarish, xarid)
+// ------------------------------------------------------------------
+
+enum TransactionType {
+  TOPUP              // Click.uz orqali hisobni to'ldirish
+  BID_HOLD           // auksionda taklif uchun 25% ushlab qolish
+  BID_HOLD_RELEASE   // boshqa foydalanuvchi oshirganda (yoki 5soat/50% qaytarishda) avvalgi zakladni qaytarish
+  PURCHASE           // auksionni yutib, qolgan 75% to'langanda
+  DEPOSIT_FORFEITED  // 5 soat ichida to'lanmasa, zakladning 50% jarima sifatida ushlab qolinishi (3-band)
+  ADMIN_ADJUST       // admin tomonidan qo'lda balans tuzatish
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+model Transaction {
+  id              String             @id @default(uuid())
+  user            User               @relation(fields: [userId], references: [id])
+  userId          String
+  auction         Auction?           @relation(fields: [auctionId], references: [id])
+  auctionId       String?
+
+  type            TransactionType
+  status          TransactionStatus  @default(PENDING)
+  amount          Decimal            @db.Decimal(14, 2)
+
+  // Click.uz bilan bog'liq maydonlar
+  clickTransId    String?            @unique
+  clickPaydocId   String?
+  merchantTransId String?            @unique // bizning tizimdagi noyob buyurtma raqami
+
+  note            String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------
+// ADMIN AMALLARI JURNALI (shaffoflik uchun — kim, qachon, nima qildi)
+// ------------------------------------------------------------------
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id])
+  actorId    String
+  action     String   // masalan: "USER_BANNED", "AUCTION_TIME_CHANGED", "CATEGORY_CREATED"
+  targetType String?  // "User" | "Auction" | "WeaponCategory" ...
+  targetId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+}

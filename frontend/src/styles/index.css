@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  background-color: #0A0C10;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+::-webkit-scrollbar { height: 0; width: 0; }
+
+/* Tugashiga oz qolgan auksionlar tasmasi uchun uzluksiz "marquee" harakati */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Yangi eng yuqori taklif kelganda narx raqami uchun qisqa "puls" effekti */
+@keyframes pulse-price {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.animate-pulse-price {
+  animation: pulse-price 0.4s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee, .animate-pulse-price { animation: none; }
+}
