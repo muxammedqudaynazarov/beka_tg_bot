@@ -85,9 +85,25 @@ async function callClickStatusEndpoint(url, label) {
   }
 }
 
-async function checkPaymentStatusByMerchantTransId(merchantTransId) {
+async function checkPaymentStatusByMerchantTransId(merchantTransId, createdAt) {
   const url = `${env.click.merchantApiUrl}/payment/status_by_mti/${env.click.serviceId}/${encodeURIComponent(merchantTransId)}`;
-  return callClickStatusEndpoint(url, 'status_by_mti');
+  const withoutDate = await callClickStatusEndpoint(url, 'status_by_mti (sanasiz)');
+
+  // Click'ning ba'zi hujjat sahifalari shu endpoint uchun oxirida YYYY-MM-DD
+  // sana bo'lishi kerakligini ko'rsatadi, boshqalari ko'rsatmaydi — hujjatning
+  // o'zida nomuvofiqlik bor. Sanasiz urinish aniq xato (masalan "topilmadi")
+  // qaytarsa, tranzaksiya yaratilgan sana bilan ham sinab ko'ramiz.
+  const looksLikeNotFound = withoutDate.ok && !withoutDate.paid && withoutDate.paymentStatus === undefined;
+  if (withoutDate.paid || (withoutDate.ok && !looksLikeNotFound)) return withoutDate;
+
+  if (createdAt) {
+    const dateStr = new Date(createdAt).toISOString().slice(0, 10); // YYYY-MM-DD
+    const urlWithDate = `${url}/${dateStr}`;
+    const withDate = await callClickStatusEndpoint(urlWithDate, 'status_by_mti (sana bilan)');
+    if (withDate.paid || withDate.ok) return withDate;
+  }
+
+  return withoutDate;
 }
 
 async function checkPaymentStatusByPaymentId(paymentId) {
@@ -108,7 +124,7 @@ async function checkClickPaymentStatus(tx) {
     // sinab ko'ramiz — ehtimol ikkalasi turli sabablarga ko'ra farq qilar.
     if (byPaymentId.ok) return byPaymentId;
   }
-  return checkPaymentStatusByMerchantTransId(tx.merchantTransId);
+  return checkPaymentStatusByMerchantTransId(tx.merchantTransId, tx.createdAt);
 }
 
 module.exports = {
