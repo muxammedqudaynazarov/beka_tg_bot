@@ -37,8 +37,17 @@ export default function AuctionListItem({auction}) {
 
             <div className="min-w-0 flex-1">
                 <div className="mb-0.5 flex items-center gap-1.5">
-                    <RarityBadge rarity={auction.wearCondition}/>
-                    <span className="truncate font-mono text-[10px] text-ink-muted">{Number(auction.floatValue)}</span>
+                    <span
+                        className={`inline-flex items-center gap-1 rounded font-display font-semibold uppercase tracking-wide text-[9px] px-1.5 py-0.5`}
+                        style={{
+                            color: meta.color,
+                            backgroundColor: `${meta.color}1A`,
+                            border: `1px solid ${meta.color}55`
+                        }}>{auction.wearCondition}</span>
+                    {/*<RarityBadge rarity={auction.rarity}/>*/}
+                    · <span className="truncate font-mono text-[10px] text-ink-muted">
+                    {Number(auction.floatValue).toFixed(9)}
+                </span>
                 </div>
                 <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">
                     {auction.skinName}
