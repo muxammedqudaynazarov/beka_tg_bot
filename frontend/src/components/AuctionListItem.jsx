@@ -45,8 +45,8 @@ export default function AuctionListItem({auction}) {
                             border: `1px solid ${meta.color}55`
                         }}>{auction.wearCondition}</span>
                     {/*<RarityBadge rarity={auction.rarity}/>*/}
-                    · <span className="truncate font-mono text-[10px] text-ink-muted">
-                    {Number(auction.floatValue).toFixed(9)}
+                    <span className="truncate font-mono text-[10px] text-ink-muted">
+                    {Number(auction.floatValue).toFixed(7)}
                 </span>
                 </div>
                 <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">
