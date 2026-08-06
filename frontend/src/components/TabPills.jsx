@@ -1,8 +1,8 @@
 import { Flame, Sparkles, SlidersHorizontal } from 'lucide-react';
 
 const TABS = [
-  { key: 'today', label: 'Bugun', icon: Flame },
-  { key: 'new', label: 'Yangi', icon: Sparkles },
+  { key: 'today', label: 'Сегодня', icon: Flame },
+  { key: 'new', label: 'Новая', icon: Sparkles },
 ];
 
 export default function TabPills({ active, onChange, onOpenFilter }) {
@@ -30,7 +30,7 @@ export default function TabPills({ active, onChange, onOpenFilter }) {
         className="flex shrink-0 items-center gap-1.5 rounded-full bg-base-surface px-3 py-1.5 font-display text-xs font-semibold text-ink-secondary hover:text-ink-primary"
       >
         <SlidersHorizontal size={13} />
-        Filtr
+        Фильтр
       </button>
     </div>
   );

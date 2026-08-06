@@ -75,8 +75,8 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="font-display text-sm font-semibold text-ink-primary">Hech narsa topilmadi</p>
-            <p className="max-w-xs text-xs text-ink-secondary">Qidiruv so'zini yoki filtrlarni o'zgartirib ko'ring.</p>
+            <p className="font-display text-sm font-semibold text-ink-primary">Ничего не найдено</p>
+            <p className="max-w-xs text-xs text-ink-secondary">Попробуйте изменить поисковый запрос или фильтры.</p>
           </div>
         )}
       </main>
