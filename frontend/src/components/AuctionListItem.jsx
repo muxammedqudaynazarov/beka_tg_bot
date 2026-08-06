@@ -38,14 +38,12 @@ export default function AuctionListItem({auction}) {
             <div className="min-w-0 flex-1">
                 <div className="mb-0.5 flex items-center gap-1.5">
                     <RarityBadge rarity={auction.wearCondition}/>
-                    <span className="truncate font-mono text-[10px] text-ink-muted">
-             {Number(auction.floatValue)}
-          </span>
+                    <span className="truncate font-mono text-[10px] text-ink-muted">{Number(auction.floatValue)}</span>
                 </div>
                 <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">
                     {auction.skinName}
                 </h3>
-                <p className="text-[9px] uppercase tracking-wide text-ink-muted">Narx</p>
+                <p className="text-[9px] uppercase tracking-wide text-ink-muted">&nbsp;</p>
                 <p className="font-mono text-[13px] font-bold" style={{color: meta.color}}>
                     {formatSom(auction.currentPrice)}
                 </p>

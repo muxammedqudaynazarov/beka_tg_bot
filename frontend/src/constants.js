@@ -18,7 +18,7 @@ export const WEAR_LABELS = {
 
 export function formatSom(amount) {
   const n = Number(amount || 0);
-  return `${n.toLocaleString('uz-UZ')} so'm`;
+  return `${n.toLocaleString('uz-UZ')} swm`;
 }
 
 function pad2(n) {
