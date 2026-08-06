@@ -24,6 +24,8 @@ const env = {
   adminBotToken: process.env.ADMIN_BOT_TOKEN || '',
   miniAppUrl: process.env.MINI_APP_URL || 'http://localhost:5173',
   adminMiniAppUrl: process.env.ADMIN_MINI_APP_URL || 'http://localhost:5174',
+  // "Yordam" tugmasi shu guruh/kanalga yo'naltiriladi (4-band javobi)
+  supportGroupUrl: process.env.SUPPORT_GROUP_URL || '',
   superadminTelegramIds: (process.env.SUPERADMIN_TELEGRAM_IDS || '')
     .split(',')
     .map((s) => s.trim())

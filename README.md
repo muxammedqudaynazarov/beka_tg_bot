@@ -220,6 +220,9 @@ Natijani (`admin-frontend/dist/`) alohida Nginx server blokiga (4.2-bo'limdagi n
 
 ## 5. Muhim biznes-qoidalar (qisqacha)
 
+> **Sxema yangilangan bo'lsa har doim:** `npx prisma generate && npx prisma db push` ni qayta ishga tushiring — masalan kategoriya/sub-kategoriya tuzilishi, to'lov kutish oynasi kabi o'zgarishlar shu tarzda bazaga qo'llanadi. Shu bilan birga `backend/.env`da `SUPPORT_GROUP_URL`ni (Profil > Yordam tugmasi uchun) to'ldirishni unutmang — bo'sh qoldirilsa, tugma foydalanuvchiga umuman ko'rinmaydi.
+
+
 Bularning barchasi `backend/src/services/auctionService.js` ichida amalga oshirilgan — o'zgartirish kerak bo'lsa shu faylga qarang:
 
 - Har bir taklif narxning **25%** i miqdorida zaklad sifatida hisobdan ushlab qolinadi (`.env`dagi `AUCTION_DEPOSIT_PERCENT` orqali sozlanadi).

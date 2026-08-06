@@ -7,6 +7,7 @@ import FilterPage from './pages/FilterPage';
 import PaymentPage from './pages/PaymentPage';
 import ProfilePage from './pages/ProfilePage';
 import AuctionDetailPage from './pages/AuctionDetailPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 function AuthGate({ children }) {
   const { status, error } = useAuth();
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="/payment" element={<PaymentPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/auction/:id" element={<AuctionDetailPage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
             </Routes>
             <BottomNav />
           </BrowserRouter>

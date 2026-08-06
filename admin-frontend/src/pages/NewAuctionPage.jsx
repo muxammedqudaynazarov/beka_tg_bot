@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
 import { RARITIES, WEARS } from '../constants';
+import SearchableSelect from '../components/SearchableSelect';
 
 const EMPTY = {
   skinName: '',
   imageUrl: '',
-  categoryId: '',
+  subcategoryId: '',
   rarity: 'MILSPEC',
   floatValue: '',
   wearCondition: 'FT',
@@ -37,13 +38,25 @@ export default function NewAuctionPage() {
   }
   useEffect(loadCategories, []);
 
+  // Barcha sub-kategoriyalarni bitta ro'yxatga tekislaymiz, har biriga ota
+  // kategoriya nomini "group" sifatida biriktiramiz — shunda live-search
+  // ham sub-kategoriya, ham kategoriya nomi bo'yicha qidira oladi (masalan
+  // "AK-47" yozib ham, "Винтовки" yozib ham topish mumkin).
+  const subcategoryOptions = useMemo(
+    () =>
+      categories.flatMap((c) =>
+        c.subcategories.map((s) => ({ value: s.id, label: s.name, group: c.name }))
+      ),
+    [categories]
+  );
+
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.skinName || !form.imageUrl || !form.categoryId || !form.floatValue || !form.startPrice) {
+    if (!form.skinName || !form.imageUrl || !form.subcategoryId || !form.floatValue || !form.startPrice) {
       showAlert('Iltimos, barcha majburiy maydonlarni to\'ldiring.');
       return;
     }
@@ -77,17 +90,17 @@ export default function NewAuctionPage() {
         <img src={form.imageUrl} alt="" className="h-20 w-20 rounded-lg border border-border bg-surface object-contain p-1" onError={(e) => (e.target.style.display = 'none')} />
       )}
 
-      <Field label="Kategoriya *">
-        <div className="flex gap-2">
-          <select className={inputCls} value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
-            <option value="">— tanlang —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-        {!categories.length && (
-          <p className="mt-1 text-[11px] text-warning">Hali kategoriya yo'q — avval "Kategoriyalar" bo'limidan qo'shing.</p>
+      <Field label="Sub-kategoriya * (kategoriya yoki sub-kategoriya nomi bo'yicha qidiring)">
+        <SearchableSelect
+          options={subcategoryOptions}
+          value={form.subcategoryId}
+          onChange={(v) => set('subcategoryId', v)}
+          placeholder="Masalan: AK-47, Karambit…"
+        />
+        {!subcategoryOptions.length && (
+          <p className="mt-1 text-[11px] text-warning">
+            Hali sub-kategoriya yo'q — avval "Kategoriyalar" bo'limidan qo'shing.
+          </p>
         )}
       </Field>
 

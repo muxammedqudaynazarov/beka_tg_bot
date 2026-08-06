@@ -226,7 +226,7 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
 
     const updatedAuction = await tx.auction.findUnique({
       where: { id: auctionId },
-      include: { category: true, currentLeader: { select: { id: true, username: true, firstName: true } } },
+      include: { subcategory: { include: { category: true } }, currentLeader: { select: { id: true, username: true, firstName: true } } },
     });
 
     return { auction: updatedAuction, bid: newBid, extended: newEndsAt !== auction.endsAt };

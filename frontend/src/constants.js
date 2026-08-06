@@ -25,16 +25,20 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
-// 7-band: kun:soat:daqiqa:soniya, masalan "01:04:13:53"
+// 5-band: 1 kundan kam qolsa kun ko'rsatilmaydi (soat:daqiqa:soniya),
+// 1 soatdan kam qolsa soat ham ko'rsatilmaydi (daqiqa:soniya).
 export function formatCountdownDHMS(endsAtIso) {
   const diffMs = new Date(endsAtIso).getTime() - Date.now();
-  if (diffMs <= 0) return '00:00:00:00';
+  if (diffMs <= 0) return '00:00';
   const totalSec = Math.floor(diffMs / 1000);
   const d = Math.floor(totalSec / 86400);
   const h = Math.floor((totalSec % 86400) / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  return `${pad2(d)}:${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+
+  if (d > 0) return `${pad2(d)}:${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+  if (h > 0) return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+  return `${pad2(m)}:${pad2(s)}`;
 }
 
 export const AUCTION_STATUS_META = {

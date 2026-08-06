@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const prisma = require('../db/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { buildCheckoutUrl } = require('../services/clickPaymentService');
+const { buildCheckoutUrl, checkPaymentStatusByMerchantTransId } = require('../services/clickPaymentService');
 const { isClickSignatureValid } = require('../utils/clickSignature');
 
 const router = express.Router();
@@ -16,6 +16,26 @@ const CLICK_ERROR = {
   TRANSACTION_NOT_FOUND: -6,
   TRANSACTION_CANCELLED: -9,
 };
+
+/**
+ * Tranzaksiyani "to'landi" deb belgilab, balansni oshiradi. Ikkala joydan
+ * (Click webhook VA qo'lda "Tekshirish" tugmasi) chaqiriladi — shuning uchun
+ * IKKALA marta ham xavfsiz bo'lishi uchun faqat hali SUCCESS bo'lmagan
+ * tranzaksiyada ishlaydi (ikki marta balans oshib ketmasligi uchun).
+ */
+async function markTransactionPaid(tx, clickPaydocId) {
+  if (tx.status === 'SUCCESS') return; // allaqachon hisoblangan — qayta hisoblamaymiz
+  await prisma.$transaction([
+    prisma.transaction.update({
+      where: { id: tx.id },
+      data: { status: 'SUCCESS', clickPaydocId: clickPaydocId ? String(clickPaydocId) : tx.clickPaydocId },
+    }),
+    prisma.user.update({
+      where: { id: tx.userId },
+      data: { balance: { increment: tx.amount } },
+    }),
+  ]);
+}
 
 // 1.g-band: foydalanuvchi "To'ldirish" tugmasini bosganda chaqiriladi.
 // Pending Transaction yaratamiz va Click checkout havolasini qaytaramiz.
@@ -118,16 +138,7 @@ router.post('/click/complete', async (req, res) => {
   }
 
   if (tx.status !== 'SUCCESS') {
-    await prisma.$transaction([
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: { status: 'SUCCESS', clickPaydocId: String(body.click_paydoc_id || '') },
-      }),
-      prisma.user.update({
-        where: { id: tx.userId },
-        data: { balance: { increment: tx.amount } },
-      }),
-    ]);
+    await markTransactionPaid(tx, body.click_paydoc_id);
     console.log(`[click/complete] BALANS OSHIRILDI: userId=${tx.userId}, summa=${tx.amount}`);
   }
 
@@ -147,6 +158,48 @@ router.get('/history', requireAuth, async (req, res) => {
     take: 50,
   });
   res.json({ items });
+});
+
+// "To'lov" menyusida FAQAT yakunlanmagan (hali tasdiqlanmagan) to'ldirish
+// so'rovlari ko'rsatiladi — muvaffaqiyatli/bekor qilinganlar bu ro'yxatda
+// ko'rinmaydi (foydalanuvchini keraksiz tarix bilan chalg'itmaslik uchun).
+router.get('/pending', requireAuth, async (req, res) => {
+  const items = await prisma.transaction.findMany({
+    where: { userId: req.user.id, type: 'TOPUP', status: 'PENDING' },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  res.json({ items });
+});
+
+// Avtomatik webhook kelmagan hollar uchun — foydalanuvchi qo'lda "Tekshirish"
+// tugmasini bosganda Click'ning o'ziga to'g'ridan-to'g'ri so'rov yuboramiz.
+router.post('/:id/check-status', requireAuth, async (req, res) => {
+  const tx = await prisma.transaction.findUnique({ where: { id: req.params.id } });
+  if (!tx || tx.userId !== req.user.id) {
+    return res.status(404).json({ error: 'Tranzaksiya topilmadi.' });
+  }
+  if (tx.type !== 'TOPUP') {
+    return res.status(400).json({ error: 'Bu tranzaksiya turi uchun tekshirish mavjud emas.' });
+  }
+  if (tx.status === 'SUCCESS') {
+    return res.json({ status: 'SUCCESS', message: 'Bu to\'lov allaqachon tasdiqlangan.' });
+  }
+
+  const result = await checkPaymentStatusByMerchantTransId(tx.merchantTransId);
+  if (!result.ok) {
+    return res.status(502).json({ error: `Click bilan bog'lanib bo'lmadi: ${result.error}` });
+  }
+
+  if (result.paid) {
+    await markTransactionPaid(tx, result.paymentId);
+    console.log(`[check-status] BALANS OSHIRILDI (qo'lda tekshiruv): userId=${tx.userId}, summa=${tx.amount}`);
+    return res.json({ status: 'SUCCESS', message: 'To\'lov tasdiqlandi, balansingiz oshirildi.' });
+  }
+
+  const statusLabels = { 0: 'Yaratilgan, hali to\'lanmagan', 1: 'Jarayonda' };
+  const label = statusLabels[result.paymentStatus] || result.error || 'Hali to\'lanmagan';
+  res.json({ status: 'PENDING', message: `Click bo'yicha holat: ${label}` });
 });
 
 module.exports = router;

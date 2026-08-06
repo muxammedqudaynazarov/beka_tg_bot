@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
 import { RARITIES, WEARS, formatSom } from '../constants';
+import SearchableSelect from '../components/SearchableSelect';
 
 const inputCls =
   'w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none';
@@ -10,7 +11,7 @@ function EditAuctionForm({ auction, onDone, onCancelEdit }) {
   const [form, setForm] = useState({
     skinName: auction.skinName,
     imageUrl: auction.imageUrl,
-    categoryId: auction.categoryId,
+    subcategoryId: auction.subcategoryId,
     rarity: auction.rarity,
     floatValue: auction.floatValue,
     wearCondition: auction.wearCondition,
@@ -23,6 +24,11 @@ function EditAuctionForm({ auction, onDone, onCancelEdit }) {
   useEffect(() => {
     api.get('/categories').then(({ data }) => setCategories(data.items || []));
   }, []);
+
+  const subcategoryOptions = useMemo(
+    () => categories.flatMap((c) => c.subcategories.map((s) => ({ value: s.id, label: s.name, group: c.name }))),
+    [categories]
+  );
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -52,9 +58,12 @@ function EditAuctionForm({ auction, onDone, onCancelEdit }) {
       {form.imageUrl && (
         <img src={form.imageUrl} alt="" className="h-16 w-16 rounded border border-border bg-surface object-contain p-1" onError={(e) => (e.target.style.display = 'none')} />
       )}
-      <select className={inputCls} value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
-        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
+      <SearchableSelect
+        options={subcategoryOptions}
+        value={form.subcategoryId}
+        onChange={(v) => set('subcategoryId', v)}
+        placeholder="Sub-kategoriya qidiring…"
+      />
       <div className="grid grid-cols-2 gap-2">
         <select className={inputCls} value={form.rarity} onChange={(e) => set('rarity', e.target.value)}>
           {RARITIES.map((r) => <option key={r.v} value={r.v}>{r.l}</option>)}

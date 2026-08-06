@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from 'react';
 
-const DEFAULT_FILTERS = { categoryId: null, wear: [], statTrak: null, sort: null };
+const DEFAULT_FILTERS = { categoryIds: [], subcategoryIds: [], wear: [], statTrak: null, sort: null };
 
 const FiltersContext = createContext(null);
 

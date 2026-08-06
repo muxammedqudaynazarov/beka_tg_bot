@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../db/prisma');
 const { requireAuth } = require('../middleware/auth');
+const { env } = require('../config/env');
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/', requireAuth, async (req, res) => {
   const purchases = await prisma.transaction.findMany({
     where: { userId: req.user.id, type: 'PURCHASE', status: 'SUCCESS' },
     orderBy: { createdAt: 'desc' },
-    include: { auction: { include: { category: true } } },
+    include: { auction: { include: { subcategory: { include: { category: true } } } } },
   });
 
   res.json({
@@ -30,9 +31,9 @@ router.get('/', requireAuth, async (req, res) => {
     },
     purchases,
     links: {
-      privacyPolicy: '/privacy-policy',
-      termsOfService: '/terms-of-service',
-      supportBot: 'https://t.me/your_support_username',
+      // Sozlanmagan bo'lsa frontend "Yordam" tugmasini yashiradi (bo'sh
+      // havolaga bosib, xato sahifaga tushib qolmasin deb).
+      supportGroupUrl: env.supportGroupUrl || null,
     },
   });
 });

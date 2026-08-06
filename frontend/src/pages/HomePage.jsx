@@ -18,7 +18,8 @@ export default function HomePage() {
     const params = {};
     if (search.trim()) params.search = search.trim();
     if (tab) params.tab = tab;
-    if (filters.categoryId) params.categoryId = filters.categoryId;
+    if (filters.categoryIds?.length) params.categoryIds = filters.categoryIds.join(',');
+    if (filters.subcategoryIds?.length) params.subcategoryIds = filters.subcategoryIds.join(',');
     if (filters.wear?.length) params.wear = filters.wear.join(',');
     if (filters.statTrak !== null) params.statTrak = String(filters.statTrak);
     if (filters.sort) params.sort = filters.sort;
@@ -37,7 +38,7 @@ export default function HomePage() {
   }, [queryParams]);
 
   const activeFilterCount =
-    (filters.categoryId ? 1 : 0) + (filters.wear?.length || 0) + (filters.statTrak !== null ? 1 : 0) + (filters.sort ? 1 : 0);
+    (filters.categoryIds?.length || 0) + (filters.subcategoryIds?.length || 0) + (filters.wear?.length || 0) + (filters.statTrak !== null ? 1 : 0) + (filters.sort ? 1 : 0);
   const loading = items === null;
 
   return (

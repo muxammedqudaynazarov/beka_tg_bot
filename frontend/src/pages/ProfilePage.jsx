@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
@@ -55,6 +56,7 @@ function AwaitingPaymentRow({ auction, onPaid }) {
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const { user, refreshProfile } = useAuth();
   const [purchases, setPurchases] = useState(null);
   const [links, setLinks] = useState(null);
@@ -210,21 +212,23 @@ export default function ProfilePage() {
       <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">Boshqa</h2>
       <div className="divide-y divide-base-border overflow-hidden rounded-xl bg-base-surface">
         <button
-          onClick={() => links && openLink(links.privacyPolicy)}
+          onClick={() => navigate('/privacy')}
           className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
         >
           <FileText size={14} className="text-ink-secondary" />
           Maxfiylik siyosati
           <ChevronRight size={14} className="ml-auto text-ink-muted" />
         </button>
-        <button
-          onClick={() => links && openLink(links.supportBot)}
-          className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
-        >
-          <LifeBuoy size={14} className="text-ink-secondary" />
-          Yordam / Qo'llab-quvvatlash
-          <ChevronRight size={14} className="ml-auto text-ink-muted" />
-        </button>
+        {links?.supportGroupUrl && (
+          <button
+            onClick={() => openLink(links.supportGroupUrl)}
+            className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
+          >
+            <LifeBuoy size={14} className="text-ink-secondary" />
+            Yordam / Qo'llab-quvvatlash
+            <ChevronRight size={14} className="ml-auto text-ink-muted" />
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ArrowUpNarrowWide, ArrowDownNarrowWide } from 'lucide-react';
 import { api } from '../api';
@@ -12,12 +12,44 @@ function SectionTitle({ children }) {
 export default function FilterPage() {
   const navigate = useNavigate();
   const { filters, setFilters, resetFilters } = useFilters();
-  const [categories, setCategories] = useState(null); // null = hali yuklanmoqda (6-band)
+  const [categories, setCategories] = useState(null); // null = hali yuklanmoqda
   const [draft, setDraft] = useState(filters);
 
   useEffect(() => {
     api.get('/categories').then(({ data }) => setCategories(data.items || []));
   }, []);
+
+  // Faqat tanlangan kategoriyalarga tegishli sub-kategoriyalar ko'rsatiladi
+  const availableSubcategories = useMemo(() => {
+    if (!categories) return [];
+    const selected = categories.filter((c) => draft.categoryIds.includes(c.id));
+    const pool = selected.length ? selected : categories; // hech qaysi kategoriya tanlanmagan bo'lsa — hammasi
+    return pool.flatMap((c) => c.subcategories.map((s) => ({ ...s, categoryName: c.name })));
+  }, [categories, draft.categoryIds]);
+
+  function toggleCategory(id) {
+    setDraft((d) => {
+      const nowSelected = d.categoryIds.includes(id) ? d.categoryIds.filter((x) => x !== id) : [...d.categoryIds, id];
+      // Kategoriya olib tashlansa, unga tegishli sub-kategoriyalar ham tanlovdan chiqadi
+      const stillValidSubIds = new Set(
+        (categories || [])
+          .filter((c) => nowSelected.includes(c.id))
+          .flatMap((c) => c.subcategories.map((s) => s.id))
+      );
+      return {
+        ...d,
+        categoryIds: nowSelected,
+        subcategoryIds: nowSelected.length ? d.subcategoryIds.filter((id) => stillValidSubIds.has(id)) : d.subcategoryIds,
+      };
+    });
+  }
+
+  function toggleSubcategory(id) {
+    setDraft((d) => ({
+      ...d,
+      subcategoryIds: d.subcategoryIds.includes(id) ? d.subcategoryIds.filter((x) => x !== id) : [...d.subcategoryIds, id],
+    }));
+  }
 
   function toggleWear(code) {
     setDraft((d) => ({
@@ -33,7 +65,7 @@ export default function FilterPage() {
 
   function clearAll() {
     resetFilters();
-    setDraft({ categoryId: null, wear: [], statTrak: null, sort: null });
+    setDraft({ categoryIds: [], subcategoryIds: [], wear: [], statTrak: null, sort: null });
   }
 
   const loading = categories === null;
@@ -62,24 +94,16 @@ export default function FilterPage() {
         </main>
       ) : (
         <main className="space-y-6 px-4 pt-5">
-          {/* Kategoriya bo'yicha (skin/qurol nomi) */}
+          {/* Kategoriya (ko'p tanlovli) */}
           <section>
-            <SectionTitle>Qurol / kategoriya</SectionTitle>
+            <SectionTitle>Kategoriya</SectionTitle>
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setDraft((d) => ({ ...d, categoryId: null }))}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                  !draft.categoryId ? 'bg-rarity-covert text-white' : 'bg-base-surface text-ink-secondary'
-                }`}
-              >
-                Barchasi
-              </button>
               {categories.map((c) => (
                 <button
                   key={c.id}
-                  onClick={() => setDraft((d) => ({ ...d, categoryId: c.id }))}
+                  onClick={() => toggleCategory(c.id)}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                    draft.categoryId === c.id ? 'bg-rarity-covert text-white' : 'bg-base-surface text-ink-secondary'
+                    draft.categoryIds.includes(c.id) ? 'bg-rarity-covert text-white' : 'bg-base-surface text-ink-secondary'
                   }`}
                 >
                   {c.name}
@@ -87,6 +111,28 @@ export default function FilterPage() {
               ))}
             </div>
           </section>
+
+          {/* Sub-kategoriya (tanlangan kategoriya(lar)ga qarab, ko'p tanlovli) */}
+          {availableSubcategories.length > 0 && (
+            <section>
+              <SectionTitle>
+                {draft.categoryIds.length ? 'Sub-kategoriya' : 'Sub-kategoriya (barchasi)'}
+              </SectionTitle>
+              <div className="flex flex-wrap gap-2">
+                {availableSubcategories.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => toggleSubcategory(s.id)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                      draft.subcategoryIds.includes(s.id) ? 'bg-rarity-restricted text-white' : 'bg-base-surface text-ink-secondary'
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Format factory (wear) bo'yicha */}
           <section>

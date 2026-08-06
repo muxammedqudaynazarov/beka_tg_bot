@@ -8,15 +8,16 @@ const router = express.Router();
 // GET /api/auctions
 // Bosh sahifa ro'yxati. Query parametrlar 1.b-1.c bandlaridagi barcha
 // filtr/tab talablarini qamrab oladi:
-//   tab=today   -> 1.b.i "Bugun" (24 soat ichida tugaydigan)
-//   tab=new     -> 1.b.ii "Yangi" (oxirgi qo'shilganlar)
-//   search=     -> yuqoridagi qidiruv maydoni (skin nomi bo'yicha)
-//   categoryId= -> qurol/skin kategoriyasi bo'yicha filtr
-//   wear=FN,MW  -> format factory kategoriyasi bo'yicha filtr
+//   tab=today       -> 1.b.i "Bugun" (24 soat ichida tugaydigan)
+//   tab=new         -> 1.b.ii "Yangi" (oxirgi qo'shilganlar)
+//   search=         -> yuqoridagi qidiruv maydoni (skin nomi bo'yicha)
+//   categoryIds=    -> bir yoki bir nechta kategoriya ID (vergul bilan)
+//   subcategoryIds= -> bir yoki bir nechta sub-kategoriya ID (vergul bilan)
+//   wear=FN,MW      -> format factory kategoriyasi bo'yicha filtr
 //   statTrak=true/false
 //   sort=price_asc | price_desc
 router.get('/', async (req, res) => {
-  const { tab, search, categoryId, wear, statTrak, sort, cursor, take } = req.query;
+  const { tab, search, categoryIds, subcategoryIds, wear, statTrak, sort, cursor, take } = req.query;
 
   const where = { status: 'ACTIVE' };
 
@@ -27,8 +28,14 @@ router.get('/', async (req, res) => {
     // avtomatik ta'minlanadi — shuning uchun shart emas.
     where.skinName = { contains: String(search) };
   }
-  if (categoryId) {
-    where.categoryId = String(categoryId);
+  if (subcategoryIds) {
+    const ids = String(subcategoryIds).split(',').filter(Boolean);
+    if (ids.length) where.subcategoryId = { in: ids };
+  } else if (categoryIds) {
+    // Faqat kategoriya(lar) tanlangan, sub-kategoriya tanlanmagan bo'lsa —
+    // shu kategoriya(lar)ning BARCHA sub-kategoriyalariga tegishli auksionlar.
+    const ids = String(categoryIds).split(',').filter(Boolean);
+    if (ids.length) where.subcategory = { categoryId: { in: ids } };
   }
   if (wear) {
     const wears = String(wear).split(',').filter(Boolean);
@@ -53,7 +60,7 @@ router.get('/', async (req, res) => {
     orderBy,
     take: pageSize,
     ...(cursor ? { skip: 1, cursor: { id: String(cursor) } } : {}),
-    include: { category: true, _count: { select: { bids: true } } },
+    include: { subcategory: { include: { category: true } }, _count: { select: { bids: true } } },
   });
 
   res.json({
@@ -69,7 +76,7 @@ router.get('/ending-strip', async (req, res) => {
     where: { status: 'ACTIVE', endsAt: { lte: new Date(Date.now() + 24 * 60 * 60 * 1000) } },
     orderBy: { endsAt: 'asc' },
     take: 15,
-    include: { category: true },
+    include: { subcategory: { include: { category: true } } },
   });
   res.json({ items });
 });
@@ -78,7 +85,7 @@ router.get('/:id', async (req, res) => {
   const auction = await prisma.auction.findUnique({
     where: { id: req.params.id },
     include: {
-      category: true,
+      subcategory: { include: { category: true } },
       currentLeader: { select: { id: true, username: true, firstName: true } },
       bids: { orderBy: { createdAt: 'desc' }, take: 20, include: { user: { select: { username: true, firstName: true } } } },
     },
@@ -158,7 +165,7 @@ router.get('/mine/awaiting-payment', requireAuth, async (req, res) => {
   const items = await prisma.auction.findMany({
     where: { currentLeaderId: req.user.id, status: { in: ['AWAITING_PAYMENT', 'PAID'] } },
     orderBy: { paymentDueAt: 'asc' },
-    include: { category: true },
+    include: { subcategory: { include: { category: true } } },
   });
   res.json({ items });
 });

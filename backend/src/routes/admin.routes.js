@@ -14,7 +14,7 @@ router.post('/auctions', async (req, res) => {
   const {
     skinName,
     imageUrl,
-    categoryId,
+    subcategoryId,
     rarity,
     floatValue,
     wearCondition,
@@ -24,7 +24,7 @@ router.post('/auctions', async (req, res) => {
     durationMinutes,
   } = req.body || {};
 
-  if (!skinName || !imageUrl || !categoryId || !rarity || !wearCondition || !startPrice || !durationMinutes) {
+  if (!skinName || !imageUrl || !subcategoryId || !rarity || !wearCondition || !startPrice || !durationMinutes) {
     return res.status(400).json({ error: 'Barcha majburiy maydonlarni to\'ldiring.' });
   }
 
@@ -34,7 +34,7 @@ router.post('/auctions', async (req, res) => {
     data: {
       skinName,
       imageUrl,
-      categoryId,
+      subcategoryId,
       rarity,
       floatValue,
       wearCondition,
@@ -75,13 +75,13 @@ router.patch('/auctions/:id', async (req, res) => {
     });
   }
 
-  const { skinName, imageUrl, categoryId, rarity, floatValue, wearCondition, isStatTrak, startPrice, buyNowPrice } =
+  const { skinName, imageUrl, subcategoryId, rarity, floatValue, wearCondition, isStatTrak, startPrice, buyNowPrice } =
     req.body || {};
 
   const data = {};
   if (skinName !== undefined) data.skinName = skinName;
   if (imageUrl !== undefined) data.imageUrl = imageUrl;
-  if (categoryId !== undefined) data.categoryId = categoryId;
+  if (subcategoryId !== undefined) data.subcategoryId = subcategoryId;
   if (rarity !== undefined) data.rarity = rarity;
   if (floatValue !== undefined) data.floatValue = Number(floatValue);
   if (wearCondition !== undefined) data.wearCondition = wearCondition;
@@ -131,7 +131,7 @@ router.get('/auctions/awaiting-delivery', async (req, res) => {
   const items = await prisma.auction.findMany({
     where: { status: 'PAID' },
     orderBy: { paidAt: 'asc' },
-    include: { category: true, currentLeader: { select: { id: true, username: true, firstName: true, tradeUrl: true } } },
+    include: { subcategory: { include: { category: true } }, currentLeader: { select: { id: true, username: true, firstName: true, tradeUrl: true } } },
   });
   res.json({ items });
 });

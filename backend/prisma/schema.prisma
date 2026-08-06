@@ -40,7 +40,7 @@ model User {
   discountPct   Int      @default(0) // adminning tasdig'i bilan beriladigan skidka foizi (0-100)
 
   isBanned      Boolean  @default(false)
-  bannedReason  String?
+  bannedReason  String?  @db.VarChar(500)
   bannedAt      DateTime?
 
   createdAt     DateTime @default(now())
@@ -70,24 +70,42 @@ model RatingEvent {
   userId    String
   type      RatingEventType
   points    Int
-  note      String?
+  note      String?         @db.VarChar(500)
   createdAt DateTime        @default(now())
 }
 
 // ------------------------------------------------------------------
-// KATEGORIYALAR (qurol turlari: AK-47, Glock, USP-S, pichoqlar va h.k.)
+// KATEGORIYALAR VA SUB-KATEGORIYALAR
+// (masalan: "Винтовки" kategoriyasi ichida "AK-47", "AWP" sub-kategoriyalari)
 // ------------------------------------------------------------------
 
 model WeaponCategory {
-  id          String    @id @default(uuid())
-  name        String    @unique // masalan: "AK-47", "Desert Eagle", "Karambit"
-  slug        String    @unique
-  iconUrl     String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            String              @id @default(uuid())
+  name          String              @unique // masalan: "Винтовки", "Ножи"
+  slug          String              @unique
+  iconUrl       String?             @db.VarChar(500)
+  sortOrder     Int                 @default(0) // ro'yxatda qanday tartibda chiqishi
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  subcategories WeaponSubcategory[]
+}
+
+model WeaponSubcategory {
+  id          String         @id @default(uuid())
+  category    WeaponCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId  String
+  name        String // masalan: "AK-47", "Karambit"
+  slug        String
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   auctions    Auction[]
+
+  @@unique([categoryId, name]) // bitta kategoriya ichida bir xil nom takrorlanmasin
+  @@index([categoryId])
 }
 
 // ------------------------------------------------------------------
@@ -127,9 +145,9 @@ model Auction {
   id              String         @id @default(uuid())
 
   skinName        String         // masalan: "AK-47 | Redline"
-  imageUrl        String
-  category        WeaponCategory @relation(fields: [categoryId], references: [id])
-  categoryId      String
+  imageUrl        String         @db.VarChar(1000) // ba'zi CDN havolalari uzun bo'ladi — 191 (standart) yetarli emas edi
+  subcategory     WeaponSubcategory @relation(fields: [subcategoryId], references: [id])
+  subcategoryId   String
 
   rarity          SkinRarity
   floatValue      Decimal        @db.Decimal(9, 7) // masalan 0.1325410
@@ -171,7 +189,7 @@ model Auction {
 
   @@index([status])
   @@index([endsAt])
-  @@index([categoryId])
+  @@index([subcategoryId])
   @@index([rarity])
 }
 
@@ -227,7 +245,7 @@ model Transaction {
   clickPaydocId   String?
   merchantTransId String?            @unique // bizning tizimdagi noyob buyurtma raqami
 
-  note            String?
+  note            String?            @db.VarChar(500)
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
