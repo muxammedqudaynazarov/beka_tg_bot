@@ -22,11 +22,6 @@ const env = {
 
   userBotToken: process.env.USER_BOT_TOKEN || '',
   adminBotToken: process.env.ADMIN_BOT_TOKEN || '',
-  // Ba'zi serverlar/provayderlarda api.telegram.org tarmoq darajasida
-  // bloklangan yoki ulanolmaydi bo'ladi (ETIMEDOUT). Shunday holatda bu yerga
-  // SOCKS5 yoki HTTP proksi manzilini yozing, masalan:
-  //   socks5://user:parol@host:1080  yoki  http://host:8080
-  telegramProxyUrl: process.env.TELEGRAM_PROXY_URL || '',
   miniAppUrl: process.env.MINI_APP_URL || 'http://localhost:5173',
   adminMiniAppUrl: process.env.ADMIN_MINI_APP_URL || 'http://localhost:5174',
   superadminTelegramIds: (process.env.SUPERADMIN_TELEGRAM_IDS || '')

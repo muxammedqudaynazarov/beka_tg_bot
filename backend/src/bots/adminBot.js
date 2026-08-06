@@ -1,7 +1,6 @@
 const { Telegraf, Markup, Scenes, session } = require('telegraf');
 const { env } = require('../config/env');
 const prisma = require('../db/prisma');
-const { buildTelegrafOptions } = require('./telegrafOptions');
 const { safeUpsertUser } = require('../services/userService');
 
 // 2-band: bu ALOHIDA bot (masalan @cs2admin_auksion_bot), lekin xuddi shu
@@ -352,7 +351,7 @@ function createAdminBot() {
     return null;
   }
 
-  const bot = new Telegraf(env.adminBotToken, buildTelegrafOptions());
+  const bot = new Telegraf(env.adminBotToken);
 
   // Foydalanuvchi botidagi kabi — doimiy Menu tugmasi (initData to'g'ri
   // ishlashi uchun; batafsil izoh userBot.js'da).

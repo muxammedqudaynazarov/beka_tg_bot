@@ -1,7 +1,6 @@
 const { Telegraf, Markup } = require('telegraf');
 const { env } = require('../config/env');
 const prisma = require('../db/prisma');
-const { buildTelegrafOptions } = require('./telegrafOptions');
 const { safeUpsertUser } = require('../services/userService');
 
 // 1.d-band: "Botni birinchi marotaba ishga tushirgan foydalanuvchi avtomatik
@@ -16,7 +15,7 @@ function createUserBot() {
     return null;
   }
 
-  const bot = new Telegraf(env.userBotToken, buildTelegrafOptions());
+  const bot = new Telegraf(env.userBotToken);
 
   // Xabar yozish maydoni yonidagi doimiy "Menu" tugmasi — bu ham initData'ni
   // to'g'ri to'ldiradigan usullardan biri (inline tugma bilan bir qatorda) va
