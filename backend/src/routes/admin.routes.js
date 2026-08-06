@@ -53,6 +53,51 @@ router.post('/auctions', async (req, res) => {
   res.status(201).json(auction);
 });
 
+// 2-band foydalanuvchi so'rovi: auksion materialini (rasm, nom, kategoriya,
+// kamyoblik, format factory, StatTrak, boshlang'ich narx) to'liq tahrirlash.
+// XAVFSIZLIK QOIDASI: bu FAQAT hali birorta ham taklif kelmagan auksionlarda
+// ruxsat etiladi — aks holda kimdir allaqachon "AK-47 Redline"ga narx
+// taklif qilgan bo'lishi mumkin, admin uni butunlay boshqa skinga
+// almashtirib qo'ysa, bu taklif beruvchilar uchun adolatsizlik bo'ladi.
+// Taklif kelib bo'lgan auksionlar uchun faqat vaqtni o'zgartirish/bekor
+// qilish mumkin (pastdagi /time va /cancel endpointlari).
+router.patch('/auctions/:id', async (req, res) => {
+  const existing = await prisma.auction.findUnique({
+    where: { id: req.params.id },
+    include: { _count: { select: { bids: true } } },
+  });
+  if (!existing) return res.status(404).json({ error: 'Auksion topilmadi.' });
+  if (existing._count.bids > 0) {
+    return res.status(400).json({
+      error:
+        'Bu auksionga allaqachon taklif(lar) kelgan — endi asosiy ma\'lumotlarini o\'zgartirib bo\'lmaydi ' +
+        '(adolatsizlikning oldini olish uchun). Faqat vaqtini o\'zgartirish yoki bekor qilish mumkin.',
+    });
+  }
+
+  const { skinName, imageUrl, categoryId, rarity, floatValue, wearCondition, isStatTrak, startPrice, buyNowPrice } =
+    req.body || {};
+
+  const data = {};
+  if (skinName !== undefined) data.skinName = skinName;
+  if (imageUrl !== undefined) data.imageUrl = imageUrl;
+  if (categoryId !== undefined) data.categoryId = categoryId;
+  if (rarity !== undefined) data.rarity = rarity;
+  if (floatValue !== undefined) data.floatValue = Number(floatValue);
+  if (wearCondition !== undefined) data.wearCondition = wearCondition;
+  if (isStatTrak !== undefined) data.isStatTrak = Boolean(isStatTrak);
+  if (buyNowPrice !== undefined) data.buyNowPrice = buyNowPrice === '' || buyNowPrice === null ? null : Number(buyNowPrice);
+  if (startPrice !== undefined) {
+    // Hali taklif yo'q bo'lgani uchun currentPrice ham startPrice bilan birga yangilanadi
+    data.startPrice = Number(startPrice);
+    data.currentPrice = Number(startPrice);
+  }
+
+  const auction = await prisma.auction.update({ where: { id: req.params.id }, data });
+  await logAction(req.user.id, 'AUCTION_EDITED', 'Auction', auction.id, data);
+  res.json(auction);
+});
+
 // 3.b-band: Auksion vaqtini o'zgartirish (cho'zish / qisqartirish / bekor qilish)
 router.patch('/auctions/:id/time', async (req, res) => {
   const { newEndsAt } = req.body || {};

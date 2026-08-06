@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
     orderBy,
     take: pageSize,
     ...(cursor ? { skip: 1, cursor: { id: String(cursor) } } : {}),
-    include: { category: true },
+    include: { category: true, _count: { select: { bids: true } } },
   });
 
   res.json({

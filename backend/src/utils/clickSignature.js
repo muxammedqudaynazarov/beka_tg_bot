@@ -2,13 +2,10 @@ const crypto = require('crypto');
 const { env } = require('../config/env');
 
 /**
- * DIQQAT: Click.uz "Shop API" (Prepare/Complete) imzo formulasi quyida
- * ko'plab rasmiy Click SDK'larida (PHP, Python, Node) qo'llanilgan umumiy
- * ko'rinishda keltirilgan. Loyihani ishlab chiqarishga (production) chiqarishdan
- * oldin buni albatta https://docs.click.uz dagi eng so'nggi hujjat va
- * merchant kabinetingizdagi "test to'lov" vositasi bilan solishtirib tekshiring —
- * chunki bu README yozilgan paytda docs.click.uz saytiga avtomatik so'rov
- * yuborib bo'lmadi (robots.txt cheklaydi).
+ * Click.uz "Shop API" (Prepare/Complete) imzo formulasi rasman
+ * https://docs.click.uz/en/click-api-request/ hujjatidan tasdiqlangan:
+ *   Prepare:  md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + amount + action + sign_time)
+ *   Complete: md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + merchant_prepare_id + amount + action + sign_time)
  */
 
 function md5(str) {
@@ -17,10 +14,14 @@ function md5(str) {
 
 /**
  * "Prepare" bosqichi (action = 0) uchun kutilayotgan imzoni hisoblaydi.
+ * MUHIM: Click POST so'rovida maydonlarni snake_case ko'rinishida yuboradi
+ * (click_trans_id, service_id va h.k.) — shu nomlarning aynan o'zi bilan
+ * o'qilishi shart, aks holda barcha qiymatlar "undefined" bo'lib qoladi.
  */
-function buildPrepareSignString({ clickTransId, serviceId, merchantTransId, amount, action, signTime }) {
+function buildPrepareSignString(body) {
+  const { click_trans_id, service_id, merchant_trans_id, amount, action, sign_time } = body;
   return md5(
-    `${clickTransId}${serviceId}${env.click.secretKey}${merchantTransId}${amount}${action}${signTime}`
+    `${click_trans_id}${service_id}${env.click.secretKey}${merchant_trans_id}${amount}${action}${sign_time}`
   );
 }
 
@@ -28,17 +29,10 @@ function buildPrepareSignString({ clickTransId, serviceId, merchantTransId, amou
  * "Complete" bosqichi (action = 1) uchun kutilayotgan imzoni hisoblaydi
  * (merchant_prepare_id ham qo'shiladi).
  */
-function buildCompleteSignString({
-  clickTransId,
-  serviceId,
-  merchantTransId,
-  merchantPrepareId,
-  amount,
-  action,
-  signTime,
-}) {
+function buildCompleteSignString(body) {
+  const { click_trans_id, service_id, merchant_trans_id, merchant_prepare_id, amount, action, sign_time } = body;
   return md5(
-    `${clickTransId}${serviceId}${env.click.secretKey}${merchantTransId}${merchantPrepareId}${amount}${action}${signTime}`
+    `${click_trans_id}${service_id}${env.click.secretKey}${merchant_trans_id}${merchant_prepare_id}${amount}${action}${sign_time}`
   );
 }
 

@@ -1,13 +1,92 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
+import { RARITIES, WEARS, formatSom } from '../constants';
 
-function formatSom(n) {
-  return `${Number(n || 0).toLocaleString('uz-UZ')} so'm`;
+const inputCls =
+  'w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none';
+
+function EditAuctionForm({ auction, onDone, onCancelEdit }) {
+  const [form, setForm] = useState({
+    skinName: auction.skinName,
+    imageUrl: auction.imageUrl,
+    categoryId: auction.categoryId,
+    rarity: auction.rarity,
+    floatValue: auction.floatValue,
+    wearCondition: auction.wearCondition,
+    isStatTrak: auction.isStatTrak,
+    startPrice: auction.startPrice,
+  });
+  const [categories, setCategories] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/categories').then(({ data }) => setCategories(data.items || []));
+  }, []);
+
+  function set(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.patch(`/admin/auctions/${auction.id}`, {
+        ...form,
+        floatValue: Number(form.floatValue),
+        startPrice: Number(form.startPrice),
+      });
+      showAlert('✅ Saqlandi.');
+      onDone();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Xatolik yuz berdi.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 space-y-2 rounded-md border border-accent/40 bg-bg p-2.5">
+      <input className={inputCls} value={form.skinName} onChange={(e) => set('skinName', e.target.value)} placeholder="Skin nomi" />
+      <input className={inputCls} value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} placeholder="Rasm URL" />
+      {form.imageUrl && (
+        <img src={form.imageUrl} alt="" className="h-16 w-16 rounded border border-border bg-surface object-contain p-1" onError={(e) => (e.target.style.display = 'none')} />
+      )}
+      <select className={inputCls} value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
+        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+      <div className="grid grid-cols-2 gap-2">
+        <select className={inputCls} value={form.rarity} onChange={(e) => set('rarity', e.target.value)}>
+          {RARITIES.map((r) => <option key={r.v} value={r.v}>{r.l}</option>)}
+        </select>
+        <input className={inputCls} type="number" step="0.0000001" min="0" max="1" value={form.floatValue} onChange={(e) => set('floatValue', e.target.value)} placeholder="Float" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <select className={inputCls} value={form.wearCondition} onChange={(e) => set('wearCondition', e.target.value)}>
+          {WEARS.map((w) => <option key={w} value={w}>{w}</option>)}
+        </select>
+        <label className="flex items-center gap-2 rounded-md border border-border bg-surface px-2">
+          <input type="checkbox" checked={form.isStatTrak} onChange={(e) => set('isStatTrak', e.target.checked)} />
+          <span className="text-xs text-ink">StatTrak™</span>
+        </label>
+      </div>
+      <input className={inputCls} type="number" min="0" value={form.startPrice} onChange={(e) => set('startPrice', e.target.value)} placeholder="Boshlang'ich narx" />
+      <div className="flex gap-2">
+        <button onClick={onCancelEdit} className="flex-1 rounded-md bg-surface py-1.5 text-xs font-medium text-muted border border-border">
+          Bekor
+        </button>
+        <button onClick={save} disabled={saving} className="flex-1 rounded-md bg-accent py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+          {saving ? 'Saqlanmoqda…' : 'Saqlash'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function ActiveAuctionRow({ auction, onChanged }) {
   const [minutes, setMinutes] = useState('');
+  const [editing, setEditing] = useState(false);
+  const hasBids = (auction._count?.bids || 0) > 0;
 
   async function changeTime() {
     const m = Number(minutes);
@@ -33,26 +112,48 @@ function ActiveAuctionRow({ auction, onChanged }) {
 
   return (
     <div className="rounded-lg border border-border p-3">
-      <p className="text-sm font-medium text-ink">{auction.skinName}</p>
-      <p className="mt-0.5 text-xs text-muted">
-        Joriy narx: {formatSom(auction.currentPrice)} · Tugaydi: {new Date(auction.endsAt).toLocaleString('uz-UZ')}
-      </p>
-      <div className="mt-2 flex gap-2">
-        <input
-          type="number"
-          min="0"
-          value={minutes}
-          onChange={(e) => setMinutes(e.target.value)}
-          placeholder="Necha daqiqadan keyin tugasin"
-          className="flex-1 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-        />
-        <button onClick={changeTime} className="rounded-md bg-surface px-3 py-1.5 text-xs font-medium text-ink border border-border">
-          Vaqtni o'zgartirish
-        </button>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium text-ink">{auction.skinName}</p>
+          <p className="mt-0.5 text-xs text-muted">
+            Joriy narx: {formatSom(auction.currentPrice)} · Tugaydi: {new Date(auction.endsAt).toLocaleString('uz-UZ')}
+          </p>
+        </div>
+        {!hasBids && !editing && (
+          <button onClick={() => setEditing(true)} className="shrink-0 rounded-md bg-surface px-2.5 py-1 text-xs font-medium text-ink border border-border">
+            ✏️ Tahrirlash
+          </button>
+        )}
       </div>
-      <button onClick={cancel} className="mt-2 w-full rounded-md bg-danger/10 py-1.5 text-xs font-medium text-danger">
-        Bekor qilish
-      </button>
+
+      {hasBids && (
+        <p className="mt-1 text-[10px] text-warning">
+          Bu auksionga taklif(lar) kelgan — asosiy ma'lumotlarini o'zgartirib bo'lmaydi, faqat vaqti.
+        </p>
+      )}
+
+      {editing ? (
+        <EditAuctionForm auction={auction} onDone={() => { setEditing(false); onChanged(); }} onCancelEdit={() => setEditing(false)} />
+      ) : (
+        <>
+          <div className="mt-2 flex gap-2">
+            <input
+              type="number"
+              min="0"
+              value={minutes}
+              onChange={(e) => setMinutes(e.target.value)}
+              placeholder="Necha daqiqadan keyin tugasin"
+              className={inputCls}
+            />
+            <button onClick={changeTime} className="shrink-0 rounded-md bg-surface px-3 py-1.5 text-xs font-medium text-ink border border-border">
+              Vaqtni o'zgartirish
+            </button>
+          </div>
+          <button onClick={cancel} className="mt-2 w-full rounded-md bg-danger/10 py-1.5 text-xs font-medium text-danger">
+            Bekor qilish
+          </button>
+        </>
+      )}
     </div>
   );
 }

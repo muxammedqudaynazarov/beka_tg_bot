@@ -252,4 +252,3 @@ Ushbu kod bazasi ishlaydigan **MVP skeleti** sifatida tayyorlangan va texnik top
 - Auksion bekor qilinganda barcha aktiv zakladlarni avtomatik qaytarish (`admin.routes.js`dagi TODO'ga qarang).
 - Frontend uchun xatoliklarni ushlash (error boundary) va offline holat ko'rsatkichi.
 - Rate limiting (masalan `express-rate-limit`) — ayniqsa `/bid`, `/complete-payment` va `/auth/telegram*` endpointlari uchun.
-# beka_tg_bot
