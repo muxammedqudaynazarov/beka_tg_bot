@@ -4,7 +4,7 @@ import {Home, SlidersHorizontal, Wallet, User} from 'lucide-react';
 const ITEMS = [
     {to: '/', label: 'Главная', icon: Home, end: true},
     {to: '/filter', label: 'Фильтр', icon: SlidersHorizontal},
-    {to: '/payment', label: 'Оплата', icon: Wallet},
+    {to: '/payment', label: 'Платежи', icon: Wallet},
     {to: '/profile', label: 'Профил', icon: User},
 ];
 

@@ -124,7 +124,7 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
     if (availableBalance < additionalHoldNeeded) {
       throw new AuctionError(
         'INSUFFICIENT_BALANCE',
-        `Balansingiz yetarli emas. Narx oshirish uchun yana ${additionalHoldNeeded.toLocaleString('uz-UZ')} so'm zaklad kerak. Iltimos, "To'lov" bo'limidan hisobingizni to'ldiring.`
+        `На вашем балансе недостаточно средств. Вам необходимо внести ${additionalHoldNeeded.toLocaleString('uz-UZ')} сумов, чтобы увеличить цену. Пожалуйста, пополните свой счет в разделе «Платежи».`
       );
     }
 
