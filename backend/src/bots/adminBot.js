@@ -2,6 +2,7 @@ const { Telegraf, Markup, Scenes, session } = require('telegraf');
 const { env } = require('../config/env');
 const prisma = require('../db/prisma');
 const { buildTelegrafOptions } = require('./telegrafOptions');
+const { safeUpsertUser } = require('../services/userService');
 
 // 2-band: bu ALOHIDA bot (masalan @cs2admin_auksion_bot), lekin xuddi shu
 // backend jarayoni ichida ishlaydi va xuddi shu ma'lumotlar bazasidan
@@ -25,7 +26,7 @@ const WEARS = ['FN', 'MW', 'FT', 'WW', 'BS'];
 async function isAdminTelegramUser(telegramId) {
   if (env.superadminTelegramIds.includes(String(telegramId))) {
     // Superadmin ro'yxatidagi ID birinchi marta yozilganda avtomatik SUPERADMIN qilinadi
-    const user = await prisma.user.upsert({
+    const user = await safeUpsertUser({
       where: { telegramId: BigInt(telegramId) },
       update: { role: 'SUPERADMIN' },
       create: { telegramId: BigInt(telegramId), role: 'SUPERADMIN' },

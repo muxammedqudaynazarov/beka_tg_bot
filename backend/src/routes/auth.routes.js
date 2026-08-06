@@ -3,6 +3,7 @@ const prisma = require('../db/prisma');
 const { env } = require('../config/env');
 const { verifyTelegramInitData } = require('../utils/telegramInitData');
 const { signSession } = require('../middleware/auth');
+const { safeUpsertUser } = require('../services/userService');
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.post('/telegram', async (req, res) => {
 
   const isSuperadmin = env.superadminTelegramIds.includes(String(tgUser.id));
 
-  const user = await prisma.user.upsert({
+  const user = await safeUpsertUser({
     where: { telegramId: BigInt(tgUser.id) },
     update: {
       username: tgUser.username || null,
@@ -76,7 +77,7 @@ router.post('/telegram-admin', async (req, res) => {
   let user = await prisma.user.findUnique({ where: { telegramId: BigInt(tgUser.id) } });
 
   if (isSuperadmin) {
-    user = await prisma.user.upsert({
+    user = await safeUpsertUser({
       where: { telegramId: BigInt(tgUser.id) },
       update: { role: 'SUPERADMIN', username: tgUser.username || null, firstName: tgUser.first_name || null },
       create: {

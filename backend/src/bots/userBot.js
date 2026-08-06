@@ -2,6 +2,7 @@ const { Telegraf, Markup } = require('telegraf');
 const { env } = require('../config/env');
 const prisma = require('../db/prisma');
 const { buildTelegrafOptions } = require('./telegrafOptions');
+const { safeUpsertUser } = require('../services/userService');
 
 // 1.d-band: "Botni birinchi marotaba ishga tushirgan foydalanuvchi avtomatik
 // botni ishlata olsin, avtoregistratsiya qilinsin". Asosiy ro'yxatdan o'tish
@@ -26,7 +27,7 @@ function createUserBot() {
 
   bot.start(async (ctx) => {
     const tg = ctx.from;
-    await prisma.user.upsert({
+    await safeUpsertUser({
       where: { telegramId: BigInt(tg.id) },
       update: { username: tg.username || null, firstName: tg.first_name || null, lastName: tg.last_name || null },
       create: {
