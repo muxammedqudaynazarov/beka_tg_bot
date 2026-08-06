@@ -16,7 +16,7 @@ function AuthGate({ children }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-ink-secondary">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-rarity-covert border-t-transparent" />
-        <p className="font-display text-sm">Yuklanmoqda…</p>
+        <p className="font-display text-sm">Загрузка…</p>
       </div>
     );
   }
@@ -24,7 +24,7 @@ function AuthGate({ children }) {
   if (status === 'error') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 px-6 text-center">
-        <p className="font-display text-base font-semibold text-ink-primary">Kirib bo'lmadi</p>
+        <p className="font-display text-base font-semibold text-ink-primary">Не удалось войти в систему</p>
         <p className="text-sm text-ink-secondary">{error}</p>
       </div>
     );

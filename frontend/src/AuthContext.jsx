@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
       if (!initData) {
         // Telegram tashqarisida (masalan brauzerda dasturchi ko'rib chiqayotganda) ochilgan.
         setStatus('error');
-        setError('Bu ilova faqat Telegram ichida (Mini App sifatida) to\'liq ishlaydi.');
+        setError('Это приложение полностью функционирует только внутри Telegram (в виде мини-приложения).');
         return;
       }
 
@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
         setStatus('ready');
       } catch (err) {
         setStatus('error');
-        setError(err.response?.data?.error || 'Kirishda xatolik yuz berdi.');
+        setError(err.response?.data?.error || 'Произошла ошибка при входе в систему.');
       }
     })();
   }, []);

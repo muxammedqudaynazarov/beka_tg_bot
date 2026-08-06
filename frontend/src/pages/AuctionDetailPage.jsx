@@ -215,14 +215,16 @@ export default function AuctionDetailPage() {
                 <div className="rounded-2xl bg-base-surface p-4 shadow-glow">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] uppercase tracking-wide text-ink-secondary">Joriy narx</p>
-                            <p className={`font-mono text-2xl font-bold text-ink-primary ${pulse ? 'animate-pulse-price' : ''}`}>
+                            <p className="text-[10px] uppercase tracking-wide text-ink-secondary">Текущая цена</p>
+                            <p className={`font-mono text-xl font-bold text-ink-primary ${pulse ? 'animate-pulse-price' : ''}`}>
                                 {formatSom(auction.currentPrice)}
                             </p>
                         </div>
                         {isBiddingOpen && (
                             <div className="text-right">
-                                <p className="text-[10px] uppercase tracking-wide text-ink-secondary">Qolgan vaqt</p>
+                                <p className="text-[10px] uppercase tracking-wide text-ink-secondary">
+                                    Оставшееся время
+                                </p>
                                 <p className="font-mono text-base font-bold tabular-nums text-signal-danger">
                                     <span key={countdownLabel} className="countdown-flash">{countdownLabel}</span>
                                 </p>
@@ -234,7 +236,7 @@ export default function AuctionDetailPage() {
                             <TrendingUp size={12}/>
                             Лидер: {' '}
                             <span className="font-semibold text-ink-primary">
-                {isLeader ? 'Siz' : auction.currentLeader.username ? `@${auction.currentLeader.username}` : auction.currentLeader.firstName}
+                {isLeader ? 'Вы' : auction.currentLeader.username ? `@${auction.currentLeader.username}` : auction.currentLeader.firstName}
               </span>
                         </p>
                     )}
@@ -259,7 +261,7 @@ export default function AuctionDetailPage() {
                             <span className="font-mono">{formatSom(nextRaiseAmount)}</span>
                         </button>
                         <p className="text-center text-[10px] text-ink-muted">
-                            Zaklad: ~{formatSom(requiredDeposit)}
+                            Залоговая сумма: ~{formatSom(requiredDeposit)}
                             {isLeader && ` · Ketma-ket oshirish: ${auction.consecutiveRaises}/${MAX_CONSECUTIVE}`}
                         </p>
                         {consecutiveBlocked && (

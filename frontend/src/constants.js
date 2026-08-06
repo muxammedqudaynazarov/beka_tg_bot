@@ -9,11 +9,11 @@ export const RARITY_META = {
 };
 
 export const WEAR_LABELS = {
-    FN: 'Прямо с завода',
-    MW: 'Немного поношенное',
-    FT: 'После полевых испытаний',
-    WW: 'Поношенное',
-    BS: 'Закаленное в боях',
+    FN: 'Factory New',
+    MW: 'Minimal Wear',
+    FT: 'Field-Tested',
+    WW: 'Well-Worn',
+    BS: 'Battle-Scarred',
 };
 
 export function formatSom(amount) {

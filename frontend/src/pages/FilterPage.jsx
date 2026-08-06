@@ -189,7 +189,7 @@ export default function FilterPage() {
                                     draft.sort === 'price_asc' ? 'bg-rarity-covert text-white' : 'bg-base-surface text-ink-secondary'
                                 }`}
                             >
-                                <ArrowUpNarrowWide size={13}/> От дешёвого к дорогому
+                                <ArrowUpNarrowWide size={13}/> От дешёвого
                             </button>
                             <button
                                 onClick={() => setDraft((d) => ({
@@ -200,7 +200,7 @@ export default function FilterPage() {
                                     draft.sort === 'price_desc' ? 'bg-rarity-covert text-white' : 'bg-base-surface text-ink-secondary'
                                 }`}
                             >
-                                <ArrowDownNarrowWide size={13}/> От дорогих к дешевым
+                                <ArrowDownNarrowWide size={13}/> От дорогих
                             </button>
                         </div>
                     </section>
