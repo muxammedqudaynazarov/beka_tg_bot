@@ -7,7 +7,7 @@ import { useAuctionSocket } from '../hooks/useAuctionSocket';
 import { useCountdownDHMS } from '../hooks/useCountdown';
 import { hapticNotification, showAlert } from '../telegram';
 import RarityBadge from '../components/RarityBadge';
-import { WEAR_LABELS, formatSom, AUCTION_STATUS_META } from '../constants';
+import { WEAR_LABELS, formatSom, AUCTION_STATUS_META, RARITY_META } from '../constants';
 
 const DEPOSIT_PERCENT = 25; // backend .env AUCTION_DEPOSIT_PERCENT bilan mos — faqat ko'rsatish uchun
 const MAX_CONSECUTIVE = 10;
@@ -137,6 +137,7 @@ export default function AuctionDetailPage() {
 
   const isLeader = auction.currentLeaderId === user?.id;
   const currentPrice = Number(auction.currentPrice);
+  const rarityMeta = RARITY_META[auction.rarity] || RARITY_META.CONSUMER;
   const suggestedStep = Math.max(Math.round(currentPrice * 0.05), 1000);
   const nextRaiseAmount = currentPrice + suggestedStep;
   const requiredDeposit = Math.round((nextRaiseAmount * DEPOSIT_PERCENT) / 100);
@@ -168,7 +169,10 @@ export default function AuctionDetailPage() {
         <h1 className="truncate font-display text-sm font-bold text-ink-primary">{auction.skinName}</h1>
       </header>
 
-      <div className="flex aspect-[4/3] items-center justify-center bg-base-surface">
+      <div
+        className="flex aspect-[4/3] items-center justify-center bg-base-surface"
+        style={{ border: `2px solid ${rarityMeta.color}` }}
+      >
         <img src={auction.imageUrl} alt={auction.skinName} className="h-full w-full object-contain p-8" />
       </div>
 

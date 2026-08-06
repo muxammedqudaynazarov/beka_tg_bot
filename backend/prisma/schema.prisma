@@ -150,7 +150,7 @@ model Auction {
   subcategoryId   String
 
   rarity          SkinRarity
-  floatValue      Decimal        @db.Decimal(9, 7) // masalan 0.1325410
+  floatValue      Decimal        @db.Decimal(19, 17) // masalan 0.12488003100 — haqiqiy CS2 float qiymatlari 7 xonadan ko'proq bo'lishi mumkin
   wearCondition   WearCondition
   isStatTrak      Boolean        @default(false)
 

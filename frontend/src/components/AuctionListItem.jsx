@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import RarityBadge from './RarityBadge';
-import { RARITY_META, WEAR_LABELS, formatSom } from '../constants';
+import { RARITY_META, formatSom } from '../constants';
 import { useCountdownDHMS } from '../hooks/useCountdown';
 
 export default function AuctionListItem({ auction }) {
@@ -35,7 +35,7 @@ export default function AuctionListItem({ auction }) {
         <div className="mb-0.5 flex items-center gap-1.5">
           <RarityBadge rarity={auction.rarity} />
           <span className="truncate font-mono text-[10px] text-ink-muted">
-            {WEAR_LABELS[auction.wearCondition]} · {Number(auction.floatValue).toFixed(3)}
+            {auction.wearCondition} · {Number(auction.floatValue).toFixed(4)}
           </span>
         </div>
         <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">

@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const prisma = require('../db/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { buildCheckoutUrl, checkPaymentStatusByMerchantTransId } = require('../services/clickPaymentService');
+const { buildCheckoutUrl, checkClickPaymentStatus } = require('../services/clickPaymentService');
 const { isClickSignatureValid } = require('../utils/clickSignature');
 
 const router = express.Router();
@@ -186,7 +186,8 @@ router.post('/:id/check-status', requireAuth, async (req, res) => {
     return res.json({ status: 'SUCCESS', message: 'Bu to\'lov allaqachon tasdiqlangan.' });
   }
 
-  const result = await checkPaymentStatusByMerchantTransId(tx.merchantTransId);
+  console.log(`[check-status] Boshlanmoqda: tx=${tx.id}, clickTransId=${tx.clickTransId || '(yo\'q)'}, merchantTransId=${tx.merchantTransId}`);
+  const result = await checkClickPaymentStatus(tx);
   if (!result.ok) {
     return res.status(502).json({ error: `Click bilan bog'lanib bo'lmadi: ${result.error}` });
   }

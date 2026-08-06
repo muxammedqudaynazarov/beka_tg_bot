@@ -116,7 +116,7 @@ export default function NewAuctionPage() {
           <input
             className={inputCls}
             type="number"
-            step="0.0000001"
+            step="any"
             min="0"
             max="1"
             value={form.floatValue}

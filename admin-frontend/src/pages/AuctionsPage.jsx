@@ -68,7 +68,7 @@ function EditAuctionForm({ auction, onDone, onCancelEdit }) {
         <select className={inputCls} value={form.rarity} onChange={(e) => set('rarity', e.target.value)}>
           {RARITIES.map((r) => <option key={r.v} value={r.v}>{r.l}</option>)}
         </select>
-        <input className={inputCls} type="number" step="0.0000001" min="0" max="1" value={form.floatValue} onChange={(e) => set('floatValue', e.target.value)} placeholder="Float" />
+        <input className={inputCls} type="number" step="any" min="0" max="1" value={form.floatValue} onChange={(e) => set('floatValue', e.target.value)} placeholder="Float" />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <select className={inputCls} value={form.wearCondition} onChange={(e) => set('wearCondition', e.target.value)}>
