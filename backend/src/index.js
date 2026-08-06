@@ -39,7 +39,10 @@ BigInt.prototype.toJSON = function () {
 // FRONTEND_URL bilan qo'lda sinxron tutish oson unutiladi.
 function isAllowedOrigin(origin) {
   if (!origin) return true; // server-server so'rovlar, curl, Postman va h.k.
+  // Ikkala Mini App'ning HAM manziliga ruxsat berilishi kerak — foydalanuvchi
+  // frontend'i VA admin frontend'i ikkita mutlaqo boshqa domen/subdomen.
   if (origin === env.frontendUrl) return true;
+  if (origin === env.adminMiniAppUrl) return true;
   if (env.nodeEnv !== 'production') {
     try {
       if (new URL(origin).hostname.endsWith('.ngrok-free.app')) return true;
