@@ -43,7 +43,7 @@ function PaymentPanel({ auction, isLeader, onChanged }) {
       <div className="space-y-2.5 rounded-2xl border border-signal-warning/40 bg-signal-warning/5 p-4">
         <p className="text-center text-xs text-signal-warning">
           <Clock size={13} className="mr-1 inline" />
-          Qolgan to'lovni <span className="font-mono font-bold">{dueCountdown}</span> ichida yakunlang
+          Qolgan to'lovni <span key={dueCountdown} className="countdown-flash font-mono font-bold">{dueCountdown}</span> ichida yakunlang
         </p>
         <button
           onClick={completePayment}
@@ -170,8 +170,8 @@ export default function AuctionDetailPage() {
       </header>
 
       <div
-        className="flex aspect-[4/3] items-center justify-center bg-base-surface"
-        style={{ border: `2px solid ${rarityMeta.color}` }}
+        className="mx-4 mt-4 flex aspect-[4/3] items-center justify-center bg-base-surface"
+        style={{ border: `2px solid ${rarityMeta.color}`, borderRadius: '16px', overflow: 'hidden' }}
       >
         <img src={auction.imageUrl} alt={auction.skinName} className="h-full w-full object-contain p-8" />
       </div>
@@ -206,7 +206,9 @@ export default function AuctionDetailPage() {
             {isBiddingOpen && (
               <div className="text-right">
                 <p className="text-[10px] uppercase tracking-wide text-ink-secondary">Qolgan vaqt</p>
-                <p className="font-mono text-base font-bold tabular-nums text-signal-danger">{countdownLabel}</p>
+                <p className="font-mono text-base font-bold tabular-nums text-signal-danger">
+                  <span key={countdownLabel} className="countdown-flash">{countdownLabel}</span>
+                </p>
               </div>
             )}
           </div>

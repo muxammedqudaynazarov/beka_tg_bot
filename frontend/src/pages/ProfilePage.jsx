@@ -42,7 +42,7 @@ function AwaitingPaymentRow({ auction, onPaid }) {
     <div className="rounded-xl border border-signal-warning/40 bg-signal-warning/5 px-3.5 py-3">
       <p className="font-display text-xs font-semibold text-ink-primary">{auction.skinName}</p>
       <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-signal-warning">
-        <Clock size={11} /> {countdown} ichida to'lang
+        <Clock size={11} /> <span key={countdown} className="countdown-flash">{countdown}</span> ichida to'lang
       </p>
       <button
         onClick={completePayment}

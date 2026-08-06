@@ -13,8 +13,11 @@ export default function AuctionListItem({ auction }) {
   return (
     <button
       onClick={() => navigate(`/auction/${auction.id}`)}
-      className="flex w-full items-center gap-3 rounded-lg bg-base-surface px-2.5 py-2.5 text-left active:scale-[0.99]"
-      style={{ borderLeft: `3px solid ${meta.color}` }}
+      className="flex w-full items-center gap-3 rounded-lg bg-base-surface px-2.5 py-2.5 text-left transition-transform active:scale-[0.99]"
+      style={{
+        borderLeft: `3px solid ${meta.color}`,
+        backgroundImage: `linear-gradient(90deg, ${meta.color}14, transparent 45%)`,
+      }}
     >
       <div className="relative h-14 w-14 shrink-0 rounded-md bg-base-surface2">
         <img
@@ -42,13 +45,15 @@ export default function AuctionListItem({ auction }) {
           {auction.skinName}
         </h3>
         <p className={`mt-0.5 font-mono text-[11px] font-medium tabular-nums ${urgent ? 'text-signal-danger' : 'text-ink-secondary'}`}>
-          {countdown}
+          <span key={countdown} className="countdown-flash">{countdown}</span>
         </p>
       </div>
 
       <div className="shrink-0 text-right">
         <p className="text-[9px] uppercase tracking-wide text-ink-muted">Narx</p>
-        <p className="font-mono text-[13px] font-bold text-ink-primary">{formatSom(auction.currentPrice)}</p>
+        <p className="font-mono text-[13px] font-bold" style={{ color: meta.color }}>
+          {formatSom(auction.currentPrice)}
+        </p>
       </div>
     </button>
   );

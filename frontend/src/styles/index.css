@@ -41,6 +41,18 @@ body {
   animation: pulse-price 0.4s ease-out;
 }
 
+/* Countdown har soniya yangilanganda text-shadow "yonib-o'chish" effekti.
+   Bu span'ga React tomonidan key={label} berilgani uchun har o'zgarishda
+   qayta yaratiladi va animatsiya boshidan qayta ishga tushadi. */
+@keyframes countdown-flash {
+  0% { text-shadow: 0 0 10px currentColor; }
+  100% { text-shadow: 0 0 0px transparent; }
+}
+.countdown-flash {
+  display: inline-block;
+  animation: countdown-flash 0.6s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-marquee, .animate-pulse-price { animation: none; }
+  .animate-marquee, .animate-pulse-price, .countdown-flash { animation: none; }
 }
