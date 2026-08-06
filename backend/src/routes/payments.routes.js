@@ -198,8 +198,20 @@ router.post('/:id/check-status', requireAuth, async (req, res) => {
     return res.json({ status: 'SUCCESS', message: 'To\'lov tasdiqlandi, balansingiz oshirildi.' });
   }
 
+  if (result.paymentStatus === undefined) {
+    // Click bu identifikator bo'yicha hech qanday yozuv topolmadi (masalan
+    // Prepare hali kelmagan yoki umuman kelmagan). Foydalanuvchiga Click'ning
+    // xom (ko'pincha ruscha/texnik) xabarini emas, tushunarli holatni ko'rsatamiz.
+    return res.json({
+      status: 'PENDING',
+      message:
+        'Click bu to\'lov bo\'yicha hali hech qanday ma\'lumot bermadi. Agar hozirgina to\'lagan bo\'lsangiz, ' +
+        'bir necha daqiqa kutib qayta urinib ko\'ring. Muammo davom etsa, "Yordam" bo\'limi orqali murojaat qiling.',
+    });
+  }
+
   const statusLabels = { 0: 'Yaratilgan, hali to\'lanmagan', 1: 'Jarayonda' };
-  const label = statusLabels[result.paymentStatus] || result.error || 'Hali to\'lanmagan';
+  const label = statusLabels[result.paymentStatus] || 'Hali to\'lanmagan';
   res.json({ status: 'PENDING', message: `Click bo'yicha holat: ${label}` });
 });
 
