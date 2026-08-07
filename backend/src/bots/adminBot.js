@@ -86,19 +86,20 @@ const auctionTimeScene = new Scenes.WizardScene(
     ctx.wizard.state.auctionId = ctx.callbackQuery.data.replace('pick:', '');
     await ctx.answerCbQuery();
     await ctx.reply(
-      'Auksion hozirdan qancha daqiqadan keyin tugasin? (musbat son yozing, masalan 30). ' +
-        'Darhol bekor qilish uchun 0 yozing.'
+      'Auksion hozirdan qancha daqiqadan keyin tugasin? (musbat son yozing, masalan 30) — ' +
+        'yoki quyidagi tugma orqali darhol bekor qiling:',
+      Markup.inlineKeyboard([[Markup.button.callback('🛑 Auksionni bekor qilish', 'cancel_auction')]])
     );
     return ctx.wizard.next();
   },
   async (ctx) => {
-    const minutes = Number(ctx.message?.text);
-    if (!Number.isFinite(minutes) || minutes < 0) {
-      await ctx.reply('Noto\'g\'ri qiymat. Musbat son (yoki bekor qilish uchun 0) kiriting:');
-      return;
-    }
     const dbUser = ctx.state.dbUser;
-    if (minutes === 0) {
+
+    // Aniq, matnga bog'liq bo'lmagan bekor qilish yo'li — tugma orqali
+    // (avvalgi "0 deb yozing" konvensiyasi matn talqin qilishda xato berishi
+    // mumkin edi, masalan ba'zi klaviaturalar "0" o'rniga emoji-raqam yuborishi).
+    if (ctx.callbackQuery?.data === 'cancel_auction') {
+      await ctx.answerCbQuery();
       const auction = await prisma.auction.update({
         where: { id: ctx.wizard.state.auctionId },
         data: { status: 'CANCELLED' },
@@ -107,23 +108,31 @@ const auctionTimeScene = new Scenes.WizardScene(
         data: { actorId: dbUser.id, action: 'AUCTION_CANCELLED', targetType: 'Auction', targetId: auction.id },
       });
       await ctx.reply('🛑 Auksion bekor qilindi.', mainMenuKeyboard());
-    } else {
-      const newEndsAt = new Date(Date.now() + minutes * 60 * 1000);
-      const auction = await prisma.auction.update({
-        where: { id: ctx.wizard.state.auctionId },
-        data: { endsAt: newEndsAt },
-      });
-      await prisma.adminAuditLog.create({
-        data: {
-          actorId: dbUser.id,
-          action: 'AUCTION_TIME_CHANGED',
-          targetType: 'Auction',
-          targetId: auction.id,
-          meta: { newEndsAt },
-        },
-      });
-      await ctx.reply(`⏱ Yangi tugash vaqti: ${newEndsAt.toLocaleString('uz-UZ')}`, mainMenuKeyboard());
+      return ctx.scene.leave();
     }
+
+    const minutes = Number(ctx.message?.text);
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      await ctx.reply(
+        'Noto\'g\'ri qiymat. Musbat son kiriting (masalan 30), yoki yuqoridagi "🛑 Auksionni bekor qilish" tugmasini bosing:'
+      );
+      return;
+    }
+    const newEndsAt = new Date(Date.now() + minutes * 60 * 1000);
+    const auction = await prisma.auction.update({
+      where: { id: ctx.wizard.state.auctionId },
+      data: { endsAt: newEndsAt },
+    });
+    await prisma.adminAuditLog.create({
+      data: {
+        actorId: dbUser.id,
+        action: 'AUCTION_TIME_CHANGED',
+        targetType: 'Auction',
+        targetId: auction.id,
+        meta: { newEndsAt },
+      },
+    });
+    await ctx.reply(`⏱ Yangi tugash vaqti: ${newEndsAt.toLocaleString('uz-UZ')}`, mainMenuKeyboard());
     return ctx.scene.leave();
   }
 );
