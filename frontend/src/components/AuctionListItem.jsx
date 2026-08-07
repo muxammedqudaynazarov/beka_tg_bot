@@ -1,68 +1,66 @@
-import {useNavigate} from 'react-router-dom';
-import {Zap} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 import RarityBadge from './RarityBadge';
-import {RARITY_META, formatSom} from '../constants';
-import {useCountdownDHMS} from '../hooks/useCountdown';
+import { RARITY_META, formatSom } from '../constants';
+import { useCountdownDHMS } from '../hooks/useCountdown';
 
-export default function AuctionListItem({auction}) {
-    const navigate = useNavigate();
-    const meta = RARITY_META[auction.rarity] || RARITY_META.CONSUMER;
-    const countdown = useCountdownDHMS(auction.endsAt);
-    const urgent = new Date(auction.endsAt).getTime() - Date.now() < 5 * 60 * 1000;
+export default function AuctionListItem({ auction }) {
+  const navigate = useNavigate();
+  const meta = RARITY_META[auction.rarity] || RARITY_META.CONSUMER;
+  const countdown = useCountdownDHMS(auction.endsAt);
+  const urgent = new Date(auction.endsAt).getTime() - Date.now() < 5 * 60 * 1000;
 
-    return (
-        <button
-            onClick={() => navigate(`/auction/${auction.id}`)}
-            className="flex w-full items-center gap-3 rounded-lg bg-base-surface px-2.5 py-2.5 text-left transition-transform active:scale-[0.99]"
-            style={{
-                borderLeft: `3px solid ${meta.color}`,
-                backgroundImage: `linear-gradient(90deg, ${meta.color}14, transparent 45%)`,
-            }}
-        >
-            <div className="relative h-14 w-14 shrink-0 rounded-md bg-base-surface2">
-                <img
-                    src={auction.imageUrl}
-                    alt={auction.skinName}
-                    loading="lazy"
-                    className="h-full w-full object-contain p-1.5"
-                    style={{filter: `drop-shadow(0 0 8px ${meta.color}33)`}}
-                />
-                {auction.isStatTrak && (
-                    <span
-                        className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-signal-warning text-black">
-            <Zap size={9} fill="black"/>
+  return (
+    <button
+      onClick={() => navigate(`/auction/${auction.id}`)}
+      className="flex w-full items-center gap-3 rounded-lg bg-base-surface px-2.5 py-2.5 text-left transition-transform active:scale-[0.99]"
+      style={{
+        borderLeft: `3px solid ${meta.color}`,
+        backgroundImage: `linear-gradient(90deg, ${meta.color}14, transparent 45%)`,
+      }}
+    >
+      <div className="relative h-14 w-14 shrink-0 rounded-md bg-base-surface2">
+        <img
+          src={auction.imageUrl}
+          alt={auction.skinName}
+          loading="lazy"
+          className="h-full w-full object-contain p-1.5"
+          style={{ filter: `drop-shadow(0 0 8px ${meta.color}33)` }}
+        />
+        {auction.isStatTrak && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 items-center gap-0.5 rounded-full border border-black/30 bg-gradient-to-br from-amber-400 to-orange-600 px-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.4)]">
+            <Zap size={9} className="text-black/75" fill="currentColor" />
+            <span className="font-display text-[8px] font-black tracking-tight text-black/80">ST</span>
           </span>
-                )}
-            </div>
+        )}
+      </div>
 
-            <div className="min-w-0 flex-1">
-                <div className="mb-0.5 flex items-center gap-1.5">
-                    <span
-                        className={`inline-flex items-center gap-1 rounded font-display font-semibold uppercase tracking-wide text-[9px] px-1.5 py-0.5`}
-                        style={{
-                            color: meta.color,
-                            backgroundColor: `${meta.color}1A`,
-                            border: `1px solid ${meta.color}55`
-                        }}>{auction.wearCondition}</span>
-                    {/*<RarityBadge rarity={auction.rarity}/>*/}
-                    <span className="truncate font-mono text-[10px] text-ink-muted">
-                    {Number(auction.floatValue).toFixed(7)}
-                </span>
-                </div>
-                <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">
-                    {auction.skinName}
-                </h3>
-                <p className="text-[9px] uppercase tracking-wide text-ink-muted">&nbsp;</p>
-                <p className="font-mono text-[13px] font-bold" style={{color: meta.color}}>
-                    {formatSom(auction.currentPrice)}
-                </p>
-            </div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-1.5">
+          {/* Kamyoblik — RarityBadge O'ZINING rangida (auction.rarity, wearCondition EMAS) */}
+          <RarityBadge rarity={auction.rarity} />
+          {/* Format factory — alohida, barqaror (kamyoblikka bog'liq bo'lmagan) rangli belgi */}
+          <span className="rounded bg-rarity-milspec/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-rarity-milspec">
+            {auction.wearCondition}
+          </span>
+          <span className="truncate font-mono text-[10px] text-ink-muted">
+            {Number(auction.floatValue).toFixed(4)}
+          </span>
+        </div>
+        <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">
+          {auction.skinName}
+        </h3>
+        <p className="mt-0.5 font-mono text-[13px] font-bold" style={{ color: meta.color }}>
+          {formatSom(auction.currentPrice)}
+        </p>
+      </div>
 
-            <div className="shrink-0 text-right">
-                <p className={`mt-0.5 font-mono text-[11px] font-medium tabular-nums ${urgent ? 'text-signal-danger' : 'text-ink-secondary'}`}>
-                    <span key={countdown} className="countdown-flash">{countdown}</span>
-                </p>
-            </div>
-        </button>
-    );
+      <div className="shrink-0 text-right">
+        <p className="text-[9px] uppercase tracking-wide text-ink-muted">Qoldi</p>
+        <p className={`mt-0.5 font-mono text-[11px] font-medium tabular-nums ${urgent ? 'text-signal-danger' : 'text-ink-secondary'}`}>
+          <span key={countdown} className="countdown-flash">{countdown}</span>
+        </p>
+      </div>
+    </button>
+  );
 }

@@ -37,10 +37,10 @@ function startAuctionScheduler(io) {
           const winner = await prisma.user.findUnique({ where: { id: auction.currentLeaderId } });
           await safeNotify(
             winner?.telegramId,
-            `🏆 Tabriklaymiz! Siz "${auction.skinName}" auksionini yutib oldingiz.\n\n` +
-              `Qolgan to'lovni ${env.auction.winnerPaymentWindowHours} soat ichida ` +
-              `yakunlashingiz kerak, aks holda zakladingizning bir qismi jarima sifatida ushlab qolinadi. ` +
-              `Mini App > Profil bo'limidan to'lovni yakunlang.`
+            `🏆 Поздравляем! Вы выиграли аукцион "${auction.skinName}".\n\n` +
+              `Оставшуюся сумму нужно оплатить в течение ${env.auction.winnerPaymentWindowHours} ч., ` +
+              `иначе часть залога будет удержана в качестве штрафа. ` +
+              `Завершите оплату в разделе Mini App → Профиль.`
           );
         }
       }
@@ -55,8 +55,8 @@ function startAuctionScheduler(io) {
           const winner = await prisma.user.findUnique({ where: { id: auction.currentLeaderId } });
           await safeNotify(
             winner?.telegramId,
-            `⌛️ "${auction.skinName}" uchun to'lov muddati tugadi. Zakladingizning bir qismi qaytarildi, ` +
-              `qolgani jarima sifatida ushlab qolindi. Tafsilotlar uchun Profil > tranzaksiyalar tarixiga qarang.`
+            `⌛️ Срок оплаты по аукциону "${auction.skinName}" истёк. Часть залога возвращена на баланс, ` +
+              `остальное удержано в качестве штрафа. Подробности — в Профиле, в истории транзакций.`
           );
         }
       }

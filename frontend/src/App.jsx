@@ -24,7 +24,7 @@ function AuthGate({ children }) {
   if (status === 'error') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-2 px-6 text-center">
-        <p className="font-display text-base font-semibold text-ink-primary">Не удалось войти в систему</p>
+        <p className="font-display text-base font-semibold text-ink-primary">Не удалось войти</p>
         <p className="text-sm text-ink-secondary">{error}</p>
       </div>
     );

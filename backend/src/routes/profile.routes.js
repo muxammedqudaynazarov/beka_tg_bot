@@ -47,8 +47,8 @@ router.patch('/trade-url', requireAuth, async (req, res) => {
   if (trimmed && !STEAM_TRADE_URL_RE.test(trimmed)) {
     return res.status(400).json({
       error:
-        'Trade URL formati noto\'g\'ri. U https://steamcommunity.com/tradeoffer/new/?partner=...&token=... ko\'rinishida bo\'lishi kerak. ' +
-        'Buni Steam > Inventar > Trade takliflari > "Kim menga trade taklif qila oladi" sozlamalaridan topasiz.',
+        'Неверный формат Trade URL. Он должен выглядеть так: https://steamcommunity.com/tradeoffer/new/?partner=...&token=... ' +
+        'Найти его можно в Steam: Инвентарь → Обмены → «Кто может отправить мне предложение обмена».',
     });
   }
 

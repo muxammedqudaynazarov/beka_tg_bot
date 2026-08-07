@@ -46,7 +46,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-10 space-y-2.5 border-b border-base-border bg-base-bg/95 px-4 pb-3 pt-4 backdrop-blur">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-base font-bold tracking-wide text-ink-primary">
-            CS2 <span className="text-rarity-covert">AUKSION</span>
+            CS2 <span className="text-rarity-covert">АУКЦИОН</span>
           </h1>
         </div>
         <SearchBar value={search} onChange={setSearch} />
@@ -76,7 +76,7 @@ export default function HomePage() {
         ) : (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <p className="font-display text-sm font-semibold text-ink-primary">Ничего не найдено</p>
-            <p className="max-w-xs text-xs text-ink-secondary">Попробуйте изменить поисковый запрос или фильтры.</p>
+            <p className="max-w-xs text-xs text-ink-secondary">Попробуйте изменить запрос или фильтры.</p>
           </div>
         )}
       </main>

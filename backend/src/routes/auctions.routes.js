@@ -90,7 +90,7 @@ router.get('/:id', async (req, res) => {
       bids: { orderBy: { createdAt: 'desc' }, take: 20, include: { user: { select: { username: true, firstName: true } } } },
     },
   });
-  if (!auction) return res.status(404).json({ error: 'Auksion topilmadi.' });
+  if (!auction) return res.status(404).json({ error: 'Аукцион не найден.' });
   res.json(auction);
 });
 
@@ -125,7 +125,7 @@ router.post('/:id/bid', requireAuth, async (req, res) => {
       return res.status(400).json({ error: err.message, code: err.code });
     }
     console.error('placeBid xatosi:', err);
-    res.status(500).json({ error: 'Kutilmagan xatolik yuz berdi.' });
+    res.status(500).json({ error: 'Произошла непредвиденная ошибка.' });
   }
 });
 
@@ -133,24 +133,24 @@ router.post('/:id/bid', requireAuth, async (req, res) => {
 // 5 soatlik muddat ichida to'lash uchun shu tugmani bosadi.
 router.post('/:id/complete-payment', requireAuth, async (req, res) => {
   const auction = await prisma.auction.findUnique({ where: { id: req.params.id } });
-  if (!auction) return res.status(404).json({ error: 'Auksion topilmadi.' });
+  if (!auction) return res.status(404).json({ error: 'Аукцион не найден.' });
   if (auction.currentLeaderId !== req.user.id) {
-    return res.status(403).json({ error: 'Bu auksion g\'olibi siz emassiz.' });
+    return res.status(403).json({ error: 'Вы не являетесь победителем этого аукциона.' });
   }
   if (auction.status !== 'AWAITING_PAYMENT') {
-    return res.status(400).json({ error: 'Bu auksion hozir to\'lov kutish holatida emas.' });
+    return res.status(400).json({ error: 'Этот аукцион сейчас не в статусе ожидания оплаты.' });
   }
 
   const result = await attemptCompletePayment(req.params.id);
   if (!result.ok) {
     if (result.reason === 'INSUFFICIENT_BALANCE') {
       return res.status(400).json({
-        error: `Balansingiz yetarli emas. Yana ${Number(result.missingAmount).toLocaleString('uz-UZ')} so'm kerak — "To'lov" bo'limidan hisobingizni to'ldiring.`,
+        error: `Недостаточно средств. Нужно ещё ${Number(result.missingAmount).toLocaleString('ru-RU')} сум — пополните баланс в разделе «Платежи».`,
         code: result.reason,
         missingAmount: result.missingAmount,
       });
     }
-    return res.status(400).json({ error: 'To\'lovni yakunlab bo\'lmadi.', code: result.reason });
+    return res.status(400).json({ error: 'Не удалось завершить оплату.', code: result.reason });
   }
 
   const io = req.app.get('io');

@@ -17,68 +17,64 @@ export default function PrivacyPolicyPage() {
         <button onClick={() => navigate(-1)} className="text-ink-secondary">
           <ChevronLeft size={20} />
         </button>
-        <h1 className="font-display text-base font-bold text-ink-primary">Maxfiylik siyosati</h1>
+        <h1 className="font-display text-base font-bold text-ink-primary">Политика конфиденциальности</h1>
       </header>
 
       <main className="px-4 pt-4">
         <P>
-          Ushbu hujjat CS2 Skinlar Auksion Telegram Mini App ("tizim") foydalanuvchilarining shaxsiy ma'lumotlari
-          qanday yig'ilishi, saqlanishi va ishlatilishini tushuntiradi. Tizimdan foydalanish orqali siz shu
-          shartlarga rozilik bildirasiz.
+          Этот документ объясняет, как собираются, хранятся и используются персональные данные пользователей
+          CS2 Skins Auction Telegram Mini App («система»). Используя систему, вы соглашаетесь с этими условиями.
         </P>
 
-        <H>1. Qanday ma'lumotlar yig'iladi</H>
+        <H>1. Какие данные собираются</H>
         <P>
-          Tizimga Telegram orqali kirganingizda, Telegram tomonidan taqdim etiladigan quyidagi ma'lumotlar
-          olinadi: Telegram ID raqamingiz, foydalanuvchi nomi (@username), ism va familiya (agar Telegram
-          profilingizda ko'rsatilgan bo'lsa). Tizim sizning Telegram parolingiz yoki telefon raqamingizga
-          kirish huquqiga ega emas.
+          При входе в систему через Telegram мы получаем данные, предоставляемые самим Telegram: ваш
+          Telegram ID, имя пользователя (@username), имя и фамилию (если они указаны в вашем профиле Telegram).
+          Система не имеет доступа к вашему паролю Telegram или номеру телефона.
         </P>
         <P>
-          Siz o'zingiz kiritgan qo'shimcha ma'lumotlar: Steam Trade URL (g'olib bo'lgan skinlarni yuborish
-          uchun), auksionlardagi takliflaringiz tarixi, hisobingizni to'ldirish va xarid tranzaksiyalari.
-        </P>
-
-        <H>2. To'lovlar</H>
-        <P>
-          Hisobni to'ldirish Click.uz to'lov tizimi orqali amalga oshiriladi. Tizim sizning bank kartangiz
-          raqami yoki boshqa maxfiy to'lov ma'lumotlaringizni saqlamaydi va ularga kirish huquqiga ega emas —
-          bu ma'lumotlar to'liq Click.uz tomonidan, ularning o'z xavfsizlik siyosatiga muvofiq qayta ishlanadi.
-          Tizim faqat to'lov summasi va holatini (muvaffaqiyatli/muvaffaqiyatsiz) saqlaydi.
+          Дополнительные данные, которые вы вводите сами: Steam Trade URL (для отправки выигранных скинов),
+          история ваших ставок на аукционах, операции пополнения баланса и покупок.
         </P>
 
-        <H>3. Ma'lumotlar qanday ishlatiladi</H>
+        <H>2. Платежи</H>
         <P>
-          Yig'ilgan ma'lumotlar quyidagi maqsadlarda ishlatiladi: hisobingizni yuritish va auksionlarda
-          qatnashish imkonini berish, balansingizni to'g'ri hisoblash, g'olib bo'lgan taqdirda skinni Steam
-          orqali yuborish, reyting va skidkalarni hisoblash, tizim xavfsizligini ta'minlash (masalan, soxta
-          yoki qoidabuzar hisoblarni aniqlash).
+          Пополнение баланса осуществляется через платёжную систему Click. Система не хранит и не имеет
+          доступа к номеру вашей банковской карты и другим конфиденциальным платёжным данным — эти данные
+          полностью обрабатываются Click в соответствии с их собственной политикой безопасности. Система
+          хранит только сумму и статус платежа (успешно/неуспешно).
         </P>
 
-        <H>4. Ma'lumotlar kimlarga oshkor qilinadi</H>
+        <H>3. Как используются данные</H>
         <P>
-          Sizning shaxsiy ma'lumotlaringiz uchinchi shaxslarga sotilmaydi. Ular faqat: (a) to'lovni amalga
-          oshirish uchun Click.uz to'lov tizimiga (zarur hajmda), (b) qonun talab qilgan hollarda vakolatli
-          davlat organlariga taqdim etilishi mumkin.
+          Собранные данные используются для: ведения вашего аккаунта и участия в аукционах, корректного
+          расчёта баланса, отправки выигранного скина через Steam, расчёта рейтинга и скидок, обеспечения
+          безопасности системы (например, выявления поддельных или нарушающих правила аккаунтов).
         </P>
 
-        <H>5. Ma'lumotlarni saqlash muddati</H>
+        <H>4. Кому раскрываются данные</H>
         <P>
-          Ma'lumotlar hisobingiz faol bo'lgan davrda saqlanadi. Tranzaksiyalar tarixi moliyaviy shaffoflik va
-          nizolarni hal qilish maqsadida uzoqroq muddat saqlanishi mumkin.
+          Ваши персональные данные не продаются третьим лицам. Они могут передаваться только: (а) платёжной
+          системе Click — в объёме, необходимом для проведения платежа, (б) уполномоченным государственным
+          органам — в случаях, предусмотренных законодательством.
         </P>
 
-        <H>6. Sizning huquqlaringiz</H>
+        <H>5. Срок хранения данных</H>
         <P>
-          Siz istalgan vaqtda Profil bo'limidan Trade URL kabi ma'lumotlaringizni o'zgartirishingiz yoki
-          o'chirishingiz mumkin. Hisobingizni butunlay o'chirishni so'rash uchun "Yordam" bo'limi orqali
-          administratsiyaga murojaat qiling.
+          Данные хранятся, пока ваш аккаунт активен. История транзакций может храниться дольше — в целях
+          финансовой прозрачности и разрешения споров.
         </P>
 
-        <H>7. Bog'lanish</H>
+        <H>6. Ваши права</H>
         <P>
-          Maxfiylik siyosatiga oid savollar bo'yicha "Profil" bo'limidagi "Yordam" tugmasi orqali biz bilan
-          bog'lanishingiz mumkin.
+          Вы можете в любой момент изменить или удалить такие данные, как Trade URL, в разделе «Профиль».
+          Чтобы запросить полное удаление аккаунта, обратитесь к администрации через раздел «Помощь».
+        </P>
+
+        <H>7. Связь с нами</H>
+        <P>
+          По вопросам, связанным с политикой конфиденциальности, вы можете связаться с нами через кнопку
+          «Помощь» в разделе «Профиль».
         </P>
       </main>
     </div>

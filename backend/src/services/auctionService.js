@@ -51,26 +51,26 @@ async function placeBid({ auctionId, userId, mode, customAmount, raiseStep }) {
       throw err;
     }
   }
-  throw new AuctionError('RETRY_EXHAUSTED', 'Auksion juda band, iltimos qayta urinib ko\'ring.');
+  throw new AuctionError('RETRY_EXHAUSTED', 'Аукцион сейчас перегружен, повторите попытку.');
 }
 
 async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseStep }) {
   return prisma.$transaction(async (tx) => {
     const auction = await tx.auction.findUnique({ where: { id: auctionId } });
-    if (!auction) throw new AuctionError('NOT_FOUND', 'Auksion topilmadi.');
+    if (!auction) throw new AuctionError('NOT_FOUND', 'Аукцион не найден.');
     if (auction.status !== 'ACTIVE') {
-      throw new AuctionError('NOT_ACTIVE', 'Bu auksion hozir faol emas.');
+      throw new AuctionError('NOT_ACTIVE', 'Этот аукцион сейчас не активен.');
     }
     if (new Date(auction.endsAt).getTime() <= Date.now()) {
-      throw new AuctionError('ENDED', 'Auksion muddati allaqachon tugagan.');
+      throw new AuctionError('ENDED', 'Срок аукциона уже истёк.');
     }
 
     const user = await tx.user.findUnique({ where: { id: userId } });
-    if (!user) throw new AuctionError('NO_USER', 'Foydalanuvchi topilmadi.');
-    if (user.isBanned) throw new AuctionError('BANNED', 'Hisobingiz bloklangan.');
+    if (!user) throw new AuctionError('NO_USER', 'Пользователь не найден.');
+    if (user.isBanned) throw new AuctionError('BANNED', 'Ваш аккаунт заблокирован.');
     if (user.role !== 'USER') {
       // 2-band: adminlar auksionda narx belgilay olmaydi (sun'iy narx oshirishni oldini olish uchun)
-      throw new AuctionError('ADMIN_FORBIDDEN', 'Administratorlar auksionda taklif bera olmaydi.');
+      throw new AuctionError('ADMIN_FORBIDDEN', 'Администраторы не могут делать ставки на аукционе.');
     }
 
     const currentPrice = Number(auction.currentPrice);
@@ -81,10 +81,10 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
     if (mode === 'custom') {
       newAmount = Number(customAmount);
       if (!Number.isFinite(newAmount)) {
-        throw new AuctionError('BAD_AMOUNT', 'Narx noto\'g\'ri kiritildi.');
+        throw new AuctionError('BAD_AMOUNT', 'Цена указана неверно.');
       }
       if (newAmount < currentPrice) {
-        throw new AuctionError('TOO_LOW', `Narx joriy narxdan (${currentPrice}) past bo'lmasligi kerak.`);
+        throw new AuctionError('TOO_LOW', `Цена не может быть ниже текущей (${currentPrice}).`);
       }
     } else {
       const step = Number(raiseStep) > 0 ? Number(raiseStep) : round2(currentPrice * 0.05);
@@ -97,7 +97,7 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
       if (auction.consecutiveRaises >= env.auction.maxConsecutiveRaises) {
         throw new AuctionError(
           'MAX_RAISES',
-          `Siz bitta auksionda ketma-ket ${env.auction.maxConsecutiveRaises} martadan ortiq narx oshira olmaysiz. Boshqa foydalanuvchi taklif berishini kuting.`
+          `Нельзя повышать цену более ${env.auction.maxConsecutiveRaises} раз подряд на одном аукционе. Дождитесь ставки другого участника.`
         );
       }
       nextConsecutive = auction.consecutiveRaises + 1;
@@ -124,7 +124,7 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
     if (availableBalance < additionalHoldNeeded) {
       throw new AuctionError(
         'INSUFFICIENT_BALANCE',
-        `На вашем балансе недостаточно средств. Вам необходимо внести ${additionalHoldNeeded.toLocaleString('uz-UZ')} сумов, чтобы увеличить цену. Пожалуйста, пополните свой счет в разделе «Платежи».`
+        `Недостаточно средств на балансе. Для повышения цены нужно ещё ${additionalHoldNeeded.toLocaleString('ru-RU')} сум в качестве залога. Пополните баланс в разделе «Платежи».`
       );
     }
 

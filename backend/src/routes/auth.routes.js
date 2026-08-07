@@ -13,12 +13,12 @@ router.post('/telegram', async (req, res) => {
   const { initData } = req.body || {};
   const check = verifyTelegramInitData(initData, env.userBotToken);
   if (!check.ok) {
-    return res.status(401).json({ error: `Telegram autentifikatsiyasi muvaffaqiyatsiz: ${check.reason}` });
+    return res.status(401).json({ error: `Ошибка авторизации через Telegram: ${check.reason}` });
   }
 
   const tgUser = check.user;
   if (!tgUser || !tgUser.id) {
-    return res.status(400).json({ error: 'Telegram foydalanuvchi ma\'lumoti topilmadi.' });
+    return res.status(400).json({ error: 'Не удалось получить данные пользователя Telegram.' });
   }
 
   const isSuperadmin = env.superadminTelegramIds.includes(String(tgUser.id));

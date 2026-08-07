@@ -15,24 +15,24 @@ async function requireAuth(req, res, next) {
   try {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-    if (!token) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    if (!token) return res.status(401).json({ error: 'Требуется авторизация.' });
 
     const payload = jwt.verify(token, env.jwtSecret);
     const user = await prisma.user.findUnique({ where: { id: payload.uid } });
-    if (!user) return res.status(401).json({ error: 'Foydalanuvchi topilmadi.' });
-    if (user.isBanned) return res.status(403).json({ error: 'Hisobingiz bloklangan.' });
+    if (!user) return res.status(401).json({ error: 'Пользователь не найден.' });
+    if (user.isBanned) return res.status(403).json({ error: 'Ваш аккаунт заблокирован.' });
 
     req.user = user;
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Token yaroqsiz yoki muddati tugagan.' });
+    return res.status(401).json({ error: 'Токен недействителен или истёк.' });
   }
 }
 
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Bu amal uchun ruxsatingiz yetarli emas.' });
+      return res.status(403).json({ error: 'Недостаточно прав для этого действия.' });
     }
     next();
   };

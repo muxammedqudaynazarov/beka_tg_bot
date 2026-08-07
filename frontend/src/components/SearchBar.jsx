@@ -7,7 +7,7 @@ export default function SearchBar({ value, onChange }) {
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Поиск по названию скина… (например, AK-47)"
+        placeholder="Поиск по названию скина… (например AK-47 | Redline)"
         className="w-full bg-transparent font-body text-xs text-ink-primary placeholder:text-ink-muted focus:outline-none"
       />
     </div>

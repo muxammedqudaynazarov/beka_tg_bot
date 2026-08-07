@@ -21,7 +21,7 @@ function createUserBot() {
   // to'g'ri to'ldiradigan usullardan biri (inline tugma bilan bir qatorda) va
   // foydalanuvchiga istalgan vaqtda ilovani ochish imkonini beradi.
   bot.telegram.setChatMenuButton({
-    menuButton: { type: 'web_app', text: 'Auksion', web_app: { url: env.miniAppUrl } },
+    menuButton: { type: 'web_app', text: 'Аукцион', web_app: { url: env.miniAppUrl } },
   }).catch((err) => console.warn('[userBot] setChatMenuButton xatosi:', err.message));
 
   bot.start(async (ctx) => {
@@ -38,26 +38,26 @@ function createUserBot() {
     });
 
     await ctx.reply(
-      `Assalomu alaykum, ${tg.first_name || 'do\'stim'}! 🔫\n\n` +
-        'CS2 skinlar auksioniga xush kelibsiz. Pastdagi tugma orqali auksionni oching, ' +
-        'qiziqqan skiningizga narx taklif qiling va omadingizni sinab ko\'ring.',
+      `Здравствуйте, ${tg.first_name || 'друг'}! 🔫\n\n` +
+        'Добро пожаловать на аукцион скинов CS2. Откройте аукцион по кнопке ниже, ' +
+        'делайте ставки на понравившиеся скины и испытайте удачу.',
       // DIQQAT: web_app tugmasi oddiy "reply keyboard" (Markup.keyboard) ichida
       // bo'lsa, Telegram.WebApp.initData BO'SH keladi (bu Telegramning o'zining
       // rasmiy xatti-harakati — https://core.telegram.org/bots/webapps#webappinitdata).
       // Shu sababli initData to'g'ri ishlashi uchun web_app tugmasi albatta
       // INLINE klaviaturada (xabarning o'ziga bog'langan tugma) bo'lishi kerak.
-      Markup.inlineKeyboard([[Markup.button.webApp('🎮 Auksionni ochish', env.miniAppUrl)]])
+      Markup.inlineKeyboard([[Markup.button.webApp('🎮 Открыть аукцион', env.miniAppUrl)]])
     );
   });
 
   bot.help((ctx) =>
     ctx.reply(
-      'Qanday ishlaydi:\n' +
-        '1. "Auksionni ochish" tugmasini bosing.\n' +
-        '2. Yoqqan skiningizni tanlang va narx taklif qiling.\n' +
-        '3. Har bir taklif uchun narxning 25% i zaklad sifatida hisobingizdan ushlab qolinadi.\n' +
-        '4. Auksionni yutsangiz, qolgan summa hisobingizdan yechiladi va skin sizniki bo\'ladi.\n\n' +
-        'Hisobni to\'ldirish uchun Mini App ichidagi "To\'lov" bo\'limidan foydalaning.'
+      'Как это работает:\n' +
+        '1. Нажмите кнопку «Открыть аукцион».\n' +
+        '2. Выберите понравившийся скин и сделайте ставку.\n' +
+        '3. За каждую ставку с вашего баланса удерживается 25% от цены в качестве залога.\n' +
+        '4. Если вы выиграете аукцион, оставшаяся сумма спишется с баланса, и скин станет вашим.\n\n' +
+        'Чтобы пополнить баланс, откройте раздел «Платежи» в Mini App.'
     )
   );
 

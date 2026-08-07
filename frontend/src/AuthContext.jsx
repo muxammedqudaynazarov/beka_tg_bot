@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
       if (!initData) {
         // Telegram tashqarisida (masalan brauzerda dasturchi ko'rib chiqayotganda) ochilgan.
         setStatus('error');
-        setError('Это приложение полностью функционирует только внутри Telegram (в виде мини-приложения).');
+        setError('Это приложение полноценно работает только внутри Telegram (как Mini App).');
         return;
       }
 
@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
         setStatus('ready');
       } catch (err) {
         setStatus('error');
-        setError(err.response?.data?.error || 'Произошла ошибка при входе в систему.');
+        setError(err.response?.data?.error || 'Произошла ошибка при входе.');
       }
     })();
   }, []);
