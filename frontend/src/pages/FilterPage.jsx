@@ -71,7 +71,7 @@ export default function FilterPage() {
   const loading = categories === null;
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-48">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-base-border bg-base-bg/95 px-4 py-3.5 backdrop-blur">
         <button onClick={() => navigate(-1)} className="text-ink-secondary">
           <ChevronLeft size={20} />
