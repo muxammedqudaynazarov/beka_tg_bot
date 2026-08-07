@@ -14,11 +14,27 @@ function slugify(s) {
 // GET /api/categories — kategoriyalar RO'YXATI, har biri o'z sub-kategoriyalari
 // bilan birga (Filtr sahifasi va admin formalar shu bitta so'rov bilan
 // to'liq daraxtni oladi).
+//
+// ?onlyWithAuctions=true — foydalanuvchi Filtr sahifasi uchun: faqat ICHIDA
+// kamida bitta FAOL auksioni bor sub-kategoriyalar (va shunday sub-kategoriya
+// bor kategoriyalar) qaytariladi — bo'sh bo'limlar foydalanuvchini chalg'itmasin.
+// Admin formalarida bu parametr YO'Q — u yerda hammasi (bo'sh bo'lsa ham) kerak.
 router.get('/', async (req, res) => {
+  const onlyWithAuctions = req.query.onlyWithAuctions === 'true';
+  const auctionFilter = { auctions: { some: { status: 'ACTIVE' } } };
+
   const categories = await prisma.weaponCategory.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      ...(onlyWithAuctions ? { subcategories: { some: { isActive: true, ...auctionFilter } } } : {}),
+    },
     orderBy: { sortOrder: 'asc' },
-    include: { subcategories: { where: { isActive: true }, orderBy: { name: 'asc' } } },
+    include: {
+      subcategories: {
+        where: { isActive: true, ...(onlyWithAuctions ? auctionFilter : {}) },
+        orderBy: { name: 'asc' },
+      },
+    },
   });
   res.json({ items: categories });
 });

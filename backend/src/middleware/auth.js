@@ -29,6 +29,27 @@ async function requireAuth(req, res, next) {
   }
 }
 
+/**
+ * requireAuth kabi, lekin token yo'q yoki yaroqsiz bo'lsa ham so'rovni RAD
+ * ETMAYDI — shunchaki req.user'ni bo'sh qoldiradi. Ochiq (login shart
+ * bo'lmagan) endpointlarda, agar foydalanuvchi tizimga kirgan bo'lsa,
+ * natijani shaxsiylashtirish uchun ishlatiladi (masalan "sevimlimi" belgisi).
+ */
+async function optionalAuth(req, res, next) {
+  try {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token) return next();
+
+    const payload = jwt.verify(token, env.jwtSecret);
+    const user = await prisma.user.findUnique({ where: { id: payload.uid } });
+    if (user && !user.isBanned) req.user = user;
+  } catch {
+    /* token yaroqsiz — shunchaki mehmon sifatida davom etamiz */
+  }
+  next();
+}
+
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
@@ -38,4 +59,4 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { signSession, requireAuth, requireRole };
+module.exports = { signSession, requireAuth, optionalAuth, requireRole };

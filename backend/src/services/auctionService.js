@@ -229,7 +229,17 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
       include: { subcategory: { include: { category: true } }, currentLeader: { select: { id: true, username: true, firstName: true } } },
     });
 
-    return { auction: updatedAuction, bid: newBid, extended: newEndsAt !== auction.endsAt };
+    return {
+      auction: updatedAuction,
+      bid: newBid,
+      extended: newEndsAt !== auction.endsAt,
+      // 6-band: agar yetakchi almashgan bo'lsa, avvalgi yetakchiga xabar
+      // berish uchun uning ID'sini qaytaramiz (haqiqiy Telegram xabari
+      // tranzaksiya MUVAFFAQIYATLI yakunlangandan keyin, chaqiruvchi
+      // marshrutda yuboriladi — DB tranzaksiyasi ichida tashqi tarmoq
+      // so'rovi qilmaslik kerak).
+      outbidUserId: auction.currentLeaderId && !isSameLeader ? auction.currentLeaderId : null,
+    };
   }, { isolationLevel: 'Serializable' });
 }
 
@@ -314,6 +324,9 @@ async function attemptCompletePayment(auctionId) {
       where: { id: auction.id },
       data: { status: 'PAID', paidAt: new Date() },
     });
+    // 3-band: skin sotilgach, uni "Избранное"ga belgilab qo'ygan barcha
+    // foydalanuvchilar uchun ham u yerdan avtomatik olib tashlanadi.
+    await tx.favorite.deleteMany({ where: { auctionId: auction.id } });
     return { ok: true, auction: updated };
   });
 }

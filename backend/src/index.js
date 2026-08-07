@@ -22,6 +22,7 @@ const auctionsRoutes = require('./routes/auctions.routes');
 const categoriesRoutes = require('./routes/categories.routes');
 const paymentsRoutes = require('./routes/payments.routes');
 const profileRoutes = require('./routes/profile.routes');
+const favoritesRoutes = require('./routes/favorites.routes');
 const adminRoutes = require('./routes/admin.routes');
 
 // Prisma Decimal/BigInt qiymatlarini JSON'ga xavfsiz aylantirish (masalan
@@ -83,6 +84,7 @@ app.use('/api/auctions', auctionsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/favorites', favoritesRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Umumiy xato ushlagich — hech qanday kutilmagan xato butun serverni
@@ -99,11 +101,16 @@ const userBot = createUserBot();
 const adminBot = createAdminBot();
 
 if (userBot) {
-  // Scheduler'ga (auktsion yutuqlari/muddat tugashi haqida) xabar yuborish
-  // imkoniyatini ulaymiz.
-  const { setNotifier } = require('./jobs/auctionScheduler');
-  setNotifier(require('./bots/userBot').makeNotifier(userBot));
+  // Endi butun backend (marshrutlar, auctionService, scheduler) shu bitta
+  // umumiy notifier orqali foydalanuvchiga Telegram xabar yubora oladi.
+  require('./services/notifier').setUserBot(userBot);
 }
+if (adminBot) {
+  require('./services/notifier').setAdminBot(adminBot);
+}
+
+// 5/13-band: Steam bot — sozlanmagan bo'lsa ham xavfsiz (hech narsa buzilmaydi)
+require('./services/steamBotService').initSteamBot();
 
 // MUHIM TUZATISH: bot.launch() Telegram serveriga ulanishda xato bersa
 // (noto'g'ri token, yoki tarmoq Telegram API'ga vaqtincha ulanolmasa), va bu

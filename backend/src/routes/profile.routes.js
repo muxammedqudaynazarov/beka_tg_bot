@@ -40,6 +40,8 @@ router.get('/', requireAuth, async (req, res) => {
 
 // 4-band: Profil qismida Trade URL kiritish maydoni. 8-band: bu havola
 // orqali to'liq to'lov qilingan skinlar Steam inventariga yuboriladi.
+// 5-band: shakl bilan birga, agar Steam bot sozlangan bo'lsa, HAQIQIY
+// tekshiruv ham qilinadi (validateTradeUrl — steamBotService.js).
 router.patch('/trade-url', requireAuth, async (req, res) => {
   const { tradeUrl } = req.body || {};
   const trimmed = String(tradeUrl || '').trim();
@@ -52,11 +54,23 @@ router.patch('/trade-url', requireAuth, async (req, res) => {
     });
   }
 
+  let warning = null;
+  if (trimmed) {
+    const { validateTradeUrl } = require('../services/steamBotService');
+    const result = await validateTradeUrl(trimmed);
+    if (result.checked && !result.ok) {
+      return res.status(400).json({
+        error: 'Этот Trade URL недействителен или устарел в Steam. Проверьте ссылку ещё раз (возможно, вы её пересоздали).',
+      });
+    }
+    if (!result.checked) warning = 'Формат ссылки корректен, но живая проверка через Steam сейчас недоступна.';
+  }
+
   const updated = await prisma.user.update({
     where: { id: req.user.id },
     data: { tradeUrl: trimmed || null },
   });
-  res.json({ ok: true, tradeUrl: updated.tradeUrl });
+  res.json({ ok: true, tradeUrl: updated.tradeUrl, warning });
 });
 
 module.exports = router;

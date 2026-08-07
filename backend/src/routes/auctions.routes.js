@@ -1,7 +1,8 @@
 const express = require('express');
 const prisma = require('../db/prisma');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { placeBid, attemptCompletePayment, AuctionError } = require('../services/auctionService');
+const { notifyText } = require('../services/notifier');
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ const router = express.Router();
 //   wear=FN,MW      -> format factory kategoriyasi bo'yicha filtr
 //   statTrak=true/false
 //   sort=price_asc | price_desc
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   const { tab, search, categoryIds, subcategoryIds, wear, statTrak, sort, cursor, take } = req.query;
 
   const where = { status: 'ACTIVE' };
@@ -63,8 +64,20 @@ router.get('/', async (req, res) => {
     include: { subcategory: { include: { category: true } }, _count: { select: { bids: true } } },
   });
 
+  // Foydalanuvchi tizimga kirgan bo'lsa (optionalAuth), shu sahifadagi
+  // auksionlardan qaysilari uning "Избранное"sida ekanini bitta so'rov bilan
+  // aniqlaymiz — har bir element uchun alohida so'rov yubormaslik uchun.
+  let favoritedIds = new Set();
+  if (req.user) {
+    const favs = await prisma.favorite.findMany({
+      where: { userId: req.user.id, auctionId: { in: auctions.map((a) => a.id) } },
+      select: { auctionId: true },
+    });
+    favoritedIds = new Set(favs.map((f) => f.auctionId));
+  }
+
   res.json({
-    items: auctions,
+    items: auctions.map((a) => ({ ...a, isFavorited: favoritedIds.has(a.id) })),
     nextCursor: auctions.length === pageSize ? auctions[auctions.length - 1].id : null,
   });
 });
@@ -81,17 +94,27 @@ router.get('/ending-strip', async (req, res) => {
   res.json({ items });
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   const auction = await prisma.auction.findUnique({
     where: { id: req.params.id },
     include: {
       subcategory: { include: { category: true } },
       currentLeader: { select: { id: true, username: true, firstName: true } },
       bids: { orderBy: { createdAt: 'desc' }, take: 20, include: { user: { select: { username: true, firstName: true } } } },
+      stickers: { orderBy: { slot: 'asc' } },
     },
   });
   if (!auction) return res.status(404).json({ error: 'Аукцион не найден.' });
-  res.json(auction);
+
+  let isFavorited = false;
+  if (req.user) {
+    const fav = await prisma.favorite.findUnique({
+      where: { userId_auctionId: { userId: req.user.id, auctionId: auction.id } },
+    });
+    isFavorited = Boolean(fav);
+  }
+
+  res.json({ ...auction, isFavorited });
 });
 
 // POST /api/auctions/:id/bid — 1.i-1.l bandlaridagi barcha auksion qoidalari shu yerda ishlaydi
@@ -116,6 +139,17 @@ router.post('/:id/bid', requireAuth, async (req, res) => {
         currentLeader: result.auction.currentLeader,
         endsAt: result.auction.endsAt,
         extended: result.extended,
+      });
+    }
+
+    // 6-band: kimdir sizning taklifingizdan oshirib yuborsa — xabar beramiz.
+    if (result.outbidUserId) {
+      prisma.user.findUnique({ where: { id: result.outbidUserId } }).then((outbidUser) => {
+        notifyText(
+          outbidUser?.telegramId,
+          `📈 Вашу ставку на "${result.auction.skinName}" перебили. Новая цена: ` +
+            `${Number(result.auction.currentPrice).toLocaleString('ru-RU')} сум. Залог возвращён на баланс.`
+        );
       });
     }
 

@@ -1,96 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
-import { RARITIES, WEARS, formatSom } from '../constants';
-import SearchableSelect from '../components/SearchableSelect';
-
-const inputCls =
-  'w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none';
-
-function EditAuctionForm({ auction, onDone, onCancelEdit }) {
-  const [form, setForm] = useState({
-    skinName: auction.skinName,
-    imageUrl: auction.imageUrl,
-    subcategoryId: auction.subcategoryId,
-    rarity: auction.rarity,
-    floatValue: auction.floatValue,
-    wearCondition: auction.wearCondition,
-    isStatTrak: auction.isStatTrak,
-    startPrice: auction.startPrice,
-  });
-  const [categories, setCategories] = useState([]);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    api.get('/categories').then(({ data }) => setCategories(data.items || []));
-  }, []);
-
-  const subcategoryOptions = useMemo(
-    () => categories.flatMap((c) => c.subcategories.map((s) => ({ value: s.id, label: s.name, group: c.name }))),
-    [categories]
-  );
-
-  function set(key, value) {
-    setForm((f) => ({ ...f, [key]: value }));
-  }
-
-  async function save() {
-    setSaving(true);
-    try {
-      await api.patch(`/admin/auctions/${auction.id}`, {
-        ...form,
-        floatValue: Number(form.floatValue),
-        startPrice: Number(form.startPrice),
-      });
-      showAlert('✅ Saqlandi.');
-      onDone();
-    } catch (err) {
-      showAlert(err.response?.data?.error || 'Xatolik yuz berdi.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="mt-2 space-y-2 rounded-md border border-accent/40 bg-bg p-2.5">
-      <input className={inputCls} value={form.skinName} onChange={(e) => set('skinName', e.target.value)} placeholder="Skin nomi" />
-      <input className={inputCls} value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} placeholder="Rasm URL" />
-      {form.imageUrl && (
-        <img src={form.imageUrl} alt="" className="h-16 w-16 rounded border border-border bg-surface object-contain p-1" onError={(e) => (e.target.style.display = 'none')} />
-      )}
-      <SearchableSelect
-        options={subcategoryOptions}
-        value={form.subcategoryId}
-        onChange={(v) => set('subcategoryId', v)}
-        placeholder="Sub-kategoriya qidiring…"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <select className={inputCls} value={form.rarity} onChange={(e) => set('rarity', e.target.value)}>
-          {RARITIES.map((r) => <option key={r.v} value={r.v}>{r.l}</option>)}
-        </select>
-        <input className={inputCls} type="number" step="any" min="0" max="1" value={form.floatValue} onChange={(e) => set('floatValue', e.target.value)} placeholder="Float" />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <select className={inputCls} value={form.wearCondition} onChange={(e) => set('wearCondition', e.target.value)}>
-          {WEARS.map((w) => <option key={w} value={w}>{w}</option>)}
-        </select>
-        <label className="flex items-center gap-2 rounded-md border border-border bg-surface px-2">
-          <input type="checkbox" checked={form.isStatTrak} onChange={(e) => set('isStatTrak', e.target.checked)} />
-          <span className="text-xs text-ink">StatTrak™</span>
-        </label>
-      </div>
-      <input className={inputCls} type="number" min="0" value={form.startPrice} onChange={(e) => set('startPrice', e.target.value)} placeholder="Boshlang'ich narx" />
-      <div className="flex gap-2">
-        <button onClick={onCancelEdit} className="flex-1 rounded-md bg-surface py-1.5 text-xs font-medium text-muted border border-border">
-          Bekor
-        </button>
-        <button onClick={save} disabled={saving} className="flex-1 rounded-md bg-accent py-1.5 text-xs font-semibold text-white disabled:opacity-50">
-          {saving ? 'Saqlanmoqda…' : 'Saqlash'}
-        </button>
-      </div>
-    </div>
-  );
-}
+import { formatSom } from '../constants';
+import AuctionForm from '../components/AuctionForm';
 
 function ActiveAuctionRow({ auction, onChanged }) {
   const [minutes, setMinutes] = useState('');
@@ -99,14 +11,14 @@ function ActiveAuctionRow({ auction, onChanged }) {
 
   async function changeTime() {
     const m = Number(minutes);
-    if (!Number.isFinite(m) || m < 0) return showAlert('Noto\'g\'ri qiymat.');
+    if (!Number.isFinite(m) || m < 0) return showAlert('Неверное значение.');
     const newEndsAt = new Date(Date.now() + m * 60 * 1000).toISOString();
     try {
       await api.patch(`/admin/auctions/${auction.id}/time`, { newEndsAt });
       setMinutes('');
       onChanged();
     } catch (err) {
-      showAlert(err.response?.data?.error || 'Xatolik yuz berdi.');
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
     }
   }
 
@@ -115,7 +27,18 @@ function ActiveAuctionRow({ auction, onChanged }) {
       await api.post(`/admin/auctions/${auction.id}/cancel`);
       onChanged();
     } catch (err) {
-      showAlert(err.response?.data?.error || 'Xatolik yuz berdi.');
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    }
+  }
+
+  async function handleSave(payload) {
+    try {
+      await api.patch(`/admin/auctions/${auction.id}`, payload);
+      showAlert('✅ Сохранено.');
+      setEditing(false);
+      onChanged();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
     }
   }
 
@@ -125,24 +48,45 @@ function ActiveAuctionRow({ auction, onChanged }) {
         <div>
           <p className="text-sm font-medium text-ink">{auction.skinName}</p>
           <p className="mt-0.5 text-xs text-muted">
-            Joriy narx: {formatSom(auction.currentPrice)} · Tugaydi: {new Date(auction.endsAt).toLocaleString('uz-UZ')}
+            Текущая цена: {formatSom(auction.currentPrice)} · Окончание: {new Date(auction.endsAt).toLocaleString('ru-RU')}
           </p>
         </div>
         {!hasBids && !editing && (
           <button onClick={() => setEditing(true)} className="shrink-0 rounded-md bg-surface px-2.5 py-1 text-xs font-medium text-ink border border-border">
-            ✏️ Tahrirlash
+            ✏️ Редактировать
           </button>
         )}
       </div>
 
       {hasBids && (
         <p className="mt-1 text-[10px] text-warning">
-          Bu auksionga taklif(lar) kelgan — asosiy ma'lumotlarini o'zgartirib bo'lmaydi, faqat vaqti.
+          На этот аукцион уже поступили ставки — основные данные изменить нельзя, только время.
         </p>
       )}
 
       {editing ? (
-        <EditAuctionForm auction={auction} onDone={() => { setEditing(false); onChanged(); }} onCancelEdit={() => setEditing(false)} />
+        <div className="mt-2 rounded-md border border-accent/40 bg-bg p-2.5">
+          <AuctionForm
+            initial={{
+              skinName: auction.skinName,
+              imageUrl: auction.imageUrl,
+              subcategoryId: auction.subcategoryId,
+              rarity: auction.rarity,
+              floatValue: auction.floatValue,
+              wearCondition: auction.wearCondition,
+              isStatTrak: auction.isStatTrak,
+              paintSeed: auction.paintSeed ?? '',
+              steamAssetId: auction.steamAssetId ?? '',
+              stickers: auction.stickers || [],
+              startPrice: auction.startPrice,
+            }}
+            submitLabel="Сохранить изменения"
+            onSubmit={handleSave}
+          />
+          <button onClick={() => setEditing(false)} className="mt-2 w-full rounded-md bg-surface py-1.5 text-xs font-medium text-muted border border-border">
+            Отмена
+          </button>
+        </div>
       ) : (
         <>
           <div className="mt-2 flex gap-2">
@@ -151,15 +95,15 @@ function ActiveAuctionRow({ auction, onChanged }) {
               min="0"
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
-              placeholder="Necha daqiqadan keyin tugasin"
-              className={inputCls}
+              placeholder="Через сколько минут завершить"
+              className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
             />
             <button onClick={changeTime} className="shrink-0 rounded-md bg-surface px-3 py-1.5 text-xs font-medium text-ink border border-border">
-              Vaqtni o'zgartirish
+              Изменить время
             </button>
           </div>
           <button onClick={cancel} className="mt-2 w-full rounded-md bg-danger/10 py-1.5 text-xs font-medium text-danger">
-            Bekor qilish
+            Отменить аукцион
           </button>
         </>
       )}
@@ -173,7 +117,7 @@ function DeliveryRow({ auction, onChanged }) {
       await api.post(`/admin/auctions/${auction.id}/deliver`);
       onChanged();
     } catch (err) {
-      showAlert(err.response?.data?.error || 'Xatolik yuz berdi.');
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
     }
   }
 
@@ -181,17 +125,17 @@ function DeliveryRow({ auction, onChanged }) {
     <div className="rounded-lg border border-success/40 bg-success/5 p-3">
       <p className="text-sm font-medium text-ink">{auction.skinName}</p>
       <p className="mt-0.5 text-xs text-muted">
-        G'olib: {auction.currentLeader?.username ? `@${auction.currentLeader.username}` : auction.currentLeader?.firstName || '—'}
+        Победитель: {auction.currentLeader?.username ? `@${auction.currentLeader.username}` : auction.currentLeader?.firstName || '—'}
       </p>
       {auction.currentLeader?.tradeUrl ? (
         <p className="mt-1 break-all rounded bg-surface px-2 py-1 font-mono text-[10px] text-ink">
           {auction.currentLeader.tradeUrl}
         </p>
       ) : (
-        <p className="mt-1 text-[11px] text-warning">G'olib hali Trade URL kiritmagan — undan so'rang.</p>
+        <p className="mt-1 text-[11px] text-warning">Победитель ещё не указал Trade URL — попросите его.</p>
       )}
       <button onClick={markDelivered} className="mt-2 w-full rounded-md bg-success py-1.5 text-xs font-semibold text-black">
-        Steam orqali yuborildi deb belgilash
+        Отметить как отправлено через Steam
       </button>
     </div>
   );
@@ -221,7 +165,7 @@ export default function AuctionsPage() {
       {awaitingDelivery.length > 0 && (
         <section>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-            To'langan, yuborish kerak ({awaitingDelivery.length})
+            Оплачено, нужно отправить ({awaitingDelivery.length})
           </h2>
           <div className="space-y-2">
             {awaitingDelivery.map((a) => <DeliveryRow key={a.id} auction={a} onChanged={load} />)}
@@ -230,13 +174,13 @@ export default function AuctionsPage() {
       )}
 
       <section>
-        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Faol auksionlar ({active.length})</h2>
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Активные аукционы ({active.length})</h2>
         {active.length ? (
           <div className="space-y-2">
             {active.map((a) => <ActiveAuctionRow key={a.id} auction={a} onChanged={load} />)}
           </div>
         ) : (
-          <p className="text-xs text-muted">Hozircha faol auksionlar yo'q.</p>
+          <p className="text-xs text-muted">Пока нет активных аукционов.</p>
         )}
       </section>
     </div>

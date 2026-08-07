@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2 } from 'lucide-react';
+import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
@@ -61,6 +61,7 @@ export default function ProfilePage() {
   const [purchases, setPurchases] = useState(null);
   const [links, setLinks] = useState(null);
   const [awaiting, setAwaiting] = useState(null);
+  const [favorites, setFavorites] = useState(null);
   const [tradeUrl, setTradeUrl] = useState('');
   const [savingTradeUrl, setSavingTradeUrl] = useState(false);
 
@@ -71,6 +72,7 @@ export default function ProfilePage() {
       setTradeUrl(data.user.tradeUrl || '');
     });
     api.get('/auctions/mine/awaiting-payment').then(({ data }) => setAwaiting(data.items || []));
+    api.get('/favorites').then(({ data }) => setFavorites(data.items || []));
   }
 
   useEffect(() => {
@@ -87,9 +89,14 @@ export default function ProfilePage() {
     }
     setSavingTradeUrl(true);
     try {
-      await api.patch('/profile/trade-url', { tradeUrl: trimmed });
+      const { data } = await api.patch('/profile/trade-url', { tradeUrl: trimmed });
       hapticNotification('success');
       await refreshProfile();
+      if (data.warning) {
+        showAlert(data.warning);
+      } else if (trimmed) {
+        showAlert('✅ Trade URL сохранён и проверен — ссылка действительна.');
+      }
     } catch (err) {
       showAlert(err.response?.data?.error || 'Ошибка при сохранении.');
     } finally {
@@ -176,6 +183,30 @@ export default function ProfilePage() {
         </p>
       </div>
 
+      {/* 3-band: Избранное */}
+      {favorites?.length > 0 && (
+        <>
+          <h2 className="mb-2 flex items-center gap-1.5 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">
+            <Heart size={12} className="text-rarity-covert" fill="currentColor" /> Избранное
+          </h2>
+          <div className="mb-6 grid grid-cols-3 gap-2">
+            {favorites.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => navigate(`/auction/${a.id}`)}
+                className="rounded-lg bg-base-surface p-2 text-left"
+              >
+                <div className="aspect-square rounded-md bg-base-surface2">
+                  <img src={a.imageUrl} alt={a.skinName} className="h-full w-full object-contain p-1.5" />
+                </div>
+                <p className="mt-1 truncate text-[10px] font-medium text-ink-primary">{a.skinName}</p>
+                <p className="font-mono text-[10px] font-bold text-ink-secondary">{formatSom(a.currentPrice)}</p>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* 3/8-band: to'lov kutilayotgan g'alabalar */}
       {awaiting.length > 0 && (
         <>
@@ -207,6 +238,32 @@ export default function ProfilePage() {
         </div>
       ) : (
         <p className="mb-6 text-xs text-ink-muted">Пока нет купленных скинов.</p>
+      )}
+
+      {/* 4-band: "Skin sotmoqchimisiz?" — pastroq qismda, chiroyli animatsiya bilan */}
+      {links?.supportGroupUrl && (
+        <div className="relative mb-6 overflow-hidden rounded-2xl border border-rarity-restricted/30 bg-gradient-to-br from-base-surface to-base-surface2 p-4">
+          <div className="animate-breathe absolute -right-6 -top-6 h-24 w-24 rounded-full bg-rarity-restricted/30 blur-2xl" />
+          <div className="relative flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rarity-restricted/15">
+              <Tag size={18} className="text-rarity-restricted" />
+            </div>
+            <div className="flex-1">
+              <p className="font-display text-sm font-bold text-ink-primary">
+                У вас есть скин, хотите продать? <Sparkles size={13} className="ml-0.5 inline text-rarity-gold" />
+              </p>
+              <p className="mt-0.5 text-[11px] text-ink-secondary">
+                Свяжитесь с нами — поможем выставить ваш скин на аукцион.
+              </p>
+              <button
+                onClick={() => openLink(links.supportGroupUrl)}
+                className="mt-2.5 rounded-full bg-rarity-restricted px-4 py-1.5 font-display text-xs font-bold text-white"
+              >
+                Да, хочу
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">Другое</h2>

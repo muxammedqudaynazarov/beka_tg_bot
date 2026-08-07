@@ -2,8 +2,9 @@ const express = require('express');
 const crypto = require('crypto');
 const prisma = require('../db/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { buildCheckoutUrl, checkClickPaymentStatus, requestCardToken, verifyCardToken, payWithCardToken, deleteCardToken } = require('../services/clickPaymentService');
+const { buildCheckoutUrl, checkClickPaymentStatus } = require('../services/clickPaymentService');
 const { isClickSignatureValid } = require('../utils/clickSignature');
+const { notifyText } = require('../services/notifier');
 
 const router = express.Router();
 
@@ -35,6 +36,12 @@ async function markTransactionPaid(tx, clickPaydocId) {
       data: { balance: { increment: tx.amount } },
     }),
   ]);
+  // 6-band: hisob to'ldirilgani haqida xabar
+  const user = await prisma.user.findUnique({ where: { id: tx.userId } });
+  await notifyText(
+    user?.telegramId,
+    `✅ Баланс пополнен на ${Number(tx.amount).toLocaleString('ru-RU')} сум.`
+  );
 }
 
 // Foydalanuvchi "Пополнить" tugmasini bosganda chaqiriladi (Click checkout — redirect usuli).
@@ -216,78 +223,6 @@ router.post('/:id/check-status', requireAuth, async (req, res) => {
   const statusLabels = { 0: 'Создан, ещё не оплачен', 1: 'В обработке' };
   const label = statusLabels[result.paymentStatus] || 'Пока не оплачен';
   res.json({ status: 'PENDING', message: `Статус по данным Click: ${label}` });
-});
-
-// ===========================================================================
-// KARTA ORQALI TO'G'RIDAN-TO'G'RI TO'LOV (Card Token oqimi) — webhook'ga
-// bog'liq bo'lmagan muqobil usul. 3 bosqich: token so'rash -> SMS kodni
-// tasdiqlash -> to'lovni amalga oshirish.
-// ===========================================================================
-
-// 1-qadam: karta ma'lumotlarini yuboradi, Click SMS kod yuboradi
-router.post('/card/request-token', requireAuth, async (req, res) => {
-  const { cardNumber, expireDate } = req.body || {};
-  const digitsOnly = String(cardNumber || '').replace(/\D/g, '');
-  if (digitsOnly.length !== 16) {
-    return res.status(400).json({ error: 'Номер карты должен содержать 16 цифр.' });
-  }
-  if (!/^\d{4}$/.test(String(expireDate || ''))) {
-    return res.status(400).json({ error: 'Срок действия должен быть в формате ММ/ГГ (например 12/27).' });
-  }
-  const result = await requestCardToken({ cardNumber: digitsOnly, expireDate: String(expireDate) });
-  if (!result.ok) return res.status(400).json({ error: result.error || 'Не удалось проверить данные карты.' });
-  res.json({ cardToken: result.cardToken, maskedPhone: result.maskedPhone });
-});
-
-// 2-qadam: foydalanuvchi SMS kodini tasdiqlaydi
-router.post('/card/verify-token', requireAuth, async (req, res) => {
-  const { cardToken, smsCode } = req.body || {};
-  if (!cardToken || !smsCode) return res.status(400).json({ error: 'Данные заполнены не полностью.' });
-  const result = await verifyCardToken({ cardToken, smsCode: String(smsCode) });
-  if (!result.ok) return res.status(400).json({ error: result.error || 'Неверный код из SMS.' });
-  res.json({ ok: true });
-});
-
-// 3-qadam: tasdiqlangan token bilan darhol to'lash — MUVAFFAQIYATLI bo'lsa
-// balans SHU YERDA, sinxron ravishda oshiriladi (webhook kutilmaydi).
-router.post('/card/pay', requireAuth, async (req, res) => {
-  const { cardToken, amount } = req.body || {};
-  const numericAmount = Number(amount);
-  if (!cardToken || !Number.isFinite(numericAmount) || numericAmount <= 0) {
-    return res.status(400).json({ error: 'Данные заполнены не полностью.' });
-  }
-
-  const merchantTransId = crypto.randomUUID();
-  const tx = await prisma.transaction.create({
-    data: { userId: req.user.id, type: 'TOPUP', status: 'PENDING', amount: numericAmount, merchantTransId },
-  });
-
-  const result = await payWithCardToken({ cardToken, amount: numericAmount, merchantTransId });
-  deleteCardToken(cardToken); // vaqtinchalik token endi kerak emas — fon rejimida tozalaymiz
-
-  if (!result.ok) {
-    await prisma.transaction.update({ where: { id: tx.id }, data: { status: 'FAILED' } });
-    return res.status(400).json({ error: result.error || 'Не удалось выполнить платёж.' });
-  }
-
-  await prisma.transaction.update({ where: { id: tx.id }, data: { clickTransId: String(result.paymentId) } });
-
-  if (result.paid) {
-    await markTransactionPaid(tx, result.paymentId);
-    console.log(`[card/pay] BALANS OSHIRILDI (sinxron): userId=${req.user.id}, summa=${numericAmount}`);
-    return res.json({ status: 'SUCCESS', message: 'Платёж успешно выполнен.' });
-  }
-
-  // Click ba'zan darhol emas, "jarayonda" (1) holatini qaytarishi mumkin —
-  // shu holatda mavjud status-tekshirish mexanizmimiz orqali darhol qayta tekshiramiz.
-  const followUp = await checkClickPaymentStatus({ ...tx, clickTransId: String(result.paymentId) });
-  if (followUp.paid) {
-    await markTransactionPaid(tx, result.paymentId);
-    console.log(`[card/pay] BALANS OSHIRILDI (qayta tekshiruv): userId=${req.user.id}, summa=${numericAmount}`);
-    return res.json({ status: 'SUCCESS', message: 'Платёж успешно выполнен.' });
-  }
-
-  res.json({ status: 'PENDING', message: 'Платёж принят, ожидается подтверждение. Проверьте раздел «Платежи» через некоторое время.' });
 });
 
 module.exports = router;

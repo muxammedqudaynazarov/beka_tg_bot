@@ -16,7 +16,7 @@ export default function FilterPage() {
   const [draft, setDraft] = useState(filters);
 
   useEffect(() => {
-    api.get('/categories').then(({ data }) => setCategories(data.items || []));
+    api.get('/categories', { params: { onlyWithAuctions: 'true' } }).then(({ data }) => setCategories(data.items || []));
   }, []);
 
   // Faqat tanlangan kategoriyalarga tegishli sub-kategoriyalar ko'rsatiladi
@@ -71,7 +71,7 @@ export default function FilterPage() {
   const loading = categories === null;
 
   return (
-    <div className="min-h-screen pb-48">
+    <div>
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-base-border bg-base-bg/95 px-4 py-3.5 backdrop-blur">
         <button onClick={() => navigate(-1)} className="text-ink-secondary">
           <ChevronLeft size={20} />
@@ -80,7 +80,7 @@ export default function FilterPage() {
       </header>
 
       {loading ? (
-        <main className="space-y-6 px-4 pt-5">
+        <main className="space-y-6 px-4 pb-36 pt-5">
           {[0, 1, 2].map((i) => (
             <div key={i} className="space-y-2">
               <div className="h-3 w-24 animate-pulse rounded bg-base-surface" />
@@ -93,7 +93,7 @@ export default function FilterPage() {
           ))}
         </main>
       ) : (
-        <main className="space-y-6 px-4 pt-5">
+        <main className="space-y-6 px-4 pb-36 pt-5">
           {/* Kategoriya (ko'p tanlovli) */}
           <section>
             <SectionTitle>Категория</SectionTitle>
@@ -199,7 +199,10 @@ export default function FilterPage() {
         </main>
       )}
 
-      <div className="fixed inset-x-0 bottom-16 z-20 flex gap-3 border-t border-base-border bg-base-bg/95 px-4 py-3 backdrop-blur">
+      <div
+        className="fixed inset-x-0 z-20 flex gap-3 border-t border-base-border bg-base-bg/95 px-4 py-3 backdrop-blur"
+        style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}
+      >
         <button onClick={clearAll} className="flex-1 rounded-xl bg-base-surface py-2.5 font-display text-sm font-semibold text-ink-secondary">
           Сбросить
         </button>

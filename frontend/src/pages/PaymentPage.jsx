@@ -1,22 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Wallet, Lock, Clock3, RefreshCw, ShieldCheck, CreditCard, ExternalLink } from 'lucide-react';
+import { Wallet, Lock, Clock3, RefreshCw } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
-
-function formatCardNumber(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 16);
-  return digits.replace(/(.{4})/g, '$1 ').trim();
-}
-
-function formatExpiry(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-}
 
 function PendingPaymentRow({ tx, onResolved }) {
   const [checking, setChecking] = useState(false);
@@ -60,119 +49,9 @@ function PendingPaymentRow({ tx, onResolved }) {
   );
 }
 
-// Карта напрямую: 1) номер карты + срок -> код на телефон, 2) код из SMS -> оплата
-function CardPaymentFlow({ amount, onSuccess }) {
-  const [step, setStep] = useState('card'); // card | sms
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cardToken, setCardToken] = useState('');
-  const [maskedPhone, setMaskedPhone] = useState('');
-  const [smsCode, setSmsCode] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function requestToken() {
-    const digits = cardNumber.replace(/\D/g, '');
-    const expDigits = expiry.replace(/\D/g, '');
-    if (digits.length !== 16) return showAlert('Введите полный номер карты (16 цифр).');
-    if (expDigits.length !== 4) return showAlert('Введите срок действия карты (ММ/ГГ).');
-    setLoading(true);
-    try {
-      const { data } = await api.post('/payments/card/request-token', { cardNumber: digits, expireDate: expDigits });
-      setCardToken(data.cardToken);
-      setMaskedPhone(data.maskedPhone);
-      setStep('sms');
-      hapticNotification('success');
-    } catch (err) {
-      showAlert(err.response?.data?.error || 'Не удалось проверить карту.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function confirmAndPay() {
-    if (!smsCode.trim()) return showAlert('Введите код из SMS.');
-    if (!amount || amount <= 0) return showAlert('Сначала укажите сумму пополнения выше.');
-    setLoading(true);
-    try {
-      await api.post('/payments/card/verify-token', { cardToken, smsCode: smsCode.trim() });
-      const { data } = await api.post('/payments/card/pay', { cardToken, amount });
-      hapticNotification('success');
-      showAlert(data.message || 'Готово.');
-      if (data.status === 'SUCCESS') onSuccess();
-      setStep('card');
-      setCardNumber('');
-      setExpiry('');
-      setSmsCode('');
-    } catch (err) {
-      showAlert(err.response?.data?.error || 'Не удалось завершить оплату.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-3 rounded-2xl border border-base-border p-4">
-      <div className="flex items-start gap-2 rounded-lg bg-signal-success/10 px-3 py-2 text-[11px] text-signal-success">
-        <ShieldCheck size={14} className="mt-0.5 shrink-0" />
-        Номер карты передаётся напрямую в платёжную систему Click и никогда не сохраняется в нашей базе данных.
-      </div>
-
-      {step === 'card' ? (
-        <>
-          <input
-            value={cardNumber}
-            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-            inputMode="numeric"
-            placeholder="0000 0000 0000 0000"
-            className="w-full rounded-xl border border-base-border bg-base-surface px-4 py-2.5 font-mono text-sm tracking-wider text-ink-primary placeholder:text-ink-muted focus:border-rarity-covert focus:outline-none"
-          />
-          <input
-            value={expiry}
-            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-            inputMode="numeric"
-            placeholder="ММ/ГГ"
-            className="w-32 rounded-xl border border-base-border bg-base-surface px-4 py-2.5 font-mono text-sm text-ink-primary placeholder:text-ink-muted focus:border-rarity-covert focus:outline-none"
-          />
-          <button
-            onClick={requestToken}
-            disabled={loading}
-            className="w-full rounded-xl bg-base-surface2 py-3 font-display text-sm font-bold text-ink-primary disabled:opacity-50"
-          >
-            {loading ? 'Проверка…' : 'Получить код подтверждения'}
-          </button>
-        </>
-      ) : (
-        <>
-          <p className="text-xs text-ink-secondary">
-            Код отправлен на номер <span className="font-mono text-ink-primary">{maskedPhone}</span>
-          </p>
-          <input
-            value={smsCode}
-            onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ''))}
-            inputMode="numeric"
-            placeholder="Код из SMS"
-            className="w-full rounded-xl border border-base-border bg-base-surface px-4 py-2.5 font-mono text-sm tracking-widest text-ink-primary placeholder:text-ink-muted focus:border-rarity-covert focus:outline-none"
-          />
-          <button
-            onClick={confirmAndPay}
-            disabled={loading}
-            className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white disabled:opacity-50"
-          >
-            {loading ? 'Оплата…' : `Подтвердить и оплатить ${formatSom(amount)}`}
-          </button>
-          <button onClick={() => setStep('card')} className="w-full text-center text-[11px] text-ink-muted">
-            Изменить номер карты
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function PaymentPage() {
   const { user, refreshProfile } = useAuth();
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState('click'); // click | card
   const [submitting, setSubmitting] = useState(false);
   const [pending, setPending] = useState(null);
 
@@ -181,9 +60,8 @@ export default function PaymentPage() {
   }
   useEffect(loadPending, []);
 
-  const numericAmount = Number(amount) || 0;
-
-  async function handleClickTopup() {
+  async function handleTopup() {
+    const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       showAlert('Пожалуйста, введите корректную сумму.');
       return;
@@ -262,41 +140,16 @@ export default function PaymentPage() {
         ))}
       </div>
 
-      <div className="mb-4 flex gap-2">
-        <button
-          onClick={() => setMethod('click')}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold ${
-            method === 'click' ? 'bg-rarity-covert text-white' : 'bg-base-surface text-ink-secondary'
-          }`}
-        >
-          <ExternalLink size={13} /> Через Click
-        </button>
-        <button
-          onClick={() => setMethod('card')}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold ${
-            method === 'card' ? 'bg-rarity-covert text-white' : 'bg-base-surface text-ink-secondary'
-          }`}
-        >
-          <CreditCard size={13} /> Картой напрямую
-        </button>
-      </div>
-
-      {method === 'click' ? (
-        <>
-          <button
-            onClick={handleClickTopup}
-            disabled={submitting}
-            className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white shadow-glow transition-opacity disabled:opacity-50"
-          >
-            {submitting ? 'Загрузка…' : 'Пополнить'}
-          </button>
-          <p className="mt-3 text-center text-[10px] text-ink-muted">
-            Вы будете перенаправлены на официальную защищённую страницу оплаты Click.
-          </p>
-        </>
-      ) : (
-        <CardPaymentFlow amount={numericAmount} onSuccess={handleResolved} />
-      )}
+      <button
+        onClick={handleTopup}
+        disabled={submitting}
+        className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white shadow-glow transition-opacity disabled:opacity-50"
+      >
+        {submitting ? 'Загрузка…' : 'Пополнить'}
+      </button>
+      <p className="mt-3 text-center text-[10px] text-ink-muted">
+        Вы будете перенаправлены на официальную защищённую страницу оплаты Click.
+      </p>
     </div>
   );
 }

@@ -1,14 +1,30 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap } from 'lucide-react';
+import { Zap, Heart } from 'lucide-react';
 import RarityBadge from './RarityBadge';
 import { RARITY_META, formatSom } from '../constants';
 import { useCountdownDHMS } from '../hooks/useCountdown';
+import { api } from '../api';
+import { hapticNotification } from '../telegram';
 
 export default function AuctionListItem({ auction }) {
   const navigate = useNavigate();
   const meta = RARITY_META[auction.rarity] || RARITY_META.CONSUMER;
   const countdown = useCountdownDHMS(auction.endsAt);
   const urgent = new Date(auction.endsAt).getTime() - Date.now() < 5 * 60 * 1000;
+  const [favorited, setFavorited] = useState(Boolean(auction.isFavorited));
+
+  async function toggleFavorite(e) {
+    e.stopPropagation();
+    const next = !favorited;
+    setFavorited(next); // optimistik yangilash
+    try {
+      await api.post(`/favorites/${auction.id}`);
+      hapticNotification('success');
+    } catch {
+      setFavorited(!next); // muvaffaqiyatsiz bo'lsa orqaga qaytaramiz
+    }
+  }
 
   return (
     <button
@@ -55,11 +71,22 @@ export default function AuctionListItem({ auction }) {
         </p>
       </div>
 
-      <div className="shrink-0 text-right">
-        <p className="text-[9px] uppercase tracking-wide text-ink-muted">Qoldi</p>
-        <p className={`mt-0.5 font-mono text-[11px] font-medium tabular-nums ${urgent ? 'text-signal-danger' : 'text-ink-secondary'}`}>
-          <span key={countdown} className="countdown-flash">{countdown}</span>
-        </p>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={toggleFavorite}
+          onKeyDown={(e) => e.key === 'Enter' && toggleFavorite(e)}
+          className="flex h-6 w-6 items-center justify-center rounded-full text-ink-muted active:scale-90"
+        >
+          <Heart size={15} className={favorited ? 'text-rarity-covert' : ''} fill={favorited ? 'currentColor' : 'none'} />
+        </span>
+        <div className="text-right">
+          <p className="text-[9px] uppercase tracking-wide text-ink-muted">Осталось</p>
+          <p className={`mt-0.5 font-mono text-[11px] font-medium tabular-nums ${urgent ? 'text-signal-danger' : 'text-ink-secondary'}`}>
+            <span key={countdown} className="countdown-flash">{countdown}</span>
+          </p>
+        </div>
       </div>
     </button>
   );

@@ -26,6 +26,17 @@ const env = {
   adminMiniAppUrl: process.env.ADMIN_MINI_APP_URL || 'http://localhost:5174',
   // "Yordam" tugmasi shu guruh/kanalga yo'naltiriladi (4-band javobi)
   supportGroupUrl: process.env.SUPPORT_GROUP_URL || '',
+
+  // 5/13-band: Trade URL'ni haqiqiy tekshirish va skinlarni avtomatik
+  // Steam orqali yuborish uchun bot-akkaunt. Bo'sh qoldirilsa, bu
+  // funksiyalar shunchaki o'chirilgan holda qoladi (xato bermaydi).
+  steam: {
+    username: process.env.STEAM_BOT_USERNAME || '',
+    password: process.env.STEAM_BOT_PASSWORD || '',
+    sharedSecret: process.env.STEAM_BOT_SHARED_SECRET || '',
+    identitySecret: process.env.STEAM_BOT_IDENTITY_SECRET || '',
+    apiKey: process.env.STEAM_API_KEY || '',
+  },
   superadminTelegramIds: (process.env.SUPERADMIN_TELEGRAM_IDS || '')
     .split(',')
     .map((s) => s.trim())

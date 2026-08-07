@@ -52,6 +52,8 @@ model User {
   createdAuctions Auction[]      @relation("AuctionCreatedBy")
   ratingEvents  RatingEvent[]
   auditLogs     AdminAuditLog[]  @relation("AuditActor")
+  favorites     Favorite[]
+  broadcasts    Broadcast[]      @relation("BroadcastSender")
 
   @@index([role])
   @@index([isBanned])
@@ -153,6 +155,11 @@ model Auction {
   floatValue      Decimal        @db.Decimal(19, 17) // masalan 0.12488003100 — haqiqiy CS2 float qiymatlari 7 xonadan ko'proq bo'lishi mumkin
   wearCondition   WearCondition
   isStatTrak      Boolean        @default(false)
+  paintSeed       Int?           // "Шаблон раскраски" — Case Hardened, Fade, Doppler kabi skinlarda naqsh raqami (9-band)
+  // 13-band: agar admin botning haqiqiy Steam inventaridagi shu itemning
+  // asset ID'sini kiritsa, tizim yetkazishni TO'LIQ AVTOMATLASHTIRISHI mumkin
+  // (steamBotService.js). Bo'sh qoldirilsa, yetkazish avvalgidek qo'lda amalga oshadi.
+  steamAssetId    String?        @db.VarChar(64)
 
   startPrice      Decimal        @db.Decimal(14, 2)
   currentPrice    Decimal        @db.Decimal(14, 2)
@@ -186,11 +193,43 @@ model Auction {
 
   bids            Bid[]
   transactions    Transaction[]
+  stickers        AuctionSticker[]
+  favoritedBy     Favorite[]
 
   @@index([status])
   @@index([endsAt])
   @@index([subcategoryId])
   @@index([rarity])
+}
+
+// 9-band: skinga yopishtirilgan stikerlar — soni oldindan noma'lum (0 dan 5
+// tagacha bo'lishi mumkin), shuning uchun alohida jadval sifatida, admin
+// auksion yaratishda kerakicha qo'shib-o'chirib turadi.
+model AuctionSticker {
+  id         String  @id @default(uuid())
+  auction    Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  auctionId  String
+  name       String  @db.VarChar(255)
+  imageUrl   String  @db.VarChar(1000)
+  slot       Int     @default(0) // qurolning qaysi joyida turishi (tartib uchun, 0-4)
+
+  @@index([auctionId])
+}
+
+// 3-band: "Избранное" — foydalanuvchi keyinroq qaytib ko'rish uchun belgilab
+// qo'yadigan auksionlar. Auksion sotilganda (PAID/DELIVERED) tegishli
+// yozuvlar avtomatik o'chiriladi (auctionService.js'ga qarang).
+model Favorite {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  auction    Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  auctionId  String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, auctionId])
+  @@index([userId])
+  @@index([auctionId])
 }
 
 // Har bir taklif tarixi (audit va "kim qachon qancha taklif berdi" uchun)
@@ -266,4 +305,17 @@ model AdminAuditLog {
   targetId   String?
   meta       Json?
   createdAt  DateTime @default(now())
+}
+
+// 7-band: admin barcha foydalanuvchilarga bir vaqtda xabar yuboradigan
+// funksiya — yuborilgan xabarlar tarixi shu yerda saqlanadi.
+model Broadcast {
+  id          String   @id @default(uuid())
+  admin       User     @relation("BroadcastSender", fields: [adminId], references: [id])
+  adminId     String
+  message     String   @db.Text
+  imageUrl    String?  @db.VarChar(1000)
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  createdAt   DateTime @default(now())
 }

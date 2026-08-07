@@ -2,23 +2,12 @@ const cron = require('node-cron');
 const { closeExpiredAuctions, sweepAwaitingPayments } = require('../services/auctionService');
 const prisma = require('../db/prisma');
 const { env } = require('../config/env');
+const { notifyText, notifyPhoto, notifyAllAdmins } = require('../services/notifier');
 
-// Bot xabar yuborish funksiyasi tashqaridan "ulanadi" (index.js orqali) —
-// shunday qilib bu modul botlarga to'g'ridan-to'g'ri bog'liq bo'lib qolmaydi
-// (aylanma import muammosining oldini oladi) va bot ishga tushmagan bo'lsa ham
-// auksion mantiqi ishlashda davom etadi.
-let notifyUser = null;
-function setNotifier(fn) {
-  notifyUser = fn;
-}
-async function safeNotify(telegramId, text) {
-  if (!notifyUser || !telegramId) return;
-  try {
-    await notifyUser(telegramId, text);
-  } catch (err) {
-    console.warn('[auctionScheduler] Foydalanuvchiga xabar yuborib bo\'lmadi:', err.message);
-  }
-}
+const RARITY_LABELS = {
+  CONSUMER: 'Consumer', INDUSTRIAL: 'Industrial', MILSPEC: 'Mil-Spec',
+  RESTRICTED: 'Restricted', CLASSIFIED: 'Classified', COVERT: 'Covert', GOLD: 'Редкий ★',
+};
 
 /**
  * Har 15 soniyada ikki bosqichni ham tekshiradi:
@@ -35,12 +24,20 @@ function startAuctionScheduler(io) {
         if (io) io.to(`auction:${auction.id}`).emit('auction:closed', { auctionId: auction.id, status: auction.status });
         if (auction.status === 'AWAITING_PAYMENT' && auction.currentLeaderId) {
           const winner = await prisma.user.findUnique({ where: { id: auction.currentLeaderId } });
-          await safeNotify(
+          // 6-band: g'alaba haqida rasm + skin parametrlari bilan birga
+          await notifyPhoto(
             winner?.telegramId,
-            `🏆 Поздравляем! Вы выиграли аукцион "${auction.skinName}".\n\n` +
+            auction.imageUrl,
+            `🏆 Поздравляем! Вы выиграли аукцион!\n\n` +
+              `<b>${auction.skinName}</b>\n` +
+              `Редкость: ${RARITY_LABELS[auction.rarity] || auction.rarity}\n` +
+              `Класс износа: ${auction.wearCondition} (${Number(auction.floatValue).toFixed(6)})\n` +
+              `${auction.isStatTrak ? 'StatTrak™\n' : ''}` +
+              `Итоговая цена: ${Number(auction.currentPrice).toLocaleString('ru-RU')} сум\n\n` +
               `Оставшуюся сумму нужно оплатить в течение ${env.auction.winnerPaymentWindowHours} ч., ` +
               `иначе часть залога будет удержана в качестве штрафа. ` +
-              `Завершите оплату в разделе Mini App → Профиль.`
+              `Завершите оплату в разделе Mini App → Профиль.`,
+            { parse_mode: 'HTML' }
           );
         }
       }
@@ -48,12 +45,19 @@ function startAuctionScheduler(io) {
       const { paidNow, expiredNow } = await sweepAwaitingPayments();
       for (const auction of paidNow) {
         if (io) io.to(`auction:${auction.id}`).emit('auction:closed', { auctionId: auction.id, status: auction.status });
+        // 13-band: to'liq to'langan skin haqida barcha adminlarga xabar —
+        // ular Admin Mini App > Auksionlar bo'limidan Steam orqali yuborib,
+        // "yuborildi" deb belgilashlari kerak.
+        await notifyAllAdmins(
+          `💰 "${auction.skinName}" auksioni to'liq to'landi — Steam orqali yuborish kerak.\n` +
+            `Admin panel > Auksionlar bo'limidan ko'ring.`
+        );
       }
       for (const auction of expiredNow) {
         if (io) io.to(`auction:${auction.id}`).emit('auction:closed', { auctionId: auction.id, status: auction.status });
         if (auction.currentLeaderId) {
           const winner = await prisma.user.findUnique({ where: { id: auction.currentLeaderId } });
-          await safeNotify(
+          await notifyText(
             winner?.telegramId,
             `⌛️ Срок оплаты по аукциону "${auction.skinName}" истёк. Часть залога возвращена на баланс, ` +
               `остальное удержано в качестве штрафа. Подробности — в Профиле, в истории транзакций.`
@@ -67,4 +71,4 @@ function startAuctionScheduler(io) {
   console.log('[auctionScheduler] ishga tushdi (har 15 soniyada tekshiradi).');
 }
 
-module.exports = { startAuctionScheduler, setNotifier };
+module.exports = { startAuctionScheduler };
