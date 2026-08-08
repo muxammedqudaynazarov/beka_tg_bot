@@ -1,11 +1,11 @@
 export const RARITY_META = {
-  CONSUMER: { label: 'Consumer', color: '#B0C3D9' },
-  INDUSTRIAL: { label: 'Industrial', color: '#5E98D9' },
-  MILSPEC: { label: 'Mil-Spec', color: '#4B69FF' },
-  RESTRICTED: { label: 'Restricted', color: '#8847FF' },
-  CLASSIFIED: { label: 'Classified', color: '#D32CE6' },
-  COVERT: { label: 'Covert', color: '#EB4B4B' },
-  GOLD: { label: 'Редкий ★', color: '#FFD700' },
+  CONSUMER: { label: 'Ширпотреб', color: '#B0C3D9' },
+  INDUSTRIAL: { label: 'Промышленное', color: '#5E98D9' },
+  MILSPEC: { label: 'Армейское', color: '#4B69FF' },
+  RESTRICTED: { label: 'Запрещённое', color: '#8847FF' },
+  CLASSIFIED: { label: 'Засекреченное', color: '#D32CE6' },
+  COVERT: { label: 'Тайное', color: '#EB4B4B' },
+  GOLD: { label: 'Редкое ★', color: '#FFD700' },
 };
 
 // DIQQAT: WEAR_LABELS (Factory New, Minimal Wear va h.k.) ATAYIN

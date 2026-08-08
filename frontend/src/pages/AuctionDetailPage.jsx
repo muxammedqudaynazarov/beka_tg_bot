@@ -211,7 +211,9 @@ export default function AuctionDetailPage() {
               <span className="font-display text-[10px] font-black tracking-tight text-black/80">StatTrak™</span>
             </span>
           )}
-          <span className="font-mono text-[10px] text-ink-secondary">{WEAR_LABELS[auction.wearCondition]}</span>
+          {auction.wearCondition && (
+            <span className="font-mono text-[10px] text-ink-secondary">{WEAR_LABELS[auction.wearCondition]}</span>
+          )}
           {statusMeta && auction.status !== 'ACTIVE' && (
             <span
               className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
@@ -222,26 +224,28 @@ export default function AuctionDetailPage() {
           )}
         </div>
 
-        <div className="rounded-2xl bg-base-surface p-4">
-          <FloatGauge value={auction.floatValue} />
-          {auction.paintSeed !== null && auction.paintSeed !== undefined && (
-            <p className="mt-3 flex items-center justify-between border-t border-base-border pt-3 text-xs">
-              <span className="text-ink-secondary">Шаблон раскраски</span>
-              <span className="font-mono font-bold text-ink-primary">#{auction.paintSeed}</span>
-            </p>
-          )}
-        </div>
+        {/* 9-band: format factory shkalasi FAQAT shu turda float mavjud bo'lsa ko'rsatiladi */}
+        {(auction.floatValue !== null && auction.floatValue !== undefined) || (auction.paintSeed !== null && auction.paintSeed !== undefined) ? (
+          <div className="rounded-2xl bg-base-surface p-4">
+            {auction.floatValue !== null && auction.floatValue !== undefined && <FloatGauge value={auction.floatValue} />}
+            {auction.paintSeed !== null && auction.paintSeed !== undefined && (
+              <p className={`flex items-center justify-between text-xs ${auction.floatValue !== null ? 'mt-3 border-t border-base-border pt-3' : ''}`}>
+                <span className="text-ink-secondary">Шаблон раскраски</span>
+                <span className="font-mono font-bold text-ink-primary">#{auction.paintSeed}</span>
+              </p>
+            )}
+          </div>
+        ) : null}
 
         {auction.stickers?.length > 0 && (
           <div>
             <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">
               Наклейки
             </h2>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {auction.stickers.map((s) => (
-                <div key={s.id} className="flex flex-col items-center gap-1 rounded-lg bg-base-surface p-1.5">
-                  <img src={s.imageUrl} alt={s.name} className="h-10 w-10 object-contain" />
-                  <span className="w-full truncate text-center text-[8px] text-ink-muted">{s.name}</span>
+                <div key={s.id} className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-base-surface p-2">
+                  <img src={s.imageUrl} alt={s.name} title={s.name} className="h-full w-full object-contain" />
                 </div>
               ))}
             </div>
@@ -309,11 +313,11 @@ export default function AuctionDetailPage() {
                 inputMode="numeric"
                 value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value)}
-                placeholder={`Не менее ${formatSom(currentPrice)}`}
+                placeholder={`Не менее ${formatSom(nextRaiseAmount)}`}
                 className="flex-1 rounded-xl border border-base-border bg-base-surface px-3 py-2 font-mono text-xs text-ink-primary placeholder:text-ink-muted focus:border-rarity-covert focus:outline-none"
               />
               <button
-                disabled={placing || !customAmount || Number(customAmount) < currentPrice}
+                disabled={placing || !customAmount || Number(customAmount) < nextRaiseAmount}
                 onClick={() => submitBid('custom', Number(customAmount))}
                 className="rounded-xl bg-base-surface2 px-4 py-2 font-display text-xs font-semibold text-ink-primary disabled:opacity-40"
               >

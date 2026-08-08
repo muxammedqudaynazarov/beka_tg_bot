@@ -61,12 +61,13 @@ export default function BroadcastPage() {
           <Send size={14} /> {sending ? 'Запуск…' : 'Отправить всем'}
         </button>
         <p className="text-[10px] text-muted">
-          Сообщение будет отправлено всем незаблокированным пользователям через бота. Если указано изображение — с картинкой, иначе текстом. Отправка занимает время (~25 сообщений в секунду).
+          Сообщение будет отправлено всем незаблокированным пользователям через бота. Поддерживается разметка Telegram: *жирный*, _курсив_, `код`, [текст](ссылка).
+          Если указано изображение — с картинкой, иначе текстом. Отправка занимает время (~25 сообщений в секунду).
         </p>
       </section>
 
       <section>
-        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">История рассылок</h2>
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Последние 5 рассылок</h2>
         {history === null ? (
           <div className="space-y-2">{[0, 1].map((i) => <div key={i} className="h-16 animate-pulse rounded-lg bg-surface" />)}</div>
         ) : history.length ? (

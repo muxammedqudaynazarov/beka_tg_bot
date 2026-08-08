@@ -56,6 +56,10 @@ const env = {
     maxConsecutiveRaises: Number(process.env.AUCTION_MAX_CONSECUTIVE_RAISES || 10),
     extendThresholdMinutes: Number(process.env.AUCTION_EXTEND_THRESHOLD_MINUTES || 5),
     extendByMinutes: Number(process.env.AUCTION_EXTEND_BY_MINUTES || 5),
+    // 4-band: har bir yangi taklif (qo'lda kiritilgan bo'lsa ham) joriy narxdan
+    // kamida shu foizga yuqori bo'lishi SHART (standart: 5%). "Narxni oshirish"
+    // tugmasi ham standart holatda aynan shu foizni taklif qiladi.
+    minRaisePercent: Number(process.env.AUCTION_MIN_RAISE_PERCENT || 5),
     // 3-band: g'olib qolgan 75%ni to'lashi uchun berilgan muddat (soatda)
     winnerPaymentWindowHours: Number(process.env.WINNER_PAYMENT_WINDOW_HOURS || 5),
     // Muddat o'tib ketsa, ushlab turilgan zakladning necha foizi foydalanuvchiga qaytariladi

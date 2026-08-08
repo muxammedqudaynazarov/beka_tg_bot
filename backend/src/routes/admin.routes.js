@@ -10,6 +10,16 @@ async function logAction(actorId, action, targetType, targetId, meta) {
   await prisma.adminAuditLog.create({ data: { actorId, action, targetType, targetId, meta } });
 }
 
+// 9-band: shu "Тип"lardagi narsalarda format factory (float/wear) YO'Q —
+// admin forma bilan bir xil ro'yxat, seed.js'dagi Тип nomlariga mos bo'lishi shart.
+const NO_FLOAT_TYPE_NAMES = ['Ключи', 'Стикеры', 'Брелки', 'Агенты', 'Граффити', 'Значки', 'Наборы музыки', 'Кейсы и Капсулы'];
+
+async function subcategoryNeedsFloat(subcategoryId) {
+  const sub = await prisma.weaponSubcategory.findUnique({ where: { id: subcategoryId }, include: { category: true } });
+  if (!sub) return true; // topilmasa, xavfsiz tomonga — talab qilingan deb hisoblaymiz
+  return !NO_FLOAT_TYPE_NAMES.includes(sub.category.name);
+}
+
 // ===========================================================================
 // 7-band: BARCHA foydalanuvchilarga bir vaqtda xabar yuborish (rasm bilan
 // yoki rasmsiz). Yuborish fon jarayonida amalga oshadi (javob darhol
@@ -20,7 +30,7 @@ async function logAction(actorId, action, targetType, targetId, meta) {
 router.get('/broadcasts', async (req, res) => {
   const items = await prisma.broadcast.findMany({
     orderBy: { createdAt: 'desc' },
-    take: 30,
+    take: 5, // 6-band: faqat oxirgi 5tasi ko'rsatiladi — bazada HAMMASI saqlanadi
     include: { admin: { select: { firstName: true, username: true } } },
   });
   res.json({ items });
@@ -46,8 +56,8 @@ router.post('/broadcasts', async (req, res) => {
     let failed = 0;
     for (const u of users) {
       const ok = broadcast.imageUrl
-        ? await notifyPhoto(u.telegramId, broadcast.imageUrl, trimmed)
-        : await notifyText(u.telegramId, trimmed);
+        ? await notifyPhoto(u.telegramId, broadcast.imageUrl, trimmed, { parse_mode: 'Markdown' })
+        : await notifyText(u.telegramId, trimmed, { parse_mode: 'Markdown' });
       if (ok) sent++; else failed++;
       // Telegram bot API'ning umumiy chegarasi ~30 xabar/soniya — xavfsiz
       // bo'lish uchun tanaffus qilamiz.
@@ -76,8 +86,12 @@ router.post('/auctions', async (req, res) => {
     stickers, // [{ name, imageUrl }] — 9-band, soni oldindan noma'lum
   } = req.body || {};
 
-  if (!skinName || !imageUrl || !subcategoryId || !rarity || !wearCondition || !startPrice || !durationMinutes) {
+  if (!skinName || !imageUrl || !subcategoryId || !rarity || !startPrice || !durationMinutes) {
     return res.status(400).json({ error: 'Barcha majburiy maydonlarni to\'ldiring.' });
+  }
+  const needsFloat = await subcategoryNeedsFloat(subcategoryId);
+  if (needsFloat && (!wearCondition || floatValue === undefined || floatValue === null || floatValue === '')) {
+    return res.status(400).json({ error: 'Для этого типа предмета укажите класс износа и float.' });
   }
 
   const endsAt = new Date(Date.now() + Number(durationMinutes) * 60 * 1000);
@@ -88,8 +102,8 @@ router.post('/auctions', async (req, res) => {
       imageUrl,
       subcategoryId,
       rarity,
-      floatValue,
-      wearCondition,
+      floatValue: needsFloat ? floatValue : null,
+      wearCondition: needsFloat ? wearCondition : null,
       isStatTrak: Boolean(isStatTrak),
       paintSeed: paintSeed === '' || paintSeed === undefined || paintSeed === null ? null : Number(paintSeed),
       steamAssetId: steamAssetId || null,
@@ -135,13 +149,16 @@ router.patch('/auctions/:id', async (req, res) => {
   const { skinName, imageUrl, subcategoryId, rarity, floatValue, wearCondition, isStatTrak, paintSeed, steamAssetId, startPrice, buyNowPrice, stickers } =
     req.body || {};
 
+  const effectiveSubcategoryId = subcategoryId !== undefined ? subcategoryId : existing.subcategoryId;
+  const needsFloat = await subcategoryNeedsFloat(effectiveSubcategoryId);
+
   const data = {};
   if (skinName !== undefined) data.skinName = skinName;
   if (imageUrl !== undefined) data.imageUrl = imageUrl;
   if (subcategoryId !== undefined) data.subcategoryId = subcategoryId;
   if (rarity !== undefined) data.rarity = rarity;
-  if (floatValue !== undefined) data.floatValue = Number(floatValue);
-  if (wearCondition !== undefined) data.wearCondition = wearCondition;
+  data.floatValue = needsFloat ? (floatValue !== undefined ? Number(floatValue) : existing.floatValue) : null;
+  data.wearCondition = needsFloat ? (wearCondition !== undefined ? wearCondition : existing.wearCondition) : null;
   if (isStatTrak !== undefined) data.isStatTrak = Boolean(isStatTrak);
   if (paintSeed !== undefined) data.paintSeed = paintSeed === '' || paintSeed === null ? null : Number(paintSeed);
   if (steamAssetId !== undefined) data.steamAssetId = steamAssetId || null;

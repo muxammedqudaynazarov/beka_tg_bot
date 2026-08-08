@@ -152,8 +152,8 @@ model Auction {
   subcategoryId   String
 
   rarity          SkinRarity
-  floatValue      Decimal        @db.Decimal(19, 17) // masalan 0.12488003100 — haqiqiy CS2 float qiymatlari 7 xonadan ko'proq bo'lishi mumkin
-  wearCondition   WearCondition
+  floatValue      Decimal?       @db.Decimal(19, 17) // masalan 0.12488003100 — ba'zi turlarda (kalitlar, stikerlar va h.k.) YO'Q (9-band)
+  wearCondition   WearCondition? // xuddi shu sababli ixtiyoriy
   isStatTrak      Boolean        @default(false)
   paintSeed       Int?           // "Шаблон раскраски" — Case Hardened, Fade, Doppler kabi skinlarda naqsh raqami (9-band)
   // 13-band: agar admin botning haqiqiy Steam inventaridagi shu itemning

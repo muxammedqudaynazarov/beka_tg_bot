@@ -55,13 +55,17 @@ export default function AuctionListItem({ auction }) {
         <div className="mb-0.5 flex items-center gap-1.5">
           {/* Kamyoblik — RarityBadge O'ZINING rangida (auction.rarity, wearCondition EMAS) */}
           <RarityBadge rarity={auction.rarity} />
-          {/* Format factory — alohida, barqaror (kamyoblikka bog'liq bo'lmagan) rangli belgi */}
-          <span className="rounded bg-rarity-milspec/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-rarity-milspec">
-            {auction.wearCondition}
-          </span>
-          <span className="truncate font-mono text-[10px] text-ink-muted">
-            {Number(auction.floatValue).toFixed(4)}
-          </span>
+          {/* Format factory — faqat mavjud bo'lsa (9-band: ba'zi turlarda yo'q) */}
+          {auction.wearCondition && (
+            <span className="rounded bg-rarity-milspec/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-rarity-milspec">
+              {auction.wearCondition}
+            </span>
+          )}
+          {auction.floatValue !== null && auction.floatValue !== undefined && (
+            <span className="truncate font-mono text-[10px] text-ink-muted">
+              {Number(auction.floatValue).toFixed(4)}
+            </span>
+          )}
         </div>
         <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">
           {auction.skinName}

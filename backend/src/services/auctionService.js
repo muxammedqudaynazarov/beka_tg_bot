@@ -78,17 +78,24 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
 
     // --- Yangi narxni aniqlash ---
     let newAmount;
+    const minAllowed = round2(currentPrice * (1 + env.auction.minRaisePercent / 100));
+
     if (mode === 'custom') {
       newAmount = Number(customAmount);
       if (!Number.isFinite(newAmount)) {
         throw new AuctionError('BAD_AMOUNT', 'Цена указана неверно.');
       }
-      if (newAmount < currentPrice) {
-        throw new AuctionError('TOO_LOW', `Цена не может быть ниже текущей (${currentPrice}).`);
+      // 4-band: qo'lda kiritilgan narx ham kamida minRaisePercent (standart 5%)
+      // yuqori bo'lishi SHART — shunchaki joriy narxdan bir sўmga ko'p bo'lishi yetarli emas.
+      if (newAmount < minAllowed) {
+        throw new AuctionError(
+          'TOO_LOW',
+          `Минимальная цена — ${minAllowed.toLocaleString('ru-RU')} сум (не менее +${env.auction.minRaisePercent}% от текущей цены).`
+        );
       }
     } else {
-      const step = Number(raiseStep) > 0 ? Number(raiseStep) : round2(currentPrice * 0.05);
-      newAmount = round2(currentPrice + step);
+      const step = Number(raiseStep) > 0 ? Number(raiseStep) : round2((currentPrice * env.auction.minRaisePercent) / 100);
+      newAmount = Math.max(round2(currentPrice + step), minAllowed);
     }
 
     // --- j-band: ketma-ket oshirish limiti (faqat "hozirgi yetakchi yana oshirsa" holatida) ---

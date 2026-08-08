@@ -96,7 +96,7 @@ export default function FilterPage() {
         <main className="space-y-6 px-4 pb-36 pt-5">
           {/* Kategoriya (ko'p tanlovli) */}
           <section>
-            <SectionTitle>Категория</SectionTitle>
+            <SectionTitle>Тип</SectionTitle>
             <div className="flex flex-wrap gap-2">
               {categories.map((c) => (
                 <button
@@ -116,7 +116,7 @@ export default function FilterPage() {
           {availableSubcategories.length > 0 && (
             <section>
               <SectionTitle>
-                {draft.categoryIds.length ? 'Подкатегория' : 'Подкатегория (все)'}
+                {draft.categoryIds.length ? 'Категория' : 'Категория (все)'}
               </SectionTitle>
               <div className="flex flex-wrap gap-2">
                 {availableSubcategories.map((s) => (

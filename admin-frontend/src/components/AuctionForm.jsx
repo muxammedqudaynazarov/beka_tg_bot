@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
-import { RARITIES, WEARS } from '../constants';
+import { RARITIES, WEARS, NO_FLOAT_TYPE_NAMES } from '../constants';
 import SearchableSelect from './SearchableSelect';
 
 export const inputCls =
@@ -36,6 +36,11 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
     [categories]
   );
 
+  // 9-band: tanlangan Kategoriya qaysi Tipga tegishli ekaniga qarab, format
+  // factory (float/износ) maydonlari kerak-kerak emasligini aniqlaymiz.
+  const selectedTypeName = subcategoryOptions.find((o) => o.value === form.subcategoryId)?.group;
+  const needsFloat = !selectedTypeName || !NO_FLOAT_TYPE_NAMES.includes(selectedTypeName);
+
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -56,7 +61,7 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.skinName || !form.imageUrl || !form.subcategoryId || !form.floatValue || !form.startPrice) {
+    if (!form.skinName || !form.imageUrl || !form.subcategoryId || !form.startPrice || (needsFloat && !form.floatValue)) {
       showAlert('Заполните все обязательные поля.');
       return;
     }
@@ -64,7 +69,8 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
     try {
       await onSubmit({
         ...form,
-        floatValue: Number(form.floatValue),
+        floatValue: needsFloat ? Number(form.floatValue) : null,
+        wearCondition: needsFloat ? form.wearCondition : null,
         startPrice: Number(form.startPrice),
         paintSeed: form.paintSeed === '' ? null : Number(form.paintSeed),
         stickers: (form.stickers || []).filter((s) => s.name && s.imageUrl),
@@ -88,7 +94,7 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
         <img src={form.imageUrl} alt="" className="h-20 w-20 rounded-lg border border-border bg-surface object-contain p-1" onError={(e) => (e.target.style.display = 'none')} />
       )}
 
-      <Field label="Подкатегория * (ищите по названию категории или подкатегории)">
+      <Field label="Категория * (ищите по названию типа или категории)">
         <SearchableSelect
           options={subcategoryOptions}
           value={form.subcategoryId}
@@ -108,28 +114,32 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
             ))}
           </select>
         </Field>
-        <Field label="Float (0-1) *">
-          <input
-            className={inputCls}
-            type="number"
-            step="any"
-            min="0"
-            max="1"
-            value={form.floatValue}
-            onChange={(e) => set('floatValue', e.target.value)}
-            placeholder="0.1325410"
-          />
-        </Field>
+        {needsFloat && (
+          <Field label="Float (0-1) *">
+            <input
+              className={inputCls}
+              type="number"
+              step="any"
+              min="0"
+              max="1"
+              value={form.floatValue}
+              onChange={(e) => set('floatValue', e.target.value)}
+              placeholder="0.1325410"
+            />
+          </Field>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Класс износа *">
-          <select className={inputCls} value={form.wearCondition} onChange={(e) => set('wearCondition', e.target.value)}>
-            {WEARS.map((w) => (
-              <option key={w} value={w}>{w}</option>
-            ))}
-          </select>
-        </Field>
+        {needsFloat && (
+          <Field label="Класс износа *">
+            <select className={inputCls} value={form.wearCondition} onChange={(e) => set('wearCondition', e.target.value)}>
+              {WEARS.map((w) => (
+                <option key={w} value={w}>{w}</option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label="Шаблон раскраски (Paint Seed)">
           <input
             className={inputCls}
