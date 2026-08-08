@@ -36,6 +36,11 @@ model User {
   // inventariga yuboriladi (8-band). Format: https://steamcommunity.com/tradeoffer/new/?partner=...&token=...
   tradeUrl      String?  @db.VarChar(255)
 
+  // 11-band: kelajakda skin sotib pul chiqarish uchun (hozircha faqat
+  // saqlanadi, hech qanday avtomatik pul o'tkazish YO'Q — 12-band ma'lumotnoma).
+  // API orqali HECH QACHON to'liq holda qaytarilmaydi — faqat niqoblangan ko'rinishda.
+  cardNumber    String?  @db.VarChar(20)
+
   ratingScore   Int      @default(0) // avtomatik reyting (faollik + xaridlar asosida)
   discountPct   Int      @default(0) // adminning tasdig'i bilan beriladigan skidka foizi (0-100)
 
@@ -259,6 +264,7 @@ enum TransactionType {
   PURCHASE           // auksionni yutib, qolgan 75% to'langanda
   DEPOSIT_FORFEITED  // 5 soat ichida to'lanmasa, zakladning 50% jarima sifatida ushlab qolinishi (3-band)
   ADMIN_ADJUST       // admin tomonidan qo'lda balans tuzatish
+  PAYOUT             // 11/12-band: kelajakda — foydalanuvchi sotgan skin puli kartaga chiqarilganda (hali ishlatilmaydi)
 }
 
 enum TransactionStatus {

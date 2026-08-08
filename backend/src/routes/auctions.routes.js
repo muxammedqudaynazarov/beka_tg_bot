@@ -2,7 +2,7 @@ const express = require('express');
 const prisma = require('../db/prisma');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { placeBid, attemptCompletePayment, AuctionError } = require('../services/auctionService');
-const { notifyText } = require('../services/notifier');
+const { notifyText, notifyAllAdmins } = require('../services/notifier');
 
 const router = express.Router();
 
@@ -194,7 +194,8 @@ router.post('/:id/complete-payment', requireAuth, async (req, res) => {
 });
 
 // GET /api/auctions/mine/awaiting-payment — joriy foydalanuvchi g'olib bo'lgan,
-// hali to'lovi yakunlanmagan auksionlar (Profil sahifasida ko'rsatish uchun)
+// hali to'lovi yakunlanmagan (yoki to'langan, lekin hali Steam'ga chiqarilmagan)
+// auksionlar (Profil sahifasida ko'rsatish uchun)
 router.get('/mine/awaiting-payment', requireAuth, async (req, res) => {
   const items = await prisma.auction.findMany({
     where: { currentLeaderId: req.user.id, status: { in: ['AWAITING_PAYMENT', 'PAID'] } },
@@ -202,6 +203,42 @@ router.get('/mine/awaiting-payment', requireAuth, async (req, res) => {
     include: { subcategory: { include: { category: true } } },
   });
   res.json({ items });
+});
+
+// POST /api/auctions/:id/claim — 10-band: g'olibning o'zi, o'zi xohlagan
+// vaqtda "Отправить в Steam" tugmasini bosadi. Agar admin shu skin uchun
+// avtomatik yuborishni sozlagan bo'lsa (steamAssetId), darhol yuboriladi;
+// aks holda so'rov qabul qilinadi va adminlarga xabar beriladi (ular qo'lda
+// yuborib, keyin admin panel orqali "yuborildi" deb belgilaydi).
+router.post('/:id/claim', requireAuth, async (req, res) => {
+  const auction = await prisma.auction.findUnique({ where: { id: req.params.id } });
+  if (!auction) return res.status(404).json({ error: 'Аукцион не найден.' });
+  if (auction.currentLeaderId !== req.user.id) {
+    return res.status(403).json({ error: 'Вы не являетесь победителем этого аукциона.' });
+  }
+  if (auction.status !== 'PAID') {
+    return res.status(400).json({ error: 'Этот скин ещё не готов к отправке.' });
+  }
+  if (!req.user.tradeUrl) {
+    return res.status(400).json({ error: 'Сначала укажите Trade URL в разделе «Профиль».' });
+  }
+
+  if (auction.steamAssetId) {
+    const { sendItemAutomatically } = require('../services/steamBotService');
+    const result = await sendItemAutomatically({ tradeUrl: req.user.tradeUrl, steamAssetId: auction.steamAssetId });
+    if (result.ok) {
+      await prisma.auction.update({ where: { id: auction.id }, data: { status: 'DELIVERED', deliveredAt: new Date() } });
+      return res.json({ status: 'DELIVERED', message: 'Скин отправлен! Проверьте предложения обмена в Steam.' });
+    }
+    // Avtomatik urinish muvaffaqiyatsiz bo'lsa ham, so'rovni adminlarga
+    // yuboramiz — pastdagi umumiy yo'lga tushamiz.
+  }
+
+  await notifyAllAdmins(
+    `📬 @${req.user.username || req.user.firstName || req.user.id} "${auction.skinName}" skinini hoziroq Steam'ga chiqarishni so'ramoqda.\n` +
+      `Admin panel > Auksionlar bo'limidan yuboring.`
+  );
+  res.json({ status: 'REQUESTED', message: 'Запрос отправлен администратору, скин будет отправлен в ближайшее время.' });
 });
 
 module.exports = router;

@@ -45,6 +45,16 @@ function startAuctionScheduler(io) {
       const { paidNow, expiredNow } = await sweepAwaitingPayments();
       for (const auction of paidNow) {
         if (io) io.to(`auction:${auction.id}`).emit('auction:closed', { auctionId: auction.id, status: auction.status });
+        // 10-band: g'olibga xabar — skin to'liq to'landi, endi u istalgan vaqtda
+        // Profil bo'limidan Steam'ga chiqarib olishi mumkin.
+        if (auction.currentLeaderId) {
+          const winner = await prisma.user.findUnique({ where: { id: auction.currentLeaderId } });
+          await notifyText(
+            winner?.telegramId,
+            `✅ "${auction.skinName}" to'liq to'landi (balansingizdan avtomatik yechildi). ` +
+              `Skin Profil bo'limida saqlanadi — tayyor bo'lganingizda "Отправить в Steam" tugmasini bosing.`
+          );
+        }
         // 13-band: to'liq to'langan skin haqida barcha adminlarga xabar —
         // ular Admin Mini App > Auksionlar bo'limidan Steam orqali yuborib,
         // "yuborildi" deb belgilashlari kerak.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles } from 'lucide-react';
+import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles, CreditCard } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
@@ -12,6 +12,7 @@ const STEAM_TRADE_URL_RE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?p
 function AwaitingPaymentRow({ auction, onPaid }) {
   const countdown = useCountdownDHMS(auction.paymentDueAt);
   const [paying, setPaying] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   async function completePayment() {
     setPaying(true);
@@ -27,13 +28,37 @@ function AwaitingPaymentRow({ auction, onPaid }) {
     }
   }
 
+  // 10-band: g'olib to'liq to'lagan skinni o'zi xohlagan vaqtda ushbu tugma
+  // orqali Steam'ga chiqarib olishi mumkin — hech kim uni majburlamaydi.
+  async function claim() {
+    setClaiming(true);
+    try {
+      const { data } = await api.post(`/auctions/${auction.id}/claim`);
+      hapticNotification('success');
+      showAlert(data.message);
+      onPaid();
+    } catch (err) {
+      hapticNotification('error');
+      showAlert(err.response?.data?.error || 'Не удалось отправить запрос.');
+    } finally {
+      setClaiming(false);
+    }
+  }
+
   if (auction.status === 'PAID') {
     return (
       <div className="rounded-xl bg-base-surface px-3.5 py-3">
         <p className="font-display text-xs font-semibold text-ink-primary">{auction.skinName}</p>
         <p className="mt-1 flex items-center gap-1 text-[11px] text-signal-success">
-          <CheckCircle2 size={12} /> Оплачено — ожидайте отправки через Steam
+          <CheckCircle2 size={12} /> Оплачено — заберите в удобное время
         </p>
+        <button
+          onClick={claim}
+          disabled={claiming}
+          className="mt-2 w-full rounded-lg bg-signal-success py-2 font-display text-xs font-bold text-black disabled:opacity-50"
+        >
+          {claiming ? 'Отправка…' : '📦 Отправить в Steam'}
+        </button>
       </div>
     );
   }
@@ -268,6 +293,14 @@ export default function ProfilePage() {
 
       <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">Другое</h2>
       <div className="divide-y divide-base-border overflow-hidden rounded-xl bg-base-surface">
+        <button
+          onClick={() => navigate('/account')}
+          className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
+        >
+          <CreditCard size={14} className="text-ink-secondary" />
+          Мои финансы
+          <ChevronRight size={14} className="ml-auto text-ink-muted" />
+        </button>
         <button
           onClick={() => navigate('/privacy')}
           className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
