@@ -5,6 +5,7 @@ import CategoriesPage from './pages/CategoriesPage';
 import AuctionsPage from './pages/AuctionsPage';
 import BroadcastPage from './pages/BroadcastPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import SettingsPage from './pages/SettingsPage';
 
 const TABS = [
   { key: 'new', label: 'Новый аукцион' },
@@ -12,6 +13,7 @@ const TABS = [
   { key: 'categories', label: 'Категории' },
   { key: 'broadcast', label: 'Рассылка' },
   { key: 'analytics', label: 'Аналитика' },
+  { key: 'settings', label: 'Настройки' },
 ];
 
 function Shell() {
@@ -58,6 +60,7 @@ function Shell() {
         {tab === 'categories' && <CategoriesPage />}
         {tab === 'broadcast' && <BroadcastPage />}
         {tab === 'analytics' && <AnalyticsPage />}
+        {tab === 'settings' && <SettingsPage />}
       </main>
     </div>
   );

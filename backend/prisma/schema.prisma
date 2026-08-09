@@ -325,3 +325,17 @@ model Broadcast {
   failedCount Int      @default(0)
   createdAt   DateTime @default(now())
 }
+
+// 5/6-band: kelajakdagi "foydalanuvchi o'z skinini sotadi" funksiyasi uchun
+// tizim darajasidagi sozlamalar — bitta qatorli (singleton) jadval.
+model SystemSetting {
+  id                Int      @id @default(1)
+  // Tizim skinlarni sotib olish uchun jami sarflay oladigan MAKSIMAL summa
+  // (so'mda). Admin bu qiymatni istalgan vaqt Admin Mini App'dan o'zgartira oladi.
+  maxBuybackBudget  Decimal  @default(0) @db.Decimal(14, 2)
+  // Hozirgacha shu byudjetdan qancha ishlatilgani (kelajakda avtomatik hisoblanadi)
+  usedBuybackBudget Decimal  @default(0) @db.Decimal(14, 2)
+  // Steam bozor narxi USD'da qaytadi — so'mga o'girish uchun kurs (admin yangilaydi)
+  usdToSomRate      Decimal  @default(12700) @db.Decimal(10, 2)
+  updatedAt         DateTime @updatedAt
+}

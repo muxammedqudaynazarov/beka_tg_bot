@@ -140,7 +140,7 @@ export default function AuctionDetailPage() {
   const isLeader = auction.currentLeaderId === user?.id;
   const currentPrice = Number(auction.currentPrice);
   const rarityMeta = RARITY_META[auction.rarity] || RARITY_META.CONSUMER;
-  const suggestedStep = Math.max(Math.round(currentPrice * 0.05), 1000);
+  const suggestedStep = Math.round(currentPrice * 0.05); // aynan 5% — backend'dagi minRaisePercent bilan bir xil
   const nextRaiseAmount = currentPrice + suggestedStep;
   const requiredDeposit = Math.round((nextRaiseAmount * DEPOSIT_PERCENT) / 100);
   const isBiddingOpen = auction.status === 'ACTIVE' && new Date(auction.endsAt).getTime() > Date.now();
@@ -240,7 +240,7 @@ export default function AuctionDetailPage() {
         {auction.stickers?.length > 0 && (
           <div>
             <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">
-              Наклейки
+              Аксессуары
             </h2>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {auction.stickers.map((s) => (

@@ -170,7 +170,7 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
 
       {/* 9-band: stikerlar — soni oldindan noma'lum, admin kerakicha qo'shadi/o'chiradi */}
       <div>
-        <span className="mb-1 block text-xs font-medium text-muted">Наклейки (необязательно)</span>
+        <span className="mb-1 block text-xs font-medium text-muted">Аксессуары (необязательно)</span>
         <div className="space-y-2">
           {(form.stickers || []).map((s, i) => (
             <div key={i} className="flex gap-2">

@@ -378,4 +378,26 @@ router.get('/analytics', async (req, res) => {
   });
 });
 
+// ===========================================================================
+// 5/6-band: TIZIM SOZLAMALARI — kelajakdagi "foydalanuvchi o'z skinini
+// sotadi" funksiyasi uchun admin belgilaydigan maksimal byudjet va kurs.
+// ===========================================================================
+router.get('/settings', async (req, res) => {
+  const { getOrCreateSettings } = require('../services/steamMarketService');
+  const settings = await getOrCreateSettings();
+  res.json(settings);
+});
+
+router.patch('/settings', async (req, res) => {
+  const { maxBuybackBudget, usdToSomRate } = req.body || {};
+  const { getOrCreateSettings } = require('../services/steamMarketService');
+  await getOrCreateSettings();
+  const data = {};
+  if (maxBuybackBudget !== undefined) data.maxBuybackBudget = Number(maxBuybackBudget);
+  if (usdToSomRate !== undefined) data.usdToSomRate = Number(usdToSomRate);
+  const updated = await prisma.systemSetting.update({ where: { id: 1 }, data });
+  await logAction(req.user.id, 'SETTINGS_UPDATED', 'SystemSetting', '1', data);
+  res.json(updated);
+});
+
 module.exports = router;
