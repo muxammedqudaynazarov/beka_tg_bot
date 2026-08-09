@@ -36,11 +36,6 @@ model User {
   // inventariga yuboriladi (8-band). Format: https://steamcommunity.com/tradeoffer/new/?partner=...&token=...
   tradeUrl      String?  @db.VarChar(255)
 
-  // 11-band: kelajakda skin sotib pul chiqarish uchun (hozircha faqat
-  // saqlanadi, hech qanday avtomatik pul o'tkazish YO'Q — 12-band ma'lumotnoma).
-  // API orqali HECH QACHON to'liq holda qaytarilmaydi — faqat niqoblangan ko'rinishda.
-  cardNumber    String?  @db.VarChar(20)
-
   ratingScore   Int      @default(0) // avtomatik reyting (faollik + xaridlar asosida)
   discountPct   Int      @default(0) // adminning tasdig'i bilan beriladigan skidka foizi (0-100)
 
@@ -59,6 +54,8 @@ model User {
   auditLogs     AdminAuditLog[]  @relation("AuditActor")
   favorites     Favorite[]
   broadcasts    Broadcast[]      @relation("BroadcastSender")
+  soldItems     UserSale[]       @relation("SoldItems")
+  recordedSales UserSale[]       @relation("RecordedSales")
 
   @@index([role])
   @@index([isBanned])
@@ -338,4 +335,25 @@ model SystemSetting {
   // Steam bozor narxi USD'da qaytadi — so'mga o'girish uchun kurs (admin yangilaydi)
   usdToSomRate      Decimal  @default(12700) @db.Decimal(10, 2)
   updatedAt         DateTime @updatedAt
+}
+
+// 1-band: admin biror foydalanuvchidan (shaxsiy Steam savdosi orqali)
+// inventar sotib olganda shuni qayd etadi. 7 kunlik "Trade Protection"
+// muddati tugagach (createdAt + 7 kun), tizim buni "to'lovga tayyor" deb
+// belgilaydi — shundan keyingina admin haqiqiy pulni o'tkazishi kerak
+// (avvalgi suhbatda muhokama qilingan xavfsizlik qoidasi).
+model UserSale {
+  id           String    @id @default(uuid())
+  seller       User      @relation("SoldItems", fields: [sellerId], references: [id])
+  sellerId     String
+  recordedBy   User      @relation("RecordedSales", fields: [recordedById], references: [id])
+  recordedById String
+  itemName     String    @db.VarChar(255)
+  agreedAmount Decimal   @db.Decimal(14, 2)
+  paidAt       DateTime? // to'lov qachon amalga oshirilgani (qo'lda belgilanadi)
+  note         String?   @db.VarChar(500)
+  createdAt    DateTime  @default(now())
+
+  @@index([sellerId])
+  @@index([createdAt])
 }

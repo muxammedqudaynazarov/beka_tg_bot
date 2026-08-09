@@ -10,6 +10,17 @@ async function logAction(actorId, action, targetType, targetId, meta) {
   await prisma.adminAuditLog.create({ data: { actorId, action, targetType, targetId, meta } });
 }
 
+// 2-band: Telegram'ning "Markdown" (legacy) rejimi FAQAT yagona *bold* va
+// _italic_ belgilarini tushunadi — ko'pchilik odatlangan **bold**/__italic__
+// (qo'sh belgili) formatini emas. Shu sabab admin qo'sh belgi bilan yozganda
+// hech narsa ishlamay, xom matn sifatida ketardi. Bu yerda ikkalasini ham
+// qabul qilib, Telegram tushunadigan yagona-belgili formatga o'giramiz.
+function normalizeMarkdownForTelegram(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '*$1*') // **bold** -> *bold*
+    .replace(/__(.+?)__/g, '_$1_');    // __italic__ -> _italic_
+}
+
 // 9-band: shu "Тип"lardagi narsalarda format factory (float/wear) YO'Q —
 // admin forma bilan bir xil ro'yxat, seed.js'dagi Тип nomlariga mos bo'lishi shart.
 const NO_FLOAT_TYPE_NAMES = ['Ключи', 'Стикеры', 'Брелки', 'Агенты', 'Граффити', 'Значки', 'Наборы музыки', 'Кейсы и Капсулы'];
@@ -38,7 +49,7 @@ router.get('/broadcasts', async (req, res) => {
 
 router.post('/broadcasts', async (req, res) => {
   const { message, imageUrl } = req.body || {};
-  const trimmed = String(message || '').trim();
+  const trimmed = normalizeMarkdownForTelegram(String(message || '').trim());
   if (!trimmed) return res.status(400).json({ error: 'Текст сообщения обязателен.' });
 
   const broadcast = await prisma.broadcast.create({
@@ -397,6 +408,115 @@ router.patch('/settings', async (req, res) => {
   if (usdToSomRate !== undefined) data.usdToSomRate = Number(usdToSomRate);
   const updated = await prisma.systemSetting.update({ where: { id: 1 }, data });
   await logAction(req.user.id, 'SETTINGS_UPDATED', 'SystemSetting', '1', data);
+  res.json(updated);
+});
+
+// ===========================================================================
+// 1-band: FOYDALANUVCHILAR bo'limi — qidiruv, shaxsiy Steam savdosini qayd
+// etish, va 7 kunlik "Trade Protection" muddati tugagan (to'lovga tayyor)
+// foydalanuvchilar ro'yxati.
+// ===========================================================================
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+router.get('/users', async (req, res) => {
+  const { search } = req.query;
+  const where = search
+    ? {
+        OR: [
+          { username: { contains: String(search) } },
+          { firstName: { contains: String(search) } },
+          { lastName: { contains: String(search) } },
+        ],
+      }
+    : {};
+  const users = await prisma.user.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+    select: {
+      id: true, telegramId: true, username: true, firstName: true, lastName: true,
+      balance: true, isBanned: true, createdAt: true,
+      _count: { select: { soldItems: true } },
+    },
+  });
+  res.json({ items: users });
+});
+
+router.get('/users/:id', async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.params.id },
+    include: { soldItems: { orderBy: { createdAt: 'desc' } } },
+  });
+  if (!user) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  res.json(user);
+});
+
+// Admin shaxsiy Steam savdosi orqali foydalanuvchidan inventar sotib
+// olganda shuni qayd etadi (summa, item nomi, izoh).
+router.post('/users/:id/sales', async (req, res) => {
+  const { itemName, agreedAmount, note } = req.body || {};
+  if (!itemName || !Number.isFinite(Number(agreedAmount)) || Number(agreedAmount) <= 0) {
+    return res.status(400).json({ error: 'Название предмета и сумма обязательны.' });
+  }
+  const seller = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!seller) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+
+  const sale = await prisma.userSale.create({
+    data: {
+      sellerId: seller.id,
+      recordedById: req.user.id,
+      itemName,
+      agreedAmount: Number(agreedAmount),
+      note: note || null,
+    },
+  });
+  await logAction(req.user.id, 'USER_SALE_RECORDED', 'UserSale', sale.id, { itemName, agreedAmount });
+
+  await notifyText(
+    seller.telegramId,
+    `📥 Администратор зафиксировал получение вашего предмета "${itemName}" на сумму ${Number(agreedAmount).toLocaleString('ru-RU')} сум. ` +
+      `Выплата будет произведена после истечения 7-дневного периода защиты сделки в Steam.`
+  );
+
+  res.status(201).json(sale);
+});
+
+// 7 kunlik muddat tugagan, LEKIN hali to'lanmagan barcha savdolar —
+// "admin foydalanuvchiga pul o'tkazib berishi mumkin" ro'yxati.
+router.get('/sales/ready-to-pay', async (req, res) => {
+  const cutoff = new Date(Date.now() - SEVEN_DAYS_MS);
+  const items = await prisma.userSale.findMany({
+    where: { paidAt: null, createdAt: { lte: cutoff } },
+    orderBy: { createdAt: 'asc' },
+    include: { seller: { select: { id: true, username: true, firstName: true, telegramId: true } } },
+  });
+  res.json({ items });
+});
+
+// Hali 7 kun to'lmagan, kutilayotgan savdolar (ma'lumot uchun — pastda
+// alohida ko'rsatiladi, hali "tayyor" emas).
+router.get('/sales/pending', async (req, res) => {
+  const cutoff = new Date(Date.now() - SEVEN_DAYS_MS);
+  const items = await prisma.userSale.findMany({
+    where: { paidAt: null, createdAt: { gt: cutoff } },
+    orderBy: { createdAt: 'asc' },
+    include: { seller: { select: { id: true, username: true, firstName: true } } },
+  });
+  res.json({ items });
+});
+
+router.post('/sales/:id/mark-paid', async (req, res) => {
+  const sale = await prisma.userSale.findUnique({ where: { id: req.params.id }, include: { seller: true } });
+  if (!sale) return res.status(404).json({ error: 'Yozuv topilmadi.' });
+  if (sale.paidAt) return res.status(400).json({ error: 'Bu allaqachon to\'langan deb belgilangan.' });
+
+  const updated = await prisma.userSale.update({ where: { id: sale.id }, data: { paidAt: new Date() } });
+  await logAction(req.user.id, 'USER_SALE_PAID', 'UserSale', sale.id, {});
+  await notifyText(
+    sale.seller.telegramId,
+    `💸 Оплата за "${sale.itemName}" (${Number(sale.agreedAmount).toLocaleString('ru-RU')} сум) произведена. Спасибо за сделку!`
+  );
   res.json(updated);
 });
 

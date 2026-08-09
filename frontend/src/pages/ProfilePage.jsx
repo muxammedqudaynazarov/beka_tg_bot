@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles, CreditCard } from 'lucide-react';
+import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
-import { formatSom } from '../constants';
+import { formatSom, RARITY_META } from '../constants';
 import { useCountdownDHMS } from '../hooks/useCountdown';
+import RarityBadge from '../components/RarityBadge';
 
 const STEAM_TRADE_URL_RE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/;
 
@@ -251,15 +252,39 @@ export default function ProfilePage() {
       </h2>
       {purchases.length ? (
         <div className="mb-6 space-y-2">
-          {purchases.map((p) => (
-            <div key={p.id} className="flex items-center justify-between rounded-xl bg-base-surface px-3.5 py-3">
-              <div>
-                <p className="font-display text-xs font-semibold text-ink-primary">{p.auction?.skinName}</p>
-                <p className="text-[10px] text-ink-muted">{new Date(p.createdAt).toLocaleDateString('ru-RU')}</p>
-              </div>
-              <p className="font-mono text-xs font-bold text-ink-primary">{formatSom(p.amount)}</p>
-            </div>
-          ))}
+          {purchases.map((p) => {
+            const a = p.auction;
+            if (!a) return null;
+            const meta = RARITY_META[a.rarity] || RARITY_META.CONSUMER;
+            return (
+              <button
+                key={p.id}
+                onClick={() => navigate(`/auction/${a.id}`)}
+                className="flex w-full items-center gap-3 rounded-lg bg-base-surface px-2.5 py-2.5 text-left"
+                style={{ borderLeft: `3px solid ${meta.color}`, backgroundImage: `linear-gradient(90deg, ${meta.color}14, transparent 45%)` }}
+              >
+                <div className="h-14 w-14 shrink-0 rounded-md bg-base-surface2">
+                  <img src={a.imageUrl} alt={a.skinName} className="h-full w-full object-contain p-1.5" style={{ filter: `drop-shadow(0 0 8px ${meta.color}33)` }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-0.5 flex items-center gap-1.5">
+                    <RarityBadge rarity={a.rarity} />
+                    {a.wearCondition && (
+                      <span className="rounded bg-rarity-milspec/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-rarity-milspec">
+                        {a.wearCondition}
+                      </span>
+                    )}
+                    {a.floatValue !== null && a.floatValue !== undefined && (
+                      <span className="truncate font-mono text-[10px] text-ink-muted">{Number(a.floatValue).toFixed(4)}</span>
+                    )}
+                  </div>
+                  <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">{a.skinName}</h3>
+                  <p className="mt-0.5 text-[10px] text-ink-muted">{new Date(p.createdAt).toLocaleDateString('ru-RU')}</p>
+                </div>
+                <p className="shrink-0 font-mono text-[13px] font-bold" style={{ color: meta.color }}>{formatSom(p.amount)}</p>
+              </button>
+            );
+          })}
         </div>
       ) : (
         <p className="mb-6 text-xs text-ink-muted">Пока нет купленных скинов.</p>
@@ -293,14 +318,6 @@ export default function ProfilePage() {
 
       <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">Другое</h2>
       <div className="divide-y divide-base-border overflow-hidden rounded-xl bg-base-surface">
-        <button
-          onClick={() => navigate('/account')}
-          className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
-        >
-          <CreditCard size={14} className="text-ink-secondary" />
-          Мои финансы
-          <ChevronRight size={14} className="ml-auto text-ink-muted" />
-        </button>
         <button
           onClick={() => navigate('/privacy')}
           className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"

@@ -8,16 +8,12 @@ const router = express.Router();
 // Steam Trade URL formati: https://steamcommunity.com/tradeoffer/new/?partner=NNNNN&token=XXXXXXXX
 const STEAM_TRADE_URL_RE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/;
 
-function maskCard(cardNumber) {
-  if (!cardNumber) return null;
-  return `${cardNumber.slice(0, 6)}******${cardNumber.slice(-4)}`;
-}
-
 // 1.h-band: Profil oynasi — sotib olingan skinlar, hisobdagi pul, maxfiylik siyosati havolalari
 router.get('/', requireAuth, async (req, res) => {
   const purchases = await prisma.transaction.findMany({
     where: { userId: req.user.id, type: 'PURCHASE', status: 'SUCCESS' },
     orderBy: { createdAt: 'desc' },
+    take: 10, // 4-band: faqat oxirgi 10ta
     include: { auction: { include: { subcategory: { include: { category: true } } } } },
   });
 
@@ -32,7 +28,6 @@ router.get('/', requireAuth, async (req, res) => {
       ratingScore: req.user.ratingScore,
       discountPct: req.user.discountPct,
       tradeUrl: req.user.tradeUrl,
-      cardNumberMasked: maskCard(req.user.cardNumber), // 11-band: TO'LIQ raqam hech qachon qaytarilmaydi
       createdAt: req.user.createdAt,
     },
     purchases,
@@ -42,40 +37,6 @@ router.get('/', requireAuth, async (req, res) => {
       supportGroupUrl: env.supportGroupUrl || null,
     },
   });
-});
-
-// 11-band: "Hisob ma'lumotlarim" — karta raqami (faqat 16 raqam) va
-// to'ldirgan/olgan summalar analitikasi.
-router.get('/finance', requireAuth, async (req, res) => {
-  const [deposited, received] = await Promise.all([
-    prisma.transaction.aggregate({
-      where: { userId: req.user.id, type: 'TOPUP', status: 'SUCCESS' },
-      _sum: { amount: true },
-    }),
-    // Hozircha har doim 0 qaytadi — skin sotish/pul chiqarish mexanizmi hali
-    // qurilmagan (12-band — bu faqat ma'lumotnoma bosqichida). Shu mexanizm
-    // qurilgach, PAYOUT turidagi tranzaksiyalar shu yerda avtomatik hisobga olinadi.
-    prisma.transaction.aggregate({
-      where: { userId: req.user.id, type: 'PAYOUT', status: 'SUCCESS' },
-      _sum: { amount: true },
-    }),
-  ]);
-
-  res.json({
-    cardNumberMasked: maskCard(req.user.cardNumber),
-    totalDeposited: Number(deposited._sum.amount || 0),
-    totalReceived: Number(received._sum.amount || 0),
-  });
-});
-
-router.patch('/card', requireAuth, async (req, res) => {
-  const { cardNumber } = req.body || {};
-  const digitsOnly = String(cardNumber || '').replace(/\D/g, '');
-  if (digitsOnly.length !== 16) {
-    return res.status(400).json({ error: 'Номер карты должен содержать ровно 16 цифр.' });
-  }
-  await prisma.user.update({ where: { id: req.user.id }, data: { cardNumber: digitsOnly } });
-  res.json({ ok: true, cardNumberMasked: maskCard(digitsOnly) });
 });
 
 // 4-band: Profil qismida Trade URL kiritish maydoni. 8-band: bu havola
