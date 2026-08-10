@@ -162,7 +162,7 @@ router.post('/auctions', async (req, res) => {
     if (env.announceChannelId) {
         const {notifyChannel} = require('../services/notifier');
 
-        const lines = [`<tg-emoji emoji-id='5431472507888628163'>3️⃣</tg-emoji> <b>${skinName}</b>`, ''];
+        const lines = [`<tg-emoji emoji-id="5431472507888628163">3️⃣</tg-emoji> <b>${skinName}</b>`, ''];
         lines.push(`Редкость: ${RARITY_LABELS[rarity] || rarity}`);
         if (wearCondition) lines.push(`Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}`);
         if (floatValue !== undefined && floatValue !== null && floatValue !== '') {
