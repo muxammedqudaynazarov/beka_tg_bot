@@ -538,4 +538,36 @@ router.get('/steam-inventory', async (req, res) => {
   res.json({ items: result.items });
 });
 
+// ===========================================================================
+// 10/11-band: REKLAMA — ikkita slot (BANNER, POPUP) boshqaruvi + statistika.
+// ===========================================================================
+router.get('/ads', async (req, res) => {
+  const ads = await prisma.advertisement.findMany();
+  const bySlot = { BANNER: null, POPUP: null };
+  for (const ad of ads) bySlot[ad.slot] = ad;
+  res.json(bySlot);
+});
+
+router.put('/ads/:slot', async (req, res) => {
+  const slot = String(req.params.slot || '').toUpperCase();
+  if (!['BANNER', 'POPUP'].includes(slot)) return res.status(400).json({ error: 'Noto\'g\'ri slot.' });
+  const { imageUrl, linkUrl, isActive } = req.body || {};
+  if (!imageUrl) return res.status(400).json({ error: 'URL изображения обязателен.' });
+
+  const ad = await prisma.advertisement.upsert({
+    where: { slot },
+    update: { imageUrl, linkUrl: linkUrl || null, isActive: isActive !== undefined ? Boolean(isActive) : true },
+    create: { slot, imageUrl, linkUrl: linkUrl || null },
+  });
+  await logAction(req.user.id, 'AD_UPDATED', 'Advertisement', ad.id, { slot });
+  res.json(ad);
+});
+
+router.delete('/ads/:slot', async (req, res) => {
+  const slot = String(req.params.slot || '').toUpperCase();
+  await prisma.advertisement.deleteMany({ where: { slot } });
+  await logAction(req.user.id, 'AD_DELETED', 'Advertisement', slot, {});
+  res.json({ ok: true });
+});
+
 module.exports = router;

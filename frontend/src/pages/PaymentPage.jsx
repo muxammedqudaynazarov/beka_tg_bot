@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Wallet, Lock, Clock3, RefreshCw } from 'lucide-react';
 import { api } from '../api';
+import AdBanner from '../components/AdBanner';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
@@ -87,6 +88,7 @@ export default function PaymentPage() {
   return (
     <div className="min-h-screen px-4 pb-28 pt-6">
       <h1 className="mb-1 font-display text-base font-bold text-ink-primary">Пополнение</h1>
+      <AdBanner />
       <p className="mb-5 text-xs text-ink-secondary">Пополните баланс, чтобы участвовать в аукционах.</p>
 
       <div className="mb-6 rounded-2xl bg-gradient-to-br from-base-surface to-base-surface2 p-4 shadow-glow">

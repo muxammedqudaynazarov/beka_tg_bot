@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles } from 'lucide-react';
 import { api } from '../api';
+import AdBanner from '../components/AdBanner';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
 import { formatSom, RARITY_META } from '../constants';
@@ -161,6 +162,8 @@ export default function ProfilePage() {
           <p className="text-xs text-ink-secondary">@{user?.username || 'нет username'}</p>
         </div>
       </div>
+
+      <AdBanner />
 
       <div className="mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-base-surface p-3.5">

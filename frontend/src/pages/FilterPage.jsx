@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ArrowUpNarrowWide, ArrowDownNarrowWide } from 'lucide-react';
 import { api } from '../api';
+import AdBanner from '../components/AdBanner';
 import { useFilters } from '../FiltersContext';
 import { WEAR_LABELS } from '../constants';
 
@@ -78,6 +79,7 @@ export default function FilterPage() {
         </button>
         <h1 className="font-display text-base font-bold text-ink-primary">Фильтр</h1>
       </header>
+      <AdBanner />
 
       {loading ? (
         <main className="space-y-6 px-4 pb-36 pt-5">

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import { FiltersProvider } from './FiltersContext';
 import BottomNav from './components/BottomNav';
+import AdPopup from './components/AdPopup';
 import HomePage from './pages/HomePage';
 import FilterPage from './pages/FilterPage';
 import PaymentPage from './pages/PaymentPage';
@@ -10,7 +11,7 @@ import AuctionDetailPage from './pages/AuctionDetailPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 function AuthGate({ children }) {
-  const { status, error } = useAuth();
+  const { status, error, showPopupAd } = useAuth();
 
   if (status === 'loading') {
     return (
@@ -30,7 +31,12 @@ function AuthGate({ children }) {
     );
   }
 
-  return children;
+  return (
+    <>
+      <AdPopup shouldShow={showPopupAd} />
+      {children}
+    </>
+  );
 }
 
 export default function App() {

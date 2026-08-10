@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Gavel, Lock, TrendingUp, Clock, CheckCircle2, XCircle, Zap, Heart } from 'lucide-react';
 import { api } from '../api';
+import AdBanner from '../components/AdBanner';
 import { useAuth } from '../AuthContext';
 import { useAuctionSocket } from '../hooks/useAuctionSocket';
 import { useCountdownDHMS } from '../hooks/useCountdown';
@@ -183,6 +184,7 @@ export default function AuctionDetailPage() {
         </button>
         <h1 className="truncate font-display text-sm font-bold text-ink-primary">{auction.skinName}</h1>
       </header>
+      <AdBanner />
 
       <div
         className="relative mx-4 mt-4 flex aspect-[4/3] items-center justify-center bg-base-surface"

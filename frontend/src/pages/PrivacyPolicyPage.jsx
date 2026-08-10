@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import AdBanner from '../components/AdBanner';
 
 function P({ children }) {
   return <p className="mb-3 text-[13px] leading-relaxed text-ink-secondary">{children}</p>;
@@ -19,6 +20,7 @@ export default function PrivacyPolicyPage() {
         </button>
         <h1 className="font-display text-base font-bold text-ink-primary">Политика конфиденциальности</h1>
       </header>
+      <AdBanner />
 
       <main className="px-4 pt-4">
         <P>

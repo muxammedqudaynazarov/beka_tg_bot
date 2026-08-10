@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import AdBanner from '../components/AdBanner';
 import SearchBar from '../components/SearchBar';
 import TabPills from '../components/TabPills';
 import AuctionListItem from '../components/AuctionListItem';
@@ -59,6 +60,7 @@ export default function HomePage() {
           )}
         </div>
       </header>
+      <AdBanner />
 
       <main className="flex-1 px-3 pt-3">
         {loading ? (

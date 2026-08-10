@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState(null);
+  const [showPopupAd, setShowPopupAd] = useState(false);
 
   const refreshProfile = useCallback(async () => {
     const { data } = await api.get('/profile');
@@ -32,6 +33,7 @@ export function AuthProvider({ children }) {
         const { data } = await api.post('/auth/telegram', { initData });
         setAuthToken(data.token);
         setUser(data.user);
+        setShowPopupAd(Boolean(data.showPopupAd)); // 10/11-band: har 3-ochilishda bir marta
         setStatus('ready');
       } catch (err) {
         setStatus('error');
@@ -41,7 +43,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, status, error, refreshProfile }}>
+    <AuthContext.Provider value={{ user, setUser, status, error, refreshProfile, showPopupAd }}>
       {children}
     </AuthContext.Provider>
   );

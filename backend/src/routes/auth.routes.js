@@ -39,9 +39,19 @@ router.post('/telegram', async (req, res) => {
     },
   });
 
+  // 10/11-band: har bir haqiqiy ilova ochilishida (initData bilan, ya'ni
+  // shu bitta so'rov — sahifa qayta yuklanganda emas) hisoblagich oshiriladi;
+  // har 3-ochilishda bir marta popup-reklama ko'rsatiladi.
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: { appOpenCount: { increment: 1 } },
+  });
+  const showPopupAd = updatedUser.appOpenCount % 3 === 0;
+
   const token = signSession(user);
   res.json({
     token,
+    showPopupAd,
     user: {
       id: user.id,
       username: user.username,

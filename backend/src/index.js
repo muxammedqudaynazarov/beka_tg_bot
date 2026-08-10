@@ -23,6 +23,7 @@ const categoriesRoutes = require('./routes/categories.routes');
 const paymentsRoutes = require('./routes/payments.routes');
 const profileRoutes = require('./routes/profile.routes');
 const favoritesRoutes = require('./routes/favorites.routes');
+const adsRoutes = require('./routes/ads.routes');
 const adminRoutes = require('./routes/admin.routes');
 
 // Prisma Decimal/BigInt qiymatlarini JSON'ga xavfsiz aylantirish (masalan
@@ -85,6 +86,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/favorites', favoritesRoutes);
+app.use('/api/ads', adsRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Umumiy xato ushlagich — hech qanday kutilmagan xato butun serverni
