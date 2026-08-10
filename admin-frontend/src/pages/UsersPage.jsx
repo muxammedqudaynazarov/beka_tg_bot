@@ -106,7 +106,7 @@ function UserCard({ user, onChanged }) {
       <button onClick={toggle} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
         <div>
           <p className="text-sm font-medium text-ink">
-            {user.firstName || 'Без имени'} {user.username ? `· @${user.username}` : ''}
+            {user.code || 'Без имени'} {user.username ? `· @${user.username}` : ''}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
           <span
