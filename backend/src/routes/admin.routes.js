@@ -33,7 +33,12 @@ const RARITY_LABELS = {
   CONSUMER: 'Ширпотреб', INDUSTRIAL: 'Промышленное', MILSPEC: 'Армейское',
   RESTRICTED: 'Запрещённое', CLASSIFIED: 'Засекреченное', COVERT: 'Тайное', GOLD: 'Редкое ★',
 };
-const WEAR_LABELS = {FN: 'Прямо с завода', MW: 'Немного поношенное', FT: 'После полевых испытаний', WW: 'Поношенное', BS: 'Закаленное в боях'};
+const WEAR_LABELS = { FN: 'Factory New', MW: 'Minimal Wear', FT: 'Field-Tested', WW: 'Well-Worn', BS: 'Battle-Scarred' };
+// Backend'ga QANDAY qiymat kelishidan qat'iy nazar (bo'sh qator, noto'g'ri
+// so'z va h.k.), Prisma'ga faqat shu ro'yxatdagi haqiqiy qiymatlar boradi —
+// aks holda aniq xabar bilan 400 qaytariladi ("Invalid value... Expected
+// WearCondition" kabi tushunarsiz Prisma xatosi o'rniga).
+const VALID_WEAR_VALUES = Object.keys(WEAR_LABELS);
 
 async function subcategoryNeedsFloat(subcategoryId) {
   const sub = await prisma.weaponSubcategory.findUnique({ where: { id: subcategoryId }, include: { category: true } });
@@ -121,6 +126,9 @@ router.post('/auctions', async (req, res) => {
   if (needsFloat && (!wearCondition || floatValue === undefined || floatValue === null || floatValue === '')) {
     return res.status(400).json({ error: 'Для этого типа предмета укажите класс износа и float.' });
   }
+  if (needsFloat && !VALID_WEAR_VALUES.includes(wearCondition)) {
+    return res.status(400).json({ error: `Неверный класс износа: "${wearCondition}". Допустимые: ${VALID_WEAR_VALUES.join(', ')}.` });
+  }
 
   const endsAt = new Date(Date.now() + Number(durationMinutes) * 60 * 1000);
 
@@ -156,20 +164,22 @@ router.post('/auctions', async (req, res) => {
   if (env.announceChannelId) {
     const { notifyChannel } = require('../services/notifier');
 
-    const lines = [`⚡️ <b>${skinName}</b>`, ''];
-    lines.push(`<i>Редкость: ${RARITY_LABELS[rarity] || rarity}</i>`);
-    if (wearCondition) lines.push(`<i>Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}</i>`);
+    const lines = [`🆕 <b>${skinName}</b>`, ''];
+    lines.push(`Редкость: ${RARITY_LABELS[rarity] || rarity}`);
+    if (wearCondition) lines.push(`Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}`);
     if (floatValue !== undefined && floatValue !== null && floatValue !== '') {
-      lines.push(`<i>Float: ${Number(floatValue).toFixed(6)}</i>`);
+      lines.push(`Float: ${Number(floatValue).toFixed(6)}`);
     }
     if (paintSeed !== undefined && paintSeed !== null && paintSeed !== '') {
-      lines.push(`<i>Шаблон раскраски: #${paintSeed}</i>`);
+      lines.push(`Шаблон раскраски: #${paintSeed}`);
     }
     lines.push('');
-    lines.push(`<b>Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум</b>`);
-    lines.push(`<b>Завершение:</b> <code>${endsAt.toLocaleString('ru-RU')}</code>`);
+    lines.push(`Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум`);
+    lines.push(`Завершение: ${endsAt.toLocaleString('ru-RU')}`);
     lines.push('');
-    lines.push('@CS2_auction');
+    lines.push('Участвуйте в аукционе прямо сейчас! 👇');
+    lines.push('');
+    lines.push('📢 @CS2_auction');
 
     // web_app tugmasi KANALLARDA ishlamaydi (Telegram cheklovi) — shuning
     // uchun t.me/BOT/APPNAME?startapp=... deep-link ishlatiladi, bu esa
@@ -180,7 +190,7 @@ router.post('/auctions', async (req, res) => {
       replyMarkup = {
         inline_keyboard: [[
           {
-            text: 'Перейти к лоту',
+            text: 'Перейти к лоту 👉',
             url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
           },
         ]],
@@ -230,7 +240,11 @@ router.patch('/auctions/:id', async (req, res) => {
   if (subcategoryId !== undefined) data.subcategoryId = subcategoryId;
   if (rarity !== undefined) data.rarity = rarity;
   data.floatValue = needsFloat ? (floatValue !== undefined ? Number(floatValue) : existing.floatValue) : null;
-  data.wearCondition = needsFloat ? (wearCondition !== undefined ? wearCondition : existing.wearCondition) : null;
+  const effectiveWear = wearCondition !== undefined ? wearCondition : existing.wearCondition;
+  if (needsFloat && !VALID_WEAR_VALUES.includes(effectiveWear)) {
+    return res.status(400).json({ error: `Неверный класс износа: "${effectiveWear}". Допустимые: ${VALID_WEAR_VALUES.join(', ')}.` });
+  }
+  data.wearCondition = needsFloat ? effectiveWear : null;
   if (isStatTrak !== undefined) data.isStatTrak = Boolean(isStatTrak);
   if (paintSeed !== undefined) data.paintSeed = paintSeed === '' || paintSeed === null ? null : Number(paintSeed);
   if (steamAssetId !== undefined) data.steamAssetId = steamAssetId || null;
