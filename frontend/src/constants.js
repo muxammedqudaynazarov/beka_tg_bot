@@ -5,18 +5,18 @@ export const RARITY_META = {
   RESTRICTED: { label: 'Запрещённое', color: '#8847FF' },
   CLASSIFIED: { label: 'Засекреченное', color: '#D32CE6' },
   COVERT: { label: 'Тайное', color: '#EB4B4B' },
-  GOLD: { label: 'Редкое ★', color: '#FFD700' },
+  GOLD: { label: 'Редкое', color: '#FFD700' },
 };
 
 // DIQQAT: WEAR_LABELS (Factory New, Minimal Wear va h.k.) ATAYIN
 // tarjima qilinmagan — bu CS2 hamjamiyatida (rus tilida ham) hamma
 // tomonidan xuddi shu inglizcha nomlar bilan tanilgan rasmiy atamalar.
 export const WEAR_LABELS = {
-  FN: 'Factory New',
-  MW: 'Minimal Wear',
-  FT: 'Field-Tested',
-  WW: 'Well-Worn',
-  BS: 'Battle-Scarred',
+  FN: 'Прямо с завода', // Factory New
+  MW: 'Немного поношенное', // Minimal Wear
+  FT: 'После полевых испытаний', // Field-Tested
+  WW: 'Поношенное', // Well-Worn
+  BS: 'Закаленное в боях', // Battle-Scarred
 };
 
 export function formatSom(amount) {
