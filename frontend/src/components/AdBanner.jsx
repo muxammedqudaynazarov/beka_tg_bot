@@ -28,7 +28,7 @@ export default function AdBanner() {
 
   return (
     <button onClick={handleClick} className="block w-full border-b border-base-border">
-      <img src={ad.imageUrl} alt="Реклама" className="h-14 w-full object-cover" />
+      <img src={ad.imageUrl} alt="Реклама" className="h-14 w-full object-fill" />
     </button>
   );
 }
