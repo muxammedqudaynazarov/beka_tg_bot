@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw, Ban, ShieldOff, Trash2, Copy } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw, Ban, ShieldOff, Trash2, Copy, MessageCircle } from 'lucide-react';
 import { api } from '../api';
 import { showAlert, showConfirm } from '../telegram';
 
@@ -163,30 +163,27 @@ function UserCard({ user, onChanged, autoExpand }) {
 
   return (
     <div id={`user-${user.id}`} className="rounded-lg border border-border">
-      <button onClick={toggle} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
-        <div>
-          <p className="text-sm font-medium text-ink">
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <div role="button" tabIndex={0} onClick={toggle} onKeyDown={(e) => e.key === 'Enter' && toggle()} className="min-w-0 flex-1 text-left">
+          <p className="truncate text-sm font-medium text-ink">
             {userLabel(user)} {user.firstName && <span className="font-normal text-muted">· {user.firstName}</span>}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
+          {/* 3-band: Telegram ID endi HAR DOIM ko'rinadi, accordion'ni ochish shart emas */}
+          <button onClick={copyId} className="mt-1 flex items-center gap-1 font-mono text-[10px] text-accent">
+            <Copy size={10} /> ID: {String(user.telegramId)}
+          </button>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div role="button" tabIndex={0} onClick={toggle} onKeyDown={(e) => e.key === 'Enter' && toggle()} className="flex shrink-0 flex-col items-end gap-1">
           {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
           {(user.role === 'ADMIN' || user.role === 'SUPERADMIN') && (
             <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold text-accent">{user.role}</span>
           )}
         </div>
-      </button>
+      </div>
 
       {expanded && detail && (
         <div className="space-y-2 border-t border-border p-3">
-          <button
-            onClick={copyId}
-            className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1.5 font-mono text-[10px] text-ink"
-          >
-            <Copy size={11} /> Telegram ID: {String(user.telegramId)}
-          </button>
-
           <div className="flex gap-2">
             {!showSaleForm && (
               <button
@@ -296,10 +293,21 @@ function PayoutRow({ sale, onPaid, onCancelled, onOpenProfile }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-medium text-ink">{sale.itemName}</p>
-          <button onClick={() => onOpenProfile(sale.seller.id)} className="mt-0.5 text-[11px] text-accent underline">
-            {label}
-          </button>
-          <span className="text-[11px] text-muted"> · {formatSom(sale.agreedAmount)}</span>
+          <div className="mt-0.5 flex items-center gap-2">
+            <button onClick={() => onOpenProfile(sale.seller.id)} className="text-[11px] text-accent underline">
+              {label}
+            </button>
+            {/* 4-band: to'g'ridan-to'g'ri shu foydalanuvchi bilan Telegram
+                chatini ochish. DIQQAT: bu faqat Telegram bu ID'ni "tanigan"
+                (masalan avval yozishgan yoki umumiy guruhda bo'lgan) hollarda
+                ishonchli ochiladi — butunlay begona ID uchun ba'zan
+                "foydalanuvchi topilmadi" chiqishi mumkin, bu Telegram'ning
+                o'zining cheklovi. */}
+            <a href={`tg://user?id=${sale.seller.telegramId}`} className="flex items-center gap-0.5 text-[11px] text-accent">
+              <MessageCircle size={11} /> Написать
+            </a>
+          </div>
+          <span className="text-[11px] text-muted">{formatSom(sale.agreedAmount)}</span>
         </div>
         <button onClick={cancel} disabled={cancelling} className="shrink-0 text-muted hover:text-danger disabled:opacity-50">
           <Trash2 size={14} />
@@ -362,6 +370,19 @@ export default function UsersPage() {
 
   useEffect(loadUsers, [search]);
   useEffect(() => { loadPayouts(); }, []);
+
+  // 2-band: har 10 soniyada avtomatik yangilanish — faqat sahifa faol
+  // (ko'rinib turgan) tabda bo'lganda, ortiqcha server yukini oldini olish
+  // uchun. useRef orqali — hozirgi qidiruv matni bilan doim yangilanib
+  // turishi uchun (eski "stale closure" muammosisiz).
+  const refreshAllRef = useRef(refreshAll);
+  refreshAllRef.current = refreshAll;
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshAllRef.current();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // 5-band: to'lov yozuvidagi sotuvchi nomiga bosilganda, shu foydalanuvchi
   // qidiruvda ko'rinadigan qilinadi va kartasi avtomatik ochiladi.

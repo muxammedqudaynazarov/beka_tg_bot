@@ -151,6 +151,17 @@ export default function AuctionsPage() {
   }
   useEffect(load, []);
 
+  // 2-band: real vaqtga yaqin yangilanish — soket infratuzilmasini butunlay
+  // qayta qurmasdan, oddiy va bashorat qilinadigan yuklama beradigan usul:
+  // har 10 soniyada, FAQAT sahifa ko'rinib turgan (faol tab) paytda so'raladi
+  // — fon tabda ortiqcha so'rov yubormaslik uchun.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const loading = active === null || awaitingDelivery === null;
   if (loading) {
     return (
