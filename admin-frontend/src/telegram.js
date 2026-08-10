@@ -14,3 +14,9 @@ export function showAlert(message) {
   if (tg?.showAlert) tg.showAlert(message);
   else window.alert(message);
 }
+export function showConfirm(message) {
+  return new Promise((resolve) => {
+    if (tg?.showConfirm) tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+    else resolve(window.confirm(message));
+  });
+}

@@ -26,6 +26,9 @@ const env = {
   adminMiniAppUrl: process.env.ADMIN_MINI_APP_URL || 'http://localhost:5174',
   // "Yordam" tugmasi shu guruh/kanalga yo'naltiriladi (4-band javobi)
   supportGroupUrl: process.env.SUPPORT_GROUP_URL || '',
+  // 7-band: yangi auksion qo'shilganda shu kanalga rasmli e'lon yuboriladi
+  // (bot shu kanalda ADMIN bo'lishi shart — aks holda xabar yuborib bo'lmaydi)
+  announceChannelId: process.env.ANNOUNCE_CHANNEL_ID || '',
 
   // 5/13-band: Trade URL'ni haqiqiy tekshirish va skinlarni avtomatik
   // Steam orqali yuborish uchun bot-akkaunt. Bo'sh qoldirilsa, bu

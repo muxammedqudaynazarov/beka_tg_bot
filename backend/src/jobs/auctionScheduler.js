@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { closeExpiredAuctions, sweepAwaitingPayments } = require('../services/auctionService');
+const { notifyReadySales } = require('../services/userSaleService');
 const prisma = require('../db/prisma');
 const { env } = require('../config/env');
 const { notifyText, notifyPhoto, notifyAllAdmins } = require('../services/notifier');
@@ -74,6 +75,9 @@ function startAuctionScheduler(io) {
           );
         }
       }
+
+      // 1-band: 8 kunlik himoya muddati tugagan savdolar haqida adminlarga xabar
+      await notifyReadySales();
     } catch (err) {
       console.error('[auctionScheduler] xatolik:', err);
     }

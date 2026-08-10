@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../db/prisma');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { notifyText, notifyPhoto } = require('../services/notifier');
+const { env } = require('../config/env');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('ADMIN', 'SUPERADMIN'));
@@ -45,6 +46,13 @@ router.get('/broadcasts', async (req, res) => {
     include: { admin: { select: { firstName: true, username: true } } },
   });
   res.json({ items });
+});
+
+// 8-band: ro'yxat "quriqdan to'lib" ketmasligi uchun eski yozuvlarni o'chirish
+router.delete('/broadcasts/:id', async (req, res) => {
+  await prisma.broadcast.delete({ where: { id: req.params.id } });
+  await logAction(req.user.id, 'BROADCAST_DELETED', 'Broadcast', req.params.id, {});
+  res.json({ ok: true });
 });
 
 router.post('/broadcasts', async (req, res) => {
@@ -132,6 +140,21 @@ router.post('/auctions', async (req, res) => {
   });
 
   await logAction(req.user.id, 'AUCTION_CREATED', 'Auction', auction.id, { skinName, startPrice });
+
+  // 7-band: yangi auksion haqida kanalga rasmli e'lon
+  if (env.announceChannelId) {
+    const { notifyChannel } = require('../services/notifier');
+    await notifyChannel(
+      env.announceChannelId,
+      imageUrl,
+      `🆕 <b>${skinName}</b>\n\n` +
+        `Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум\n` +
+        `Завершение: ${endsAt.toLocaleString('ru-RU')}\n\n` +
+        `Участвуйте в аукционе прямо сейчас! 👇`,
+      { parse_mode: 'HTML' }
+    );
+  }
+
   res.status(201).json(auction);
 });
 
@@ -287,6 +310,10 @@ router.post('/users/:id/ban', async (req, res) => {
     data: { isBanned: true, bannedReason: reason || null, bannedAt: new Date() },
   });
   await logAction(req.user.id, 'USER_BANNED', 'User', user.id, { reason });
+  await notifyText(
+    user.telegramId,
+    `⛔ Ваш аккаунт заблокирован администратором.${reason ? `\nПричина: ${reason}` : ''}`
+  );
   res.json({ ok: true });
 });
 
@@ -343,11 +370,11 @@ router.get('/analytics', async (req, res) => {
   const prevStart = prevMonthDate;
   const prevEnd = start;
 
-  const [deposited, spent, pendingCount, failedCount, prevDeposited, balanceAgg] = await Promise.all([
+  const [deposited, spent, pendingAgg, failedAgg, prevDeposited, balanceAgg] = await Promise.all([
     prisma.transaction.aggregate({ where: { type: 'TOPUP', status: 'SUCCESS', createdAt: { gte: start, lt: end } }, _sum: { amount: true } }),
     prisma.transaction.aggregate({ where: { type: 'PURCHASE', status: 'SUCCESS', createdAt: { gte: start, lt: end } }, _sum: { amount: true } }),
-    prisma.transaction.count({ where: { type: 'TOPUP', status: 'PENDING', createdAt: { gte: start, lt: end } } }),
-    prisma.transaction.count({ where: { type: 'TOPUP', status: { in: ['FAILED', 'CANCELLED'] }, createdAt: { gte: start, lt: end } } }),
+    prisma.transaction.aggregate({ where: { type: 'TOPUP', status: 'PENDING', createdAt: { gte: start, lt: end } }, _sum: { amount: true }, _count: true }),
+    prisma.transaction.aggregate({ where: { type: 'TOPUP', status: { in: ['FAILED', 'CANCELLED'] }, createdAt: { gte: start, lt: end } }, _sum: { amount: true }, _count: true }),
     prisma.transaction.aggregate({ where: { type: 'TOPUP', status: 'SUCCESS', createdAt: { gte: prevStart, lt: prevEnd } }, _sum: { amount: true } }),
     prisma.user.aggregate({ _sum: { balance: true } }),
   ]);
@@ -367,7 +394,9 @@ router.get('/analytics', async (req, res) => {
     month,
     totalDeposited,
     totalSpent: Number(spent._sum.amount || 0),
-    unsuccessfulPaymentsCount: pendingCount + failedCount,
+    // 9-band: soni bilan birga summasi ham — front "2 (5 000 сум)" shaklida ko'rsatadi
+    unsuccessfulPaymentsCount: pendingAgg._count + failedAgg._count,
+    unsuccessfulPaymentsAmount: Number(pendingAgg._sum.amount || 0) + Number(failedAgg._sum.amount || 0),
     // "hozirda" — tizimdagi barcha foydalanuvchilar balansining JORIY yig'indisi
     // (tanlangan oyga bog'liq emas, doim real vaqtdagi qiymat)
     currentTotalUserBalance: Number(balanceAgg._sum.balance || 0),
@@ -394,7 +423,7 @@ router.get('/users', async (req, res) => {
           { username: { contains: searchStr } },
           { firstName: { contains: searchStr } },
           { lastName: { contains: searchStr } },
-          ...(/^\d+$/.test(searchStr) ? [{ code: Number(searchStr) }] : []),
+          ...(/^\d+$/.test(searchStr) ? [{ telegramId: BigInt(searchStr) }] : []),
         ],
       }
     : {};
@@ -403,7 +432,7 @@ router.get('/users', async (req, res) => {
     orderBy: { createdAt: 'desc' },
     take: 30,
     select: {
-      id: true, code: true, telegramId: true, username: true, firstName: true, lastName: true, role: true,
+      id: true, telegramId: true, username: true, firstName: true, lastName: true, role: true,
       balance: true, isBanned: true, createdAt: true,
       _count: { select: { soldItems: true } },
     },
@@ -430,15 +459,9 @@ router.post('/users/:id/sales', async (req, res) => {
   const seller = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!seller) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
 
-  const sale = await prisma.userSale.create({
-    data: {
-      sellerId: seller.id,
-      recordedById: req.user.id,
-      itemName,
-      agreedAmount: Number(agreedAmount),
-      note: note || null,
-    },
-  });
+  const { recordSale } = require('../services/userSaleService');
+  const sale = await recordSale({ sellerId: seller.id, recordedById: req.user.id, itemName, agreedAmount: Number(agreedAmount) });
+  if (note) await prisma.userSale.update({ where: { id: sale.id }, data: { note } });
   await logAction(req.user.id, 'USER_SALE_RECORDED', 'UserSale', sale.id, { itemName, agreedAmount });
 
   await notifyText(
@@ -452,11 +475,21 @@ router.post('/users/:id/sales', async (req, res) => {
 
 // 8 kunlik muddat tugagan, LEKIN hali to'lanmagan barcha savdolar —
 // "admin foydalanuvchiga pul o'tkazib berishi mumkin" ro'yxati.
+// 1-band: savdoni bekor qilish (masalan sotuvchi fikridan qaytsa) — yozuv
+// o'chiriladi va 2-band bo'yicha berilgan reyting ball qaytarib olinadi.
+router.delete('/sales/:id', async (req, res) => {
+  const { cancelSale } = require('../services/userSaleService');
+  const sale = await cancelSale(req.params.id, req.user.id);
+  if (!sale) return res.status(404).json({ error: 'Yozuv topilmadi.' });
+  res.json({ ok: true });
+});
+
 router.get('/sales/ready-to-pay', async (req, res) => {
   const cutoff = new Date(Date.now() - SALE_HOLD_MS);
   const items = await prisma.userSale.findMany({
     where: { paidAt: null, createdAt: { lte: cutoff } },
     orderBy: { createdAt: 'asc' },
+    take: 5, // 1-band: eng eskisidan boshlab, ko'pi bilan 5ta
     include: { seller: { select: { id: true, username: true, firstName: true, telegramId: true } } },
   });
   res.json({ items });
@@ -469,7 +502,8 @@ router.get('/sales/pending', async (req, res) => {
   const items = await prisma.userSale.findMany({
     where: { paidAt: null, createdAt: { gt: cutoff } },
     orderBy: { createdAt: 'asc' },
-    include: { seller: { select: { id: true, username: true, firstName: true } } },
+    take: 5,
+    include: { seller: { select: { id: true, username: true, firstName: true, telegramId: true } } },
   });
   res.json({ items });
 });

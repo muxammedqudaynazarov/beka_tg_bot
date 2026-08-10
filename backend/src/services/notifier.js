@@ -67,4 +67,19 @@ async function notifyAllAdmins(text, extra) {
   }
 }
 
-module.exports = { setBot, setUserBot, setAdminBot, notifyText, notifyPhoto, notifyAllAdmins };
+/**
+ * 7-band: yangi auksion e'lon qilinganda ochiq kanalga rasm bilan xabar.
+ * @returns {Promise<boolean>}
+ */
+async function notifyChannel(channelId, photoUrl, caption, extra) {
+  if (!userBotInstance || !channelId) return false;
+  try {
+    await userBotInstance.telegram.sendPhoto(channelId, photoUrl, { caption, ...extra });
+    return true;
+  } catch (err) {
+    console.warn(`[notifier] Kanalga xabar yuborib bo'lmadi (${channelId}):`, err.message);
+    return false;
+  }
+}
+
+module.exports = { setBot, setUserBot, setAdminBot, notifyText, notifyPhoto, notifyAllAdmins, notifyChannel };

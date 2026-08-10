@@ -57,28 +57,25 @@ const ITEM_AMOUNT_RE = /^(.+?)\s*%\s*(\d+(?:\.\d+)?)$/; // "Predmet % Summa"
 const WITH_IDENTIFIER_RE = /^@?(\S+)\s+(.+?)\s*%\s*(\d+(?:\.\d+)?)$/; // "username/id Predmet % Summa"
 
 function sellerLabel(seller) {
-  return seller.username ? `@${seller.username}` : seller.firstName || `код ${seller.code}`;
+  return seller.username ? `@${seller.username}` : String(seller.telegramId);
 }
 
-// Identifikator uchtadan biri bo'lishi mumkin — tekshirish tartibi:
-//   1) qisqa KOD (tizim o'zi bergan, ustuvor — masalan "42")
-//   2) Telegram ID (uzun raqam — masalan "123456789")
-//   3) username (raqam bo'lmasa)
-// 1 va 2-bandning ikkalasi ham raqam bo'lgani uchun, avval KOD sifatida
-// qidiramiz (bu endi tavsiya etilgan usul), topilmasa Telegram ID sifatida.
+// Identifikator ikkitadan biri bo'lishi mumkin:
+//   1) Telegram ID (raqam — masalan "5394012066", Пользователи bo'limida ko'rinadi)
+//   2) username (raqam bo'lmasa)
+// 6-band: eski "qisqa kod" tizimi olib tashlandi — u ketma-ket (1,2,3...)
+// bo'lgani uchun ro'yxatdan o'tish tartibini oshkor qilardi. Endi Telegram
+// ID'ning o'zi ishlatiladi.
 async function resolveSellerByIdentifier(identifier) {
   if (/^\d+$/.test(identifier)) {
-    const byCode = await prisma.user.findUnique({ where: { code: Number(identifier) } }).catch(() => null);
-    if (byCode) return byCode;
     return prisma.user.findUnique({ where: { telegramId: BigInt(identifier) } }).catch(() => null);
   }
   return prisma.user.findFirst({ where: { username: identifier.replace(/^@/, '') } });
 }
 
 async function recordSale({ admin, seller, itemName, amount, ctx }) {
-  const sale = await prisma.userSale.create({
-    data: { sellerId: seller.id, recordedById: admin.id, itemName: itemName.trim(), agreedAmount: amount },
-  });
+  const { recordSale: recordSaleShared } = require('../services/userSaleService');
+  const sale = await recordSaleShared({ sellerId: seller.id, recordedById: admin.id, itemName: itemName.trim(), agreedAmount: amount });
   await prisma.adminAuditLog.create({
     data: { actorId: admin.id, action: 'USER_SALE_RECORDED', targetType: 'UserSale', targetId: sale.id, meta: { itemName, amount } },
   });
@@ -201,7 +198,7 @@ function createUserBot() {
       const [, identifier, itemName, amountStr] = withIdMatch;
       const seller = await resolveSellerByIdentifier(identifier);
       if (!seller) {
-        await ctx.reply(`⚠️ Пользователь "${identifier}" не найден в системе (проверьте код, username или Telegram ID).`);
+        await ctx.reply(`⚠️ Пользователь "${identifier}" не найден в системе (проверьте Telegram ID или username).`);
         return;
       }
       return recordSale({ admin, seller, itemName, amount: Number(amountStr), ctx });
@@ -214,7 +211,7 @@ function createUserBot() {
         pending
           ? `⚠️ Не удалось распознать. Продавец уже определён (${sellerLabel(pending)}) — просто напишите: Предмет % Сумма`
           : `⚠️ Не удалось распознать. Перешлите (forward) сообщение продавца, затем напишите: Предмет % Сумма.\n` +
-            `Либо сразу: код Предмет % Сумма (короткий код из Админ-панели)`
+            `Либо сразу: TelegramID Предмет % Сумма (ID виден в разделе «Пользователи»)`
       );
     }
   });

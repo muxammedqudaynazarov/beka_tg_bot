@@ -23,13 +23,7 @@ enum UserRole {
 
 model User {
   id            String   @id @default(uuid())
-  // Tizimning O'ZI beradigan qisqa, ketma-ket raqamli kod (masalan 1, 2, 42...)
-  // — Telegram ID'ga (uzun, Telegram'ga bog'liq) qaraganda ancha qisqa va
-  // eslab qolish/yozish oson. Admin App'da har doim ko'rinadi, botga
-  // sotuvni yozdirishda ham username/Telegram ID o'rniga shundan foydalanish
-  // mumkin.
-  code          Int      @unique @default(autoincrement())
-  telegramId    BigInt   @unique // Telegram foydalanuvchi ID (user bot orqali)
+  telegramId    BigInt   @unique // Telegram foydalanuvchi ID (user bot orqali) — 6-band: endi asosiy identifikator sifatida ham ishlatiladi
   username      String? // @username (bo'lishi shart emas)
   firstName     String?
   lastName      String?
@@ -41,6 +35,9 @@ model User {
   // Steam Trade URL — g'olib bo'lgan skin shu havola orqali foydalanuvchi
   // inventariga yuboriladi (8-band). Format: https://steamcommunity.com/tradeoffer/new/?partner=...&token=...
   tradeUrl      String?  @db.VarChar(255)
+  // 10/11-band: "ilovani ochganda chiqadigan" reklama har 3 ochishda bir
+  // marta ko'rsatilishi uchun hisoblagich (auth/profil so'rovida oshiriladi)
+  appOpenCount  Int      @default(0)
 
   ratingScore   Int      @default(0) // avtomatik reyting (faollik + xaridlar asosida)
   discountPct   Int      @default(0) // adminning tasdig'i bilan beriladigan skidka foizi (0-100)
@@ -72,6 +69,8 @@ enum RatingEventType {
   BID_PLACED     // taklif berdi (auksionni yutmasa ham ozgina ball beradi)
   AUCTION_WON    // auksionni yutib oldi (ko'proq ball)
   MANUAL_ADJUST  // admin tomonidan qo'lda o'zgartirilgan
+  SALE_RECORDED  // 2-band: o'z inventarini sotgani qayd etildi
+  SALE_CANCELLED // 2-band: yuqoridagi savdo muddatidan oldin bekor qilindi (ball qaytarib olinadi)
 }
 
 model RatingEvent {
@@ -329,22 +328,48 @@ model Broadcast {
   createdAt   DateTime @default(now())
 }
 
+// 10/11-band: Reklama — ikkita mustaqil "joy" (slot): BANNER (har bir
+// sahifa yuqorisida doimiy) va POPUP (ilova ochilganda, 3 martada 1 marta).
+// Har bir slot'da BIR VAQTNING O'ZIDA faqat bitta faol reklama bo'ladi.
+model Advertisement {
+  id          String   @id @default(uuid())
+  slot        AdSlot   @unique
+  imageUrl    String   @db.VarChar(1000)
+  linkUrl     String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  impressions Int      @default(0) // nechta marta ko'rsatilgani
+  clicks      Int      @default(0) // nechta marta bosilgani
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum AdSlot {
+  BANNER
+  POPUP
+}
+
 // 1-band: admin biror foydalanuvchidan (shaxsiy Steam savdosi orqali)
 // inventar sotib olganda shuni qayd etadi. 7 kunlik "Trade Protection"
 // muddati tugagach (createdAt + 7 kun), tizim buni "to'lovga tayyor" deb
 // belgilaydi — shundan keyingina admin haqiqiy pulni o'tkazishi kerak
 // (avvalgi suhbatda muhokama qilingan xavfsizlik qoidasi).
 model UserSale {
-  id           String    @id @default(uuid())
-  seller       User      @relation("SoldItems", fields: [sellerId], references: [id])
-  sellerId     String
-  recordedBy   User      @relation("RecordedSales", fields: [recordedById], references: [id])
-  recordedById String
-  itemName     String    @db.VarChar(255)
-  agreedAmount Decimal   @db.Decimal(14, 2)
-  paidAt       DateTime? // to'lov qachon amalga oshirilgani (qo'lda belgilanadi)
-  note         String?   @db.VarChar(500)
-  createdAt    DateTime  @default(now())
+  id              String    @id @default(uuid())
+  seller          User      @relation("SoldItems", fields: [sellerId], references: [id])
+  sellerId        String
+  recordedBy      User      @relation("RecordedSales", fields: [recordedById], references: [id])
+  recordedById    String
+  itemName        String    @db.VarChar(255)
+  agreedAmount    Decimal   @db.Decimal(14, 2)
+  paidAt          DateTime? // to'lov qachon amalga oshirilgani (qo'lda belgilanadi)
+  note            String?   @db.VarChar(500)
+  createdAt       DateTime  @default(now())
+  // 1-band: 8 kunlik muddat tugaganda adminlarga xabar YUBORILGANMI (bir
+  // marta yuborilishi uchun — takroriy xabar bo'lmasin)
+  readyNotifiedAt DateTime?
+  // 2-band: sotuvchiga reyting ball berilganmi (bekor qilinganda shu
+  // ballni qaytarib olish uchun bilib turish kerak)
+  ratingAwarded   Boolean   @default(false)
 
   @@index([sellerId])
   @@index([createdAt])

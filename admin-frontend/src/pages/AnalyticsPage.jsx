@@ -84,7 +84,12 @@ export default function AnalyticsPage() {
               value={`${data.percentChangeVsPrevMonth >= 0 ? '+' : ''}${data.percentChangeVsPrevMonth}%`}
               tone={data.percentChangeVsPrevMonth >= 0 ? 'text-success' : 'text-danger'}
             />
-            <StatCard icon={AlertCircle} label="Неуспешных платежей" value={data.unsuccessfulPaymentsCount} tone="text-warning" />
+            <StatCard
+              icon={AlertCircle}
+              label="Неуспешных платежей"
+              value={`${data.unsuccessfulPaymentsCount} (${formatSom(data.unsuccessfulPaymentsAmount)})`}
+              tone="text-warning"
+            />
           </div>
 
           <div className="rounded-lg border border-accent/30 bg-accent/5 p-3">

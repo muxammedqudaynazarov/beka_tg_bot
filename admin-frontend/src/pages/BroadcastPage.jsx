@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Send, Image as ImageIcon } from 'lucide-react';
+import { Send, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { api } from '../api';
-import { showAlert } from '../telegram';
+import { showAlert, showConfirm } from '../telegram';
 
 export default function BroadcastPage() {
   const [message, setMessage] = useState('');
@@ -11,6 +11,17 @@ export default function BroadcastPage() {
 
   function load() {
     api.get('/admin/broadcasts').then(({ data }) => setHistory(data.items || []));
+  }
+
+  async function remove(id) {
+    const ok = await showConfirm('Удалить эту рассылку из истории?');
+    if (!ok) return;
+    try {
+      await api.delete(`/admin/broadcasts/${id}`);
+      load();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    }
   }
   useEffect(load, []);
 
@@ -73,14 +84,22 @@ export default function BroadcastPage() {
         ) : history.length ? (
           <div className="space-y-2">
             {history.map((b) => (
-              <div key={b.id} className="rounded-lg border border-border p-3">
-                <p className="text-xs text-ink line-clamp-2">{b.message}</p>
-                <p className="mt-1 text-[10px] text-muted">
-                  {new Date(b.createdAt).toLocaleString('ru-RU')} · {b.admin?.firstName || b.admin?.username} ·{' '}
-                  {b.sentCount + b.failedCount > 0
-                    ? `✅ ${b.sentCount} · ❌ ${b.failedCount}`
-                    : 'отправляется…'}
-                </p>
+              <div key={b.id} className="flex items-start justify-between gap-2 rounded-lg border border-border p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-ink line-clamp-2">{b.message}</p>
+                  <p className="mt-1 text-[10px] text-muted">
+                    {new Date(b.createdAt).toLocaleString('ru-RU')} · {b.admin?.firstName || b.admin?.username} ·{' '}
+                    {b.sentCount + b.failedCount > 0
+                      ? `✅ ${b.sentCount} · ❌ ${b.failedCount}`
+                      : 'отправляется…'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => remove(b.id)}
+                  className="shrink-0 text-muted hover:text-danger"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             ))}
           </div>

@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw } from 'lucide-react';
+import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw, Ban, ShieldOff, Trash2, Copy } from 'lucide-react';
 import { api } from '../api';
-import { showAlert } from '../telegram';
+import { showAlert, showConfirm } from '../telegram';
 
 function formatSom(n) {
   return `${Number(n || 0).toLocaleString('ru-RU')} сум`;
+}
+
+// 3-band: adashtirib qo'ymaslik uchun — @username bo'lsa shu, bo'lmasa
+// aniq Telegram ID (masalan "6556522") ko'rsatiladi, hech qachon faqat
+// ism (ko'p odamda bir xil bo'lishi mumkin) emas.
+function userLabel(user) {
+  return user.username ? `@${user.username}` : String(user.telegramId);
 }
 
 function RecordSaleForm({ userId, onDone }) {
@@ -60,64 +67,108 @@ function RecordSaleForm({ userId, onDone }) {
         {saving ? 'Сохранение…' : 'Зафиксировать сделку'}
       </button>
       <p className="text-[10px] text-muted">
-        Отсчёт 8-дневного периода защиты сделки Steam начнётся с этого момента — оплату можно
-        будет произвести после его истечения (появится вверху списка «Запланированные выплаты»).
+        Отсчёт 8-дневного периода защиты сделки Steam начнётся с этого момента, и продавец получит
+        {' '}5 баллов рейтинга. Оплату можно будет произвести после истечения периода.
       </p>
     </div>
   );
 }
 
-function UserCard({ user, onChanged }) {
-  const [expanded, setExpanded] = useState(false);
-  const [detail, setDetail] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+// 4-band: ban qilish — sababi majburiy so'raladi, foydalanuvchiga shu
+// sabab bilan xabar ketadi (backend'da amalga oshirilgan).
+function BanForm({ userId, onDone }) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  async function toggle() {
-    if (!expanded && !detail) {
-      const { data } = await api.get(`/admin/users/${user.id}`);
-      setDetail(data);
-    }
-    setExpanded((v) => !v);
-  }
-
-  async function refreshDetail() {
-    const { data } = await api.get(`/admin/users/${user.id}`);
-    setDetail(data);
-    setShowForm(false);
-    onChanged();
-  }
-
-  async function copyCode(e) {
-    e.stopPropagation();
-    if (user.code === undefined || user.code === null) {
-      showAlert('⚠️ Код ещё не назначен — обновите страницу или проверьте, что миграция базы данных выполнена (npx prisma db push на сервере).');
-      return;
-    }
+  async function submit() {
+    setSaving(true);
     try {
-      await navigator.clipboard.writeText(String(user.code));
-      showAlert('📋 Код скопирован: ' + user.code);
-    } catch {
-      showAlert('Код: ' + user.code);
+      await api.post(`/admin/users/${userId}/ban`, { reason: reason.trim() || undefined });
+      showAlert('⛔ Пользователь заблокирован.');
+      onDone();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="space-y-2 rounded-lg border border-danger/30 bg-danger/5 p-3">
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Причина блокировки (увидит пользователь)"
+        className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-danger focus:outline-none"
+      />
+      <button onClick={submit} disabled={saving} className="w-full rounded-md bg-danger py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+        {saving ? 'Сохранение…' : 'Подтвердить блокировку'}
+      </button>
+    </div>
+  );
+}
+
+function UserCard({ user, onChanged, autoExpand }) {
+  const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [showSaleForm, setShowSaleForm] = useState(false);
+  const [showBanForm, setShowBanForm] = useState(false);
+
+  async function loadDetail() {
+    const { data } = await api.get(`/admin/users/${user.id}`);
+    setDetail(data);
+  }
+
+  async function toggle() {
+    if (!expanded && !detail) await loadDetail();
+    setExpanded((v) => !v);
+  }
+
+  useEffect(() => {
+    if (autoExpand) {
+      loadDetail();
+      setExpanded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoExpand]);
+
+  async function refreshDetail() {
+    await loadDetail();
+    setShowSaleForm(false);
+    setShowBanForm(false);
+    onChanged();
+  }
+
+  async function unban() {
+    const ok = await showConfirm('Разблокировать этого пользователя?');
+    if (!ok) return;
+    try {
+      await api.post(`/admin/users/${user.id}/unban`);
+      showAlert('✅ Разблокирован.');
+      refreshDetail();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    }
+  }
+
+  async function copyId(e) {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(String(user.telegramId));
+      showAlert('📋 Скопировано: ' + user.telegramId);
+    } catch {
+      showAlert('Telegram ID: ' + user.telegramId);
+    }
+  }
+
+  return (
+    <div id={`user-${user.id}`} className="rounded-lg border border-border">
       <button onClick={toggle} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
         <div>
           <p className="text-sm font-medium text-ink">
-            {user.firstName || 'Без имени'} {user.username ? `· @${user.username}` : ''}
+            {userLabel(user)} {user.firstName && <span className="font-normal text-muted">· {user.firstName}</span>}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={copyCode}
-            onKeyDown={(e) => e.key === 'Enter' && copyCode(e)}
-            className="mt-1 inline-flex items-center gap-1 rounded bg-accent/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent"
-          >
-            Код: {user.code ?? '—'} (нажмите, чтобы скопировать)
-          </span>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
@@ -129,17 +180,51 @@ function UserCard({ user, onChanged }) {
 
       {expanded && detail && (
         <div className="space-y-2 border-t border-border p-3">
-          {!showForm ? (
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted"
-            >
-              <Plus size={13} /> Зафиксировать продажу инвентаря
-            </button>
-          ) : (
+          <button
+            onClick={copyId}
+            className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1.5 font-mono text-[10px] text-ink"
+          >
+            <Copy size={11} /> Telegram ID: {String(user.telegramId)}
+          </button>
+
+          <div className="flex gap-2">
+            {!showSaleForm && (
+              <button
+                onClick={() => setShowSaleForm(true)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted"
+              >
+                <Plus size={13} /> Продажа
+              </button>
+            )}
+            {!showBanForm && (
+              detail.isBanned ? (
+                <button
+                  onClick={unban}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-success/40 px-3 py-1.5 text-xs text-success"
+                >
+                  <ShieldOff size={13} /> Разбан
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowBanForm(true)}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-danger/40 px-3 py-1.5 text-xs text-danger"
+                >
+                  <Ban size={13} /> Бан
+                </button>
+              )
+            )}
+          </div>
+
+          {showSaleForm && (
             <div className="relative">
-              <button onClick={() => setShowForm(false)} className="absolute -right-1 -top-1 text-muted"><X size={14} /></button>
+              <button onClick={() => setShowSaleForm(false)} className="absolute -right-1 -top-1 text-muted"><X size={14} /></button>
               <RecordSaleForm userId={user.id} onDone={refreshDetail} />
+            </div>
+          )}
+          {showBanForm && (
+            <div className="relative">
+              <button onClick={() => setShowBanForm(false)} className="absolute -right-1 -top-1 text-muted"><X size={14} /></button>
+              <BanForm userId={user.id} onDone={refreshDetail} />
             </div>
           )}
 
@@ -169,11 +254,13 @@ function UserCard({ user, onChanged }) {
   );
 }
 
-// 2-band: bitta ro'yxatda — muddati YETGANLAR yuqorida (yashil, tugma faol),
-// hali kutilayotganlar pastda (kulrang, necha kun qolgani ko'rsatiladi).
-function PayoutRow({ sale, onPaid }) {
+// 1/5-band: bitta ro'yxatda — muddati YETGANLAR yuqorida (yashil, tugma
+// faol), hali kutilayotganlar pastda. Endi o'chirish tugmasi va sotuvchi
+// profiliga o'tish havolasi ham bor.
+function PayoutRow({ sale, onPaid, onCancelled, onOpenProfile }) {
   const [paying, setPaying] = useState(false);
-  const label = sale.seller.username ? `@${sale.seller.username}` : sale.seller.firstName;
+  const [cancelling, setCancelling] = useState(false);
+  const label = sale.seller.username ? `@${sale.seller.username}` : String(sale.seller.telegramId);
 
   async function markPaid() {
     setPaying(true);
@@ -188,28 +275,50 @@ function PayoutRow({ sale, onPaid }) {
     }
   }
 
-  if (sale.ready) {
-    return (
-      <div className="rounded-lg border border-success/40 bg-success/5 p-3">
-        <p className="text-sm font-medium text-ink">{sale.itemName}</p>
-        <p className="mt-0.5 text-[11px] text-muted">{label} · {formatSom(sale.agreedAmount)}</p>
-        <p className="mt-0.5 text-[10px] text-success">✅ Готово к оплате — 8 дней прошло</p>
-        <button
-          onClick={markPaid}
-          disabled={paying}
-          className="mt-2 w-full rounded-md bg-success py-1.5 text-xs font-semibold text-black disabled:opacity-50"
-        >
-          {paying ? 'Сохранение…' : '💸 Отметить как оплачено'}
-        </button>
-      </div>
-    );
+  async function cancel(e) {
+    e.stopPropagation();
+    const ok = await showConfirm(`Отменить запись «${sale.itemName}»? Начисленный рейтинг будет снят.`);
+    if (!ok) return;
+    setCancelling(true);
+    try {
+      await api.delete(`/admin/sales/${sale.id}`);
+      showAlert('🗑 Запись отменена.');
+      onCancelled();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    } finally {
+      setCancelling(false);
+    }
   }
 
   return (
-    <div className="rounded-lg border border-border p-3 opacity-70">
-      <p className="text-sm font-medium text-ink">{sale.itemName}</p>
-      <p className="mt-0.5 text-[11px] text-muted">{label} · {formatSom(sale.agreedAmount)}</p>
-      <p className="mt-0.5 text-[10px] text-warning">⏳ Осталось {sale.daysLeft} дн. до защиты сделки</p>
+    <div className={`rounded-lg border p-3 ${sale.ready ? 'border-success/40 bg-success/5' : 'border-border opacity-70'}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium text-ink">{sale.itemName}</p>
+          <button onClick={() => onOpenProfile(sale.seller.id)} className="mt-0.5 text-[11px] text-accent underline">
+            {label}
+          </button>
+          <span className="text-[11px] text-muted"> · {formatSom(sale.agreedAmount)}</span>
+        </div>
+        <button onClick={cancel} disabled={cancelling} className="shrink-0 text-muted hover:text-danger disabled:opacity-50">
+          <Trash2 size={14} />
+        </button>
+      </div>
+      {sale.ready ? (
+        <>
+          <p className="mt-0.5 text-[10px] text-success">✅ Готово к оплате — 8 дней прошло</p>
+          <button
+            onClick={markPaid}
+            disabled={paying}
+            className="mt-2 w-full rounded-md bg-success py-1.5 text-xs font-semibold text-black disabled:opacity-50"
+          >
+            {paying ? 'Сохранение…' : '💸 Отметить как оплачено'}
+          </button>
+        </>
+      ) : (
+        <p className="mt-0.5 text-[10px] text-warning">⏳ Осталось {sale.daysLeft} дн. до защиты сделки</p>
+      )}
     </div>
   );
 }
@@ -220,6 +329,7 @@ export default function UsersPage() {
   const [payouts, setPayouts] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [focusUserId, setFocusUserId] = useState(null);
 
   function loadUsers() {
     api.get('/admin/users', { params: search ? { search } : {} }).then(({ data }) => setUsers(data.items || []));
@@ -236,7 +346,8 @@ export default function UsersPage() {
       const daysLeft = Math.max(1, Math.ceil((readyAt - Date.now()) / (24 * 60 * 60 * 1000)));
       return { ...s, ready: false, daysLeft };
     });
-    setPayouts([...readyItems, ...pendingItems]);
+    // 1-band: jami ko'pi bilan 5ta, eng eskisidan boshlab (ready avval, keyin pending)
+    setPayouts([...readyItems, ...pendingItems].slice(0, 5));
     setLastUpdated(new Date());
   }
 
@@ -251,6 +362,16 @@ export default function UsersPage() {
 
   useEffect(loadUsers, [search]);
   useEffect(() => { loadPayouts(); }, []);
+
+  // 5-band: to'lov yozuvidagi sotuvchi nomiga bosilganda, shu foydalanuvchi
+  // qidiruvda ko'rinadigan qilinadi va kartasi avtomatik ochiladi.
+  function openProfile(userId) {
+    setSearch('');
+    setFocusUserId(userId);
+    setTimeout(() => {
+      document.getElementById(`user-${userId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  }
 
   return (
     <div className="space-y-6">
@@ -273,7 +394,15 @@ export default function UsersPage() {
             Запланированные выплаты ({payouts.length})
           </h2>
           <div className="space-y-2">
-            {payouts.map((s) => <PayoutRow key={s.id} sale={s} onPaid={() => { loadPayouts(); loadUsers(); }} />)}
+            {payouts.map((s) => (
+              <PayoutRow
+                key={s.id}
+                sale={s}
+                onPaid={() => { loadPayouts(); loadUsers(); }}
+                onCancelled={() => { loadPayouts(); loadUsers(); }}
+                onOpenProfile={openProfile}
+              />
+            ))}
           </div>
         </section>
       )}
@@ -285,7 +414,7 @@ export default function UsersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по имени, username или коду…"
+            placeholder="Поиск по имени, username или Telegram ID…"
             className="w-full bg-transparent text-xs text-ink placeholder:text-muted focus:outline-none"
           />
         </div>
@@ -293,7 +422,9 @@ export default function UsersPage() {
           <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-surface" />)}</div>
         ) : users.length ? (
           <div className="space-y-2">
-            {users.map((u) => <UserCard key={u.id} user={u} onChanged={loadPayouts} />)}
+            {users.map((u) => (
+              <UserCard key={u.id} user={u} onChanged={loadPayouts} autoExpand={u.id === focusUserId} />
+            ))}
           </div>
         ) : (
           <p className="text-xs text-muted">Никого не найдено.</p>
