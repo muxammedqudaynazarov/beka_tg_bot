@@ -87,6 +87,16 @@ function UserCard({ user, onChanged }) {
     onChanged();
   }
 
+  async function copyId(e) {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(String(user.telegramId));
+      showAlert('📋 ID скопирован: ' + user.telegramId);
+    } catch {
+      showAlert('ID: ' + user.telegramId);
+    }
+  }
+
   return (
     <div className="rounded-lg border border-border">
       <button onClick={toggle} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
@@ -96,9 +106,15 @@ function UserCard({ user, onChanged }) {
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
           {!user.username && (
-            <p className="mt-0.5 font-mono text-[10px] text-warning">
-              Нет username — используйте ID: {user.telegramId}
-            </p>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={copyId}
+              onKeyDown={(e) => e.key === 'Enter' && copyId(e)}
+              className="mt-1 inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 font-mono text-[10px] text-warning"
+            >
+              Нет username · ID: {String(user.telegramId)} (нажмите, чтобы скопировать)
+            </span>
           )}
         </div>
         {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
