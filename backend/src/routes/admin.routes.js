@@ -399,12 +399,14 @@ const SALE_HOLD_MS = 8 * 24 * 60 * 60 * 1000; // 8 kun (Steam'ning 7 kunlik Trad
 
 router.get('/users', async (req, res) => {
   const { search } = req.query;
-  const where = search
+  const searchStr = String(search || '').trim();
+  const where = searchStr
     ? {
         OR: [
-          { username: { contains: String(search) } },
-          { firstName: { contains: String(search) } },
-          { lastName: { contains: String(search) } },
+          { username: { contains: searchStr } },
+          { firstName: { contains: searchStr } },
+          { lastName: { contains: searchStr } },
+          ...(/^\d+$/.test(searchStr) ? [{ code: Number(searchStr) }] : []),
         ],
       }
     : {};
@@ -413,7 +415,7 @@ router.get('/users', async (req, res) => {
     orderBy: { createdAt: 'desc' },
     take: 30,
     select: {
-      id: true, telegramId: true, username: true, firstName: true, lastName: true,
+      id: true, code: true, telegramId: true, username: true, firstName: true, lastName: true,
       balance: true, isBanned: true, createdAt: true,
       _count: { select: { soldItems: true } },
     },

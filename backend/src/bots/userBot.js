@@ -57,7 +57,22 @@ const ITEM_AMOUNT_RE = /^(.+?)\s*%\s*(\d+(?:\.\d+)?)$/; // "Predmet % Summa"
 const WITH_IDENTIFIER_RE = /^@?(\S+)\s+(.+?)\s*%\s*(\d+(?:\.\d+)?)$/; // "username/id Predmet % Summa"
 
 function sellerLabel(seller) {
-  return seller.username ? `@${seller.username}` : seller.firstName || String(seller.telegramId);
+  return seller.username ? `@${seller.username}` : seller.firstName || `код ${seller.code}`;
+}
+
+// Identifikator uchtadan biri bo'lishi mumkin — tekshirish tartibi:
+//   1) qisqa KOD (tizim o'zi bergan, ustuvor — masalan "42")
+//   2) Telegram ID (uzun raqam — masalan "123456789")
+//   3) username (raqam bo'lmasa)
+// 1 va 2-bandning ikkalasi ham raqam bo'lgani uchun, avval KOD sifatida
+// qidiramiz (bu endi tavsiya etilgan usul), topilmasa Telegram ID sifatida.
+async function resolveSellerByIdentifier(identifier) {
+  if (/^\d+$/.test(identifier)) {
+    const byCode = await prisma.user.findUnique({ where: { code: Number(identifier) } }).catch(() => null);
+    if (byCode) return byCode;
+    return prisma.user.findUnique({ where: { telegramId: BigInt(identifier) } }).catch(() => null);
+  }
+  return prisma.user.findFirst({ where: { username: identifier.replace(/^@/, '') } });
 }
 
 async function recordSale({ admin, seller, itemName, amount, ctx }) {
@@ -140,7 +155,7 @@ function createUserBot() {
       if (origin.type === 'hidden_user') {
         await ctx.reply(
           `⚠️ Bu foydalanuvchi forward orqali aniqlanishni cheklagan (maxfiylik sozlamasi). ` +
-            `Iltimos, "username Predmet % Summa" yoki "id Predmet % Summa" ko'rinishida to'g'ridan-to'g'ri yozing.`
+            `Iltimos, "kod Predmet % Summa" (Admin App'dagi qisqa kod) ko'rinishida to'g'ridan-to'g'ri yozing.`
         );
         return;
       }
@@ -178,15 +193,15 @@ function createUserBot() {
     }
 
     // 2-QADAM (variant B, muqobil): forward qilinmagan bo'lsa ham,
-    // "username/id Predmet % Summa" to'g'ridan-to'g'ri yozilishi mumkin.
+    // "kod/username/telegramID Predmet % Summa" to'g'ridan-to'g'ri yozilishi
+    // mumkin. Qisqa KOD — tizimning o'zi bergan, eng qulay usul (Admin App'da
+    // har bir foydalanuvchi yonida ko'rinadi).
     const withIdMatch = text.trim().match(WITH_IDENTIFIER_RE);
     if (withIdMatch) {
       const [, identifier, itemName, amountStr] = withIdMatch;
-      const seller = /^\d+$/.test(identifier)
-        ? await prisma.user.findUnique({ where: { telegramId: BigInt(identifier) } }).catch(() => null)
-        : await prisma.user.findFirst({ where: { username: identifier } });
+      const seller = await resolveSellerByIdentifier(identifier);
       if (!seller) {
-        await ctx.reply(`⚠️ Пользователь "${identifier}" не найден в системе.`);
+        await ctx.reply(`⚠️ Пользователь "${identifier}" не найден в системе (проверьте код, username или Telegram ID).`);
         return;
       }
       return recordSale({ admin, seller, itemName, amount: Number(amountStr), ctx });
@@ -199,7 +214,7 @@ function createUserBot() {
         pending
           ? `⚠️ Не удалось распознать. Продавец уже определён (${sellerLabel(pending)}) — просто напишите: Предмет % Сумма`
           : `⚠️ Не удалось распознать. Перешлите (forward) сообщение продавца, затем напишите: Предмет % Сумма.\n` +
-            `Либо сразу: username Предмет % Сумма`
+            `Либо сразу: код Предмет % Сумма (короткий код из Админ-панели)`
       );
     }
   });

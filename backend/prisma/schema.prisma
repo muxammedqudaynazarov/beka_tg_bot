@@ -23,6 +23,12 @@ enum UserRole {
 
 model User {
   id            String   @id @default(uuid())
+  // Tizimning O'ZI beradigan qisqa, ketma-ket raqamli kod (masalan 1, 2, 42...)
+  // — Telegram ID'ga (uzun, Telegram'ga bog'liq) qaraganda ancha qisqa va
+  // eslab qolish/yozish oson. Admin App'da har doim ko'rinadi, botga
+  // sotuvni yozdirishda ham username/Telegram ID o'rniga shundan foydalanish
+  // mumkin.
+  code          Int      @unique @default(autoincrement())
   telegramId    BigInt   @unique // Telegram foydalanuvchi ID (user bot orqali)
   username      String? // @username (bo'lishi shart emas)
   firstName     String?

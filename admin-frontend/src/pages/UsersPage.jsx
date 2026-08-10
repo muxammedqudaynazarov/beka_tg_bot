@@ -87,13 +87,13 @@ function UserCard({ user, onChanged }) {
     onChanged();
   }
 
-  async function copyId(e) {
+  async function copyCode(e) {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(String(user.telegramId));
-      showAlert('📋 ID скопирован: ' + user.telegramId);
+      await navigator.clipboard.writeText(String(user.code));
+      showAlert('📋 Код скопирован: ' + user.code);
     } catch {
-      showAlert('ID: ' + user.telegramId);
+      showAlert('Код: ' + user.code);
     }
   }
 
@@ -105,17 +105,15 @@ function UserCard({ user, onChanged }) {
             {user.firstName || 'Без имени'} {user.username ? `· @${user.username}` : ''}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
-          {!user.username && (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={copyId}
-              onKeyDown={(e) => e.key === 'Enter' && copyId(e)}
-              className="mt-1 inline-flex items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 font-mono text-[10px] text-warning"
-            >
-              Нет username · ID: {String(user.telegramId)} (нажмите, чтобы скопировать)
-            </span>
-          )}
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={copyCode}
+            onKeyDown={(e) => e.key === 'Enter' && copyCode(e)}
+            className="mt-1 inline-flex items-center gap-1 rounded bg-accent/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent"
+          >
+            Код: {user.code} (нажмите, чтобы скопировать)
+          </span>
         </div>
         {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
       </button>
@@ -278,7 +276,7 @@ export default function UsersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по имени или username…"
+            placeholder="Поиск по имени, username или коду…"
             className="w-full bg-transparent text-xs text-ink placeholder:text-muted focus:outline-none"
           />
         </div>
