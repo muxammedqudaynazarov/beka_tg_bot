@@ -1,11 +1,11 @@
 export const RARITIES = [
-  { v: 'CONSUMER', l: 'Oq (Consumer)' },
-  { v: 'INDUSTRIAL', l: "Ochiq ko'k (Industrial)" },
-  { v: 'MILSPEC', l: "Ko'k (Mil-Spec)" },
-  { v: 'RESTRICTED', l: 'Fiolet (Restricted)' },
-  { v: 'CLASSIFIED', l: 'Pushti (Classified)' },
-  { v: 'COVERT', l: 'Qizil (Covert)' },
-  { v: 'GOLD', l: "Oltin (Pichoq/Qo'lqop)" },
+  { v: 'CONSUMER', l: 'Белый (Ширпотреб)' },
+  { v: 'INDUSTRIAL', l: 'Голубой (Промышленное качество)' },
+  { v: 'MILSPEC', l: 'Синий (Армейское качество)' },
+  { v: 'RESTRICTED', l: 'Фиолетовый (Запрещённое)' },
+  { v: 'CLASSIFIED', l: 'Розовый (Засекреченное)' },
+  { v: 'COVERT', l: 'Красный (Тайное)' },
+  { v: 'GOLD', l: 'Золотой (★ Нож / Перчатки)' },
 ];
 export const WEARS = ['FN', 'MW', 'FT', 'WW', 'BS'];
 
@@ -14,5 +14,5 @@ export const WEARS = ['FN', 'MW', 'FT', 'WW', 'BS'];
 export const NO_FLOAT_TYPE_NAMES = ['Ключи', 'Стикеры', 'Брелки', 'Агенты', 'Граффити', 'Значки', 'Наборы музыки', 'Кейсы и Капсулы'];
 
 export function formatSom(n) {
-  return `${Number(n || 0).toLocaleString('uz-UZ')} so'm`;
+  return `${Number(n || 0).toLocaleString('ru-RU')} сум`;
 }

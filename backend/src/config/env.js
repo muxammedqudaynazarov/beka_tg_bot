@@ -21,6 +21,13 @@ const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 
   userBotToken: process.env.USER_BOT_TOKEN || '',
+  // 7-band: kanaldagi "Перейти к лоту" tugmasi uchun — web_app tugmasi
+  // KANALLARDA ISHLAMAYDI (Telegram'ning o'z cheklovi, faqat shaxsiy chatda
+  // ishlaydi), shuning uchun t.me/BOT/APPNAME?startapp=... ko'rinishidagi
+  // "deep link" ishlatiladi — bu ISTALGAN joydan (kanal, guruh) ochilganda
+  // ham Mini App'ni to'g'ridan-to'g'ri ochadi.
+  userBotUsername: process.env.USER_BOT_USERNAME || '',
+  miniAppShortName: process.env.MINI_APP_SHORT_NAME || '',
   adminBotToken: process.env.ADMIN_BOT_TOKEN || '',
   miniAppUrl: process.env.MINI_APP_URL || 'http://localhost:5173',
   adminMiniAppUrl: process.env.ADMIN_MINI_APP_URL || 'http://localhost:5174',

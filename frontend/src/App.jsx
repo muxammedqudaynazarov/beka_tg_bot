@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 import { FiltersProvider } from './FiltersContext';
 import BottomNav from './components/BottomNav';
@@ -9,6 +10,22 @@ import PaymentPage from './pages/PaymentPage';
 import ProfilePage from './pages/ProfilePage';
 import AuctionDetailPage from './pages/AuctionDetailPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+
+// 7-band: kanaldagi "Перейти к лоту" tugmasi t.me/BOT/APP?startapp=auction_ID
+// ko'rinishida ochiladi — Telegram bu qiymatni Mini App'ga start_param
+// sifatida beradi. Ilova ochilganda shuni bir marta tekshirib, to'g'ridan-
+// to'g'ri o'sha auksion sahifasiga o'tkazamiz.
+function StartParamRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+    if (startParam?.startsWith('auction_')) {
+      navigate(`/auction/${startParam.replace('auction_', '')}`, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
 
 function AuthGate({ children }) {
   const { status, error, showPopupAd } = useAuth();
@@ -45,6 +62,7 @@ export default function App() {
       <FiltersProvider>
         <AuthGate>
           <BrowserRouter>
+            <StartParamRedirect />
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/filter" element={<FilterPage />} />

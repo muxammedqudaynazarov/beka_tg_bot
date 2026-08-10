@@ -26,6 +26,15 @@ function normalizeMarkdownForTelegram(text) {
 // admin forma bilan bir xil ro'yxat, seed.js'dagi Тип nomlariga mos bo'lishi shart.
 const NO_FLOAT_TYPE_NAMES = ['Ключи', 'Стикеры', 'Брелки', 'Агенты', 'Граффити', 'Значки', 'Наборы музыки', 'Кейсы и Капсулы'];
 
+// 7-band: kanal e'lonida ko'rsatish uchun — frontend'dagi RARITY_META/WEAR_LABELS
+// bilan bir xil, lekin backend'da alohida (frontend kodini import qilib
+// bo'lmaydi).
+const RARITY_LABELS = {
+  CONSUMER: 'Ширпотреб', INDUSTRIAL: 'Промышленное', MILSPEC: 'Армейское',
+  RESTRICTED: 'Запрещённое', CLASSIFIED: 'Засекреченное', COVERT: 'Тайное', GOLD: 'Редкое ★',
+};
+const WEAR_LABELS = { FN: 'Factory New', MW: 'Minimal Wear', FT: 'Field-Tested', WW: 'Well-Worn', BS: 'Battle-Scarred' };
+
 async function subcategoryNeedsFloat(subcategoryId) {
   const sub = await prisma.weaponSubcategory.findUnique({ where: { id: subcategoryId }, include: { category: true } });
   if (!sub) return true; // topilmasa, xavfsiz tomonga — talab qilingan deb hisoblaymiz
@@ -141,18 +150,49 @@ router.post('/auctions', async (req, res) => {
 
   await logAction(req.user.id, 'AUCTION_CREATED', 'Auction', auction.id, { skinName, startPrice });
 
-  // 7-band: yangi auksion haqida kanalga rasmli e'lon
+  // 7-band: yangi auksion haqida kanalga rasmli e'lon — Float/Redkost/
+  // Iznos/Paint Seed bilan, va (agar bot username + Mini App qisqa nomi
+  // sozlangan bo'lsa) "Перейти к лоту" tugmasi bilan.
   if (env.announceChannelId) {
     const { notifyChannel } = require('../services/notifier');
-    await notifyChannel(
-      env.announceChannelId,
-      imageUrl,
-      `🆕 <b>${skinName}</b>\n\n` +
-        `Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум\n` +
-        `Завершение: ${endsAt.toLocaleString('ru-RU')}\n\n` +
-        `Участвуйте в аукционе прямо сейчас! 👇`,
-      { parse_mode: 'HTML' }
-    );
+
+    const lines = [`🆕 <b>${skinName}</b>`, ''];
+    lines.push(`Редкость: ${RARITY_LABELS[rarity] || rarity}`);
+    if (wearCondition) lines.push(`Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}`);
+    if (floatValue !== undefined && floatValue !== null && floatValue !== '') {
+      lines.push(`Float: ${Number(floatValue).toFixed(6)}`);
+    }
+    if (paintSeed !== undefined && paintSeed !== null && paintSeed !== '') {
+      lines.push(`Шаблон раскраски: #${paintSeed}`);
+    }
+    lines.push('');
+    lines.push(`Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум`);
+    lines.push(`Завершение: ${endsAt.toLocaleString('ru-RU')}`);
+    lines.push('');
+    lines.push('Участвуйте в аукционе прямо сейчас! 👇');
+    lines.push('');
+    lines.push('📢 @CS2_auction');
+
+    // web_app tugmasi KANALLARDA ishlamaydi (Telegram cheklovi) — shuning
+    // uchun t.me/BOT/APPNAME?startapp=... deep-link ishlatiladi, bu esa
+    // istalgan joydan (kanal, guruh) bosilganda ham Mini App'ni to'g'ridan
+    // -to'g'ri, aynan shu lot ochilgan holda ishga tushiradi.
+    let replyMarkup;
+    if (env.userBotUsername && env.miniAppShortName) {
+      replyMarkup = {
+        inline_keyboard: [[
+          {
+            text: 'Перейти к лоту 👉',
+            url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
+          },
+        ]],
+      };
+    }
+
+    await notifyChannel(env.announceChannelId, imageUrl, lines.join('\n'), {
+      parse_mode: 'HTML',
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    });
   }
 
   res.status(201).json(auction);
