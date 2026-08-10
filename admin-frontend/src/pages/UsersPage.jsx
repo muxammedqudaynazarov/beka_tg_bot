@@ -89,6 +89,10 @@ function UserCard({ user, onChanged }) {
 
   async function copyCode(e) {
     e.stopPropagation();
+    if (user.code === undefined || user.code === null) {
+      showAlert('⚠️ Код ещё не назначен — обновите страницу или проверьте, что миграция базы данных выполнена (npx prisma db push на сервере).');
+      return;
+    }
     try {
       await navigator.clipboard.writeText(String(user.code));
       showAlert('📋 Код скопирован: ' + user.code);
@@ -112,7 +116,7 @@ function UserCard({ user, onChanged }) {
             onKeyDown={(e) => e.key === 'Enter' && copyCode(e)}
             className="mt-1 inline-flex items-center gap-1 rounded bg-accent/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-accent"
           >
-            Код: {user.code} (нажмите, чтобы скопировать)
+            Код: {user.code ?? '—'} (нажмите, чтобы скопировать)
           </span>
         </div>
         {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
