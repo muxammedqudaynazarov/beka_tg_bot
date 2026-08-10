@@ -7,7 +7,7 @@ export const RARITIES = [
   { v: 'COVERT', l: 'Красный (Тайное)' },
   { v: 'GOLD', l: 'Золотой (★ Нож / Перчатки)' },
 ];
-export const WEARS = ['FN', 'MW', 'FT', 'WW', 'BS'];
+export const WEARS = ['FN (Прямо с завода)', 'MW (Немного поношенное)', 'FT (После полевых испытаний)', 'WW (Поношенное)', 'BS (Закаленное в боях)'];
 
 // 9-band: shu "Тип"lardagi narsalarda format factory (float/wear) YO'Q —
 // backend'dagi admin.routes.js'da bir xil ro'yxat bilan mos bo'lishi shart.
