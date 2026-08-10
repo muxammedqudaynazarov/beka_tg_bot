@@ -95,15 +95,38 @@ function createUserBot() {
 
     const query = (ctx.inlineQuery.query || '').trim();
     const match = query.match(SALE_QUERY_RE);
+    // Username'siz, lekin "Predmet % Summa" qismi to'g'ri yozilgan holatni
+    // ALOHIDA aniqlaymiz — bu eng ko'p uchraydigan xato, aniqroq yordam beramiz.
+    const missingUsernameOnly = !match && /^(.+?)\s*%\s*(\d+(?:\.\d+)?)$/.test(query);
+
+    if (missingUsernameOnly) {
+      return ctx.answerInlineQuery(
+        [{
+          type: 'article',
+          id: 'hint',
+          title: '⚠️ В начале не хватает username продавца',
+          description: `Добавьте username перед этим: username ${query}`,
+          input_message_content: {
+            message_text: `⚠️ В начале нужно добавить username продавца.\nДолжно быть: username ${query}`,
+          },
+        }],
+        { cache_time: 0 }
+      );
+    }
 
     if (!match) {
       return ctx.answerInlineQuery(
         [{
           type: 'article',
           id: 'hint',
-          title: 'Формат: username Предмет % Сумма',
-          description: 'Например: nks2level AWP | Asiimov % 500000',
-          input_message_content: { message_text: 'ℹ️ Формат: username Предмет % Сумма' },
+          title: '⚠️ Не хватает username продавца',
+          description: `Формат: username Предмет % Сумма — например: nks2level AWP % 50000`,
+          input_message_content: {
+            message_text:
+              `⚠️ Не хватает username продавца в начале.\n\n` +
+              `Правильный формат: username Предмет % Сумма\n` +
+              `Например: nks2level AWP % 50000`,
+          },
         }],
         { cache_time: 0 }
       );
