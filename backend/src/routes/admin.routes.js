@@ -31,9 +31,9 @@ const NO_FLOAT_TYPE_NAMES = ['Ключи', 'Стикеры', 'Брелки', 'А
 // bo'lmaydi).
 const RARITY_LABELS = {
     CONSUMER: 'Ширпотреб', INDUSTRIAL: 'Промышленное', MILSPEC: 'Армейское',
-    RESTRICTED: 'Запрещённое', CLASSIFIED: 'Засекреченное', COVERT: 'Тайное', GOLD: 'Редкое ★',
+    RESTRICTED: 'Запрещённое', CLASSIFIED: 'Засекреченное', COVERT: 'Тайное', GOLD: 'Редкое',
 };
-const WEAR_LABELS = {FN: 'Factory New', MW: 'Minimal Wear', FT: 'Field-Tested', WW: 'Well-Worn', BS: 'Battle-Scarred'};
+const WEAR_LABELS = {FN: 'Прямо с завода', MW: 'Немного поношенное', FT: 'После полевых испытаний', WW: 'Поношенное', BS: 'Закаленное в боях'};
 
 async function subcategoryNeedsFloat(subcategoryId) {
     const sub = await prisma.weaponSubcategory.findUnique({where: {id: subcategoryId}, include: {category: true}});
