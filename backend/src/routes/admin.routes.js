@@ -274,23 +274,11 @@ router.post('/auctions/:id/deliver', async (req, res) => {
   res.json({ ...updated, autoSendResult });
 });
 
-// 3.d-band: Foydalanuvchilarni boshqarish
-router.get('/users', async (req, res) => {
-  const { search } = req.query;
-  const where = search
-    ? { OR: [{ username: { contains: String(search) } }] } // mode:'insensitive' MySQL/MariaDB'da qo'llab-quvvatlanmaydi
-    : {};
-  const users = await prisma.user.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-    select: {
-      id: true, username: true, firstName: true, lastName: true, role: true,
-      balance: true, ratingScore: true, discountPct: true, isBanned: true, createdAt: true,
-    },
-  });
-  res.json({ items: users });
-});
+// 3.d-band: Foydalanuvchilarni boshqarish (ban/unban/rol/skidka) — quyidagi
+// qidiruv+ro'yxat GET /users endpointi endi FAQAT pastda, 1-band bilan birga
+// (to'liq, code/telegramId/_count bilan) — bu yerda ikkinchi marta
+// TAKRORLANMASIN, aks holda Express birinchisini ishlatib, ikkinchisi hech
+// qachon ishga tushmaydi (aynan shu xato tufayli "code" ko'rinmay qolgan edi).
 
 router.post('/users/:id/ban', async (req, res) => {
   const { reason } = req.body || {};
@@ -415,7 +403,7 @@ router.get('/users', async (req, res) => {
     orderBy: { createdAt: 'desc' },
     take: 30,
     select: {
-      id: true, code: true, telegramId: true, username: true, firstName: true, lastName: true,
+      id: true, code: true, telegramId: true, username: true, firstName: true, lastName: true, role: true,
       balance: true, isBanned: true, createdAt: true,
       _count: { select: { soldItems: true } },
     },

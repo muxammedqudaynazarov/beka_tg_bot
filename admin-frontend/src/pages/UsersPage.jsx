@@ -106,7 +106,7 @@ function UserCard({ user, onChanged }) {
       <button onClick={toggle} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
         <div>
           <p className="text-sm font-medium text-ink">
-            {user.telegramId || 'Без имени'} {user.username ? `· @${user.username}` : ''}
+            {user.firstName || 'Без имени'} {user.username ? `· @${user.username}` : ''}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
           <span
@@ -119,7 +119,12 @@ function UserCard({ user, onChanged }) {
             Код: {user.code ?? '—'} (нажмите, чтобы скопировать)
           </span>
         </div>
-        {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
+          {(user.role === 'ADMIN' || user.role === 'SUPERADMIN') && (
+            <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[9px] font-semibold text-accent">{user.role}</span>
+          )}
+        </div>
       </button>
 
       {expanded && detail && (
