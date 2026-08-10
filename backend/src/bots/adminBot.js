@@ -2,8 +2,6 @@ const { Telegraf, Markup, Scenes, session } = require('telegraf');
 const { env } = require('../config/env');
 const prisma = require('../db/prisma');
 const { safeUpsertUser } = require('../services/userService');
-const { getActiveSeller, clearActiveSeller } = require('../services/inlineSaleContext');
-const { notifyText } = require('../services/notifier');
 
 // 2-band: bu ALOHIDA bot (masalan @cs2admin_auksion_bot), lekin xuddi shu
 // backend jarayoni ichida ishlaydi va xuddi shu ma'lumotlar bazasidan
@@ -268,115 +266,6 @@ function createAdminBot() {
   bot.action('menu:users', async (ctx) => {
     await ctx.answerCbQuery();
     await ctx.scene.enter('USER_MANAGE');
-  });
-
-  // ===========================================================================
-  // 3-band: shaxsiy xabarda "@bot ItemName % Summa" yozib, savdoni darhol
-  // qayd etish. Avval Admin Mini App > Foydalanuvchilar'dan sotuvchi
-  // "faollashtirilgan" bo'lishi kerak (inlineSaleContext.js'ga qarang —
-  // Telegram bot'ga inline so'rov QAYSI chatda yozilayotganini bermaydi,
-  // shuning uchun sotuvchini oldindan belgilab qo'yish shart).
-  // SOZLASH: BotFather'da shu bot uchun /setinline VA /setinlinefeedback
-  // (100% ga) yoqilgan bo'lishi SHART — aks holda bu handlerlar chaqirilmaydi.
-  // ===========================================================================
-  const SALE_QUERY_RE = /^(.+?)\s*%\s*(\d+(?:\.\d+)?)$/;
-
-  bot.on('inline_query', async (ctx) => {
-    const query = (ctx.inlineQuery.query || '').trim();
-    const match = query.match(SALE_QUERY_RE);
-    const active = getActiveSeller(ctx.from.id);
-
-    if (!active) {
-      return ctx.answerInlineQuery(
-        [{
-          type: 'article',
-          id: 'no-context',
-          title: '⚠️ Avval sotuvchini faollashtiring',
-          description: 'Admin Mini App > Foydalanuvchilar > sotuvchini toping > "Faollashtirish"',
-          input_message_content: { message_text: 'ℹ️ Сначала активируйте продавца в Админ-панели (раздел «Пользователи»).' },
-        }],
-        { cache_time: 0 }
-      );
-    }
-
-    if (!match) {
-      return ctx.answerInlineQuery(
-        [{
-          type: 'article',
-          id: 'hint',
-          title: `Формат: Предмет % Сумма (для @${active.sellerUsername || active.sellerFirstName})`,
-          description: 'Например: AWP | Asiimov % 500000',
-          input_message_content: { message_text: 'ℹ️ Формат: Предмет % Сумма' },
-        }],
-        { cache_time: 0 }
-      );
-    }
-
-    const [, itemName, amountStr] = match;
-    const amount = Number(amountStr);
-    const label = active.sellerUsername ? `@${active.sellerUsername}` : active.sellerFirstName;
-
-    return ctx.answerInlineQuery(
-      [{
-        type: 'article',
-        id: 'confirm',
-        title: `✅ ${itemName.trim()} — ${amount.toLocaleString('ru-RU')} сум`,
-        description: `Продавец: ${label} · нажмите, чтобы отправить`,
-        input_message_content: {
-          message_text:
-            `✅ Обмен принят: «${itemName.trim()}» за ${amount.toLocaleString('ru-RU')} сум.\n` +
-            `Выплата будет произведена после проверки (в течение нескольких дней).`,
-        },
-      }],
-      { cache_time: 0 }
-    );
-  });
-
-  bot.on('chosen_inline_result', async (ctx) => {
-    const result = ctx.update.chosen_inline_result;
-    if (!result || result.result_id !== 'confirm') return; // faqat haqiqiy tasdiqlash natijasi qayd etiladi
-
-    const match = (result.query || '').trim().match(SALE_QUERY_RE);
-    const active = getActiveSeller(result.from.id);
-    if (!match || !active) return;
-
-    const [, itemName, amountStr] = match;
-    const amount = Number(amountStr);
-
-    const admin = await prisma.user.findUnique({ where: { telegramId: BigInt(result.from.id) } });
-    if (!admin) return;
-
-    const sale = await prisma.userSale.create({
-      data: {
-        sellerId: active.sellerId,
-        recordedById: admin.id,
-        itemName: itemName.trim(),
-        agreedAmount: amount,
-      },
-    });
-
-    // Adminning O'ZIGA (botning shaxsiy chatida) alohida tasdiq — chunki bot
-    // sotuvchi bilan adminning shaxsiy suhbatiga ALOHIDA xabar yubora olmaydi
-    // (Telegram bunga ruxsat bermaydi, faqat o'z suhbatiga yuborishi mumkin).
-    await bot.telegram.sendMessage(
-      result.from.id,
-      `📋 Записано в систему: «${itemName.trim()}» — ${amount.toLocaleString('ru-RU')} сум ` +
-        `(${active.sellerUsername ? '@' + active.sellerUsername : active.sellerFirstName}).\n` +
-        `Выплата будет доступна через 8 дней.`
-    );
-
-    // 3-band: sotuvchiga @cs2auksion_bot (foydalanuvchi boti) orqali ham
-    // rasmiy xabar — bu ishonchli kanal, chat kontekstiga bog'liq emas.
-    await notifyText(
-      active.sellerTelegramId,
-      `✅ Ваш предмет «${itemName.trim()}» принят администратором за ${amount.toLocaleString('ru-RU')} сум. ` +
-        `Выплата будет произведена в течение 8 дней после проверки сделки.`
-    );
-
-    clearActiveSeller(result.from.id);
-    await prisma.adminAuditLog.create({
-      data: { actorId: admin.id, action: 'USER_SALE_RECORDED_INLINE', targetType: 'UserSale', targetId: sale.id, meta: { itemName, amount } },
-    });
   });
 
   bot.catch((err, ctx) => {

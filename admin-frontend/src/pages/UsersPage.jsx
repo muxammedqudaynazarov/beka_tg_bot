@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, CheckCircle2, Clock3, X, Zap } from 'lucide-react';
+import { Search, Plus, CheckCircle2, Clock3, X } from 'lucide-react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
 
@@ -60,8 +60,8 @@ function RecordSaleForm({ userId, onDone }) {
         {saving ? 'Сохранение…' : 'Зафиксировать сделку'}
       </button>
       <p className="text-[10px] text-muted">
-        Отсчёт 7-дневного периода защиты сделки Steam начнётся с этого момента — оплату можно
-        будет произвести после его истечения (появится в списке «Готово к оплате»).
+        Отсчёт 8-дневного периода защиты сделки Steam начнётся с этого момента — оплату можно
+        будет произвести после его истечения (появится вверху списка «Запланированные выплаты»).
       </p>
     </div>
   );
@@ -71,7 +71,6 @@ function UserCard({ user, onChanged }) {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [activating, setActivating] = useState(false);
 
   async function toggle() {
     if (!expanded && !detail) {
@@ -88,18 +87,6 @@ function UserCard({ user, onChanged }) {
     onChanged();
   }
 
-  async function activateInline() {
-    setActivating(true);
-    try {
-      const { data } = await api.post(`/admin/users/${user.id}/activate-inline`);
-      showAlert(`🎯 ${data.message}\n\nТеперь в любом чате напишите: @cs2admin_auksion_bot Предмет % Сумма`);
-    } catch (err) {
-      showAlert(err.response?.data?.error || 'Произошла ошибка.');
-    } finally {
-      setActivating(false);
-    }
-  }
-
   return (
     <div className="rounded-lg border border-border">
       <button onClick={toggle} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
@@ -114,13 +101,6 @@ function UserCard({ user, onChanged }) {
 
       {expanded && detail && (
         <div className="space-y-2 border-t border-border p-3">
-          <button
-            onClick={activateInline}
-            disabled={activating}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-          >
-            <Zap size={13} /> {activating ? 'Активация…' : 'Faollashtirish (для inline-записи в чате)'}
-          </button>
           {!showForm ? (
             <button
               onClick={() => setShowForm(true)}
@@ -161,8 +141,11 @@ function UserCard({ user, onChanged }) {
   );
 }
 
-function ReadyToPayRow({ sale, onPaid }) {
+// 2-band: bitta ro'yxatda — muddati YETGANLAR yuqorida (yashil, tugma faol),
+// hali kutilayotganlar pastda (kulrang, necha kun qolgani ko'rsatiladi).
+function PayoutRow({ sale, onPaid }) {
   const [paying, setPaying] = useState(false);
+  const label = sale.seller.username ? `@${sale.seller.username}` : sale.seller.firstName;
 
   async function markPaid() {
     setPaying(true);
@@ -177,20 +160,28 @@ function ReadyToPayRow({ sale, onPaid }) {
     }
   }
 
+  if (sale.ready) {
+    return (
+      <div className="rounded-lg border border-success/40 bg-success/5 p-3">
+        <p className="text-sm font-medium text-ink">{sale.itemName}</p>
+        <p className="mt-0.5 text-[11px] text-muted">{label} · {formatSom(sale.agreedAmount)}</p>
+        <p className="mt-0.5 text-[10px] text-success">✅ Готово к оплате — 8 дней прошло</p>
+        <button
+          onClick={markPaid}
+          disabled={paying}
+          className="mt-2 w-full rounded-md bg-success py-1.5 text-xs font-semibold text-black disabled:opacity-50"
+        >
+          {paying ? 'Сохранение…' : '💸 Отметить как оплачено'}
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-lg border border-success/40 bg-success/5 p-3">
+    <div className="rounded-lg border border-border p-3 opacity-70">
       <p className="text-sm font-medium text-ink">{sale.itemName}</p>
-      <p className="mt-0.5 text-[11px] text-muted">
-        {sale.seller.username ? `@${sale.seller.username}` : sale.seller.firstName} · {formatSom(sale.agreedAmount)}
-      </p>
-      <p className="mt-0.5 text-[10px] text-muted">Получено: {new Date(sale.createdAt).toLocaleDateString('ru-RU')} (7 дней прошло)</p>
-      <button
-        onClick={markPaid}
-        disabled={paying}
-        className="mt-2 w-full rounded-md bg-success py-1.5 text-xs font-semibold text-black disabled:opacity-50"
-      >
-        {paying ? 'Сохранение…' : '💸 Отметить как оплачено'}
-      </button>
+      <p className="mt-0.5 text-[11px] text-muted">{label} · {formatSom(sale.agreedAmount)}</p>
+      <p className="mt-0.5 text-[10px] text-warning">⏳ Осталось {sale.daysLeft} дн. до защиты сделки</p>
     </div>
   );
 }
@@ -198,26 +189,38 @@ function ReadyToPayRow({ sale, onPaid }) {
 export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState(null);
-  const [readyToPay, setReadyToPay] = useState(null);
+  const [payouts, setPayouts] = useState(null);
 
   function loadUsers() {
     api.get('/admin/users', { params: search ? { search } : {} }).then(({ data }) => setUsers(data.items || []));
   }
-  function loadReadyToPay() {
-    api.get('/admin/sales/ready-to-pay').then(({ data }) => setReadyToPay(data.items || []));
+
+  async function loadPayouts() {
+    const [ready, pending] = await Promise.all([
+      api.get('/admin/sales/ready-to-pay'),
+      api.get('/admin/sales/pending'),
+    ]);
+    const readyItems = (ready.data.items || []).map((s) => ({ ...s, ready: true }));
+    const pendingItems = (pending.data.items || []).map((s) => {
+      const readyAt = new Date(s.createdAt).getTime() + 8 * 24 * 60 * 60 * 1000;
+      const daysLeft = Math.max(1, Math.ceil((readyAt - Date.now()) / (24 * 60 * 60 * 1000)));
+      return { ...s, ready: false, daysLeft };
+    });
+    setPayouts([...readyItems, ...pendingItems]);
   }
+
   useEffect(loadUsers, [search]);
-  useEffect(loadReadyToPay, []);
+  useEffect(() => { loadPayouts(); }, []);
 
   return (
     <div className="space-y-6">
-      {readyToPay && readyToPay.length > 0 && (
+      {payouts && payouts.length > 0 && (
         <section>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-            Готово к оплате — 7 дней прошло ({readyToPay.length})
+            Запланированные выплаты ({payouts.length})
           </h2>
           <div className="space-y-2">
-            {readyToPay.map((s) => <ReadyToPayRow key={s.id} sale={s} onPaid={() => { loadReadyToPay(); loadUsers(); }} />)}
+            {payouts.map((s) => <PayoutRow key={s.id} sale={s} onPaid={() => { loadPayouts(); loadUsers(); }} />)}
           </div>
         </section>
       )}
@@ -237,7 +240,7 @@ export default function UsersPage() {
           <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-surface" />)}</div>
         ) : users.length ? (
           <div className="space-y-2">
-            {users.map((u) => <UserCard key={u.id} user={u} onChanged={loadReadyToPay} />)}
+            {users.map((u) => <UserCard key={u.id} user={u} onChanged={loadPayouts} />)}
           </div>
         ) : (
           <p className="text-xs text-muted">Никого не найдено.</p>

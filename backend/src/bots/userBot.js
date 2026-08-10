@@ -2,6 +2,26 @@ const { Telegraf, Markup } = require('telegraf');
 const { env } = require('../config/env');
 const prisma = require('../db/prisma');
 const { safeUpsertUser } = require('../services/userService');
+const { notifyText } = require('../services/notifier');
+
+// 1-band: sotuv yozuvini kim yozayotgani darhol tekshiriladi (faqat admin
+// uchun ishlaydi — boshqa hech kim bu formatdan foydalana olmaydi/bilmaydi,
+// chunki natija umuman ko'rsatilmaydi).
+async function isAdminTelegramUser(telegramId) {
+  if (!telegramId) return null;
+  const user = await prisma.user.findUnique({ where: { telegramId: BigInt(telegramId) } });
+  if (user && ['ADMIN', 'SUPERADMIN'].includes(user.role) && !user.isBanned) return user;
+  return null;
+}
+
+// "username Predmet % Summa" — masalan: "nks2level AWP % 5000" yoki "@nks2level AWP % 5000"
+// MUHIM: username so'rovning O'ZIDA bo'lishi SHART — Telegram botga inline
+// yozuv qaysi shaxsiy suhbatda yozilayotganini HECH QACHON bermaydi (bu
+// ularning maxfiylik siyosati, aylanib o'tib bo'lmaydi). Shu sababli avvalgi
+// "avval faollashtiring" oraliq bosqichi olib tashlandi — buning o'rniga
+// endi sotuvchi to'g'ridan-to'g'ri so'rovning ichida ko'rsatiladi, bitta
+// qadamda ishlaydi.
+const SALE_QUERY_RE = /^@?(\S+)\s+(.+?)\s*%\s*(\d+(?:\.\d+)?)$/;
 
 // 1.d-band: "Botni birinchi marotaba ishga tushirgan foydalanuvchi avtomatik
 // botni ishlata olsin, avtoregistratsiya qilinsin". Asosiy ro'yxatdan o'tish
@@ -61,6 +81,106 @@ function createUserBot() {
     )
   );
 
+  // ===========================================================================
+  // 1-band: admin, sotuvchi bilan shaxsiy yozishmada (yoki istalgan chatda)
+  // "@cs2auksion_bot username Predmet % Summa" yozib, savdoni Admin App'ni
+  // ochmasdan, bitta qadamda bazaga yozadi. FAQAT admin uchun ishlaydi —
+  // boshqa foydalanuvchilar bu inline natijani UMUMAN ko'rmaydi.
+  // SOZLASH (shart!): @BotFather -> /setinline -> @cs2auksion_bot -> istalgan
+  // matn, so'ng /setinlinefeedback -> @cs2auksion_bot -> 100%.
+  // ===========================================================================
+  bot.on('inline_query', async (ctx) => {
+    const admin = await isAdminTelegramUser(ctx.from.id);
+    if (!admin) return ctx.answerInlineQuery([]); // adminlardan boshqa hech kimga hech narsa ko'rsatilmaydi
+
+    const query = (ctx.inlineQuery.query || '').trim();
+    const match = query.match(SALE_QUERY_RE);
+
+    if (!match) {
+      return ctx.answerInlineQuery(
+        [{
+          type: 'article',
+          id: 'hint',
+          title: 'Формат: username Предмет % Сумма',
+          description: 'Например: nks2level AWP | Asiimov % 500000',
+          input_message_content: { message_text: 'ℹ️ Формат: username Предмет % Сумма' },
+        }],
+        { cache_time: 0 }
+      );
+    }
+
+    const [, username, itemName, amountStr] = match;
+    const amount = Number(amountStr);
+    const seller = await prisma.user.findFirst({ where: { username } });
+
+    if (!seller) {
+      return ctx.answerInlineQuery(
+        [{
+          type: 'article',
+          id: 'not-found',
+          title: `⚠️ Пользователь @${username} не найден`,
+          description: 'Проверьте правильность username',
+          input_message_content: { message_text: `⚠️ Пользователь @${username} не найден в системе.` },
+        }],
+        { cache_time: 0 }
+      );
+    }
+
+    return ctx.answerInlineQuery(
+      [{
+        type: 'article',
+        id: 'confirm',
+        title: `✅ ${itemName.trim()} — ${amount.toLocaleString('ru-RU')} сум`,
+        description: `Продавец: @${username} · нажмите, чтобы отправить`,
+        input_message_content: {
+          message_text:
+            `✅ Обмен принят: «${itemName.trim()}» за ${amount.toLocaleString('ru-RU')} сум.\n` +
+            `Выплата будет произведена после проверки (в течение нескольких дней).`,
+        },
+      }],
+      { cache_time: 0 }
+    );
+  });
+
+  bot.on('chosen_inline_result', async (ctx) => {
+    const result = ctx.update.chosen_inline_result;
+    if (!result || result.result_id !== 'confirm') return;
+
+    const admin = await isAdminTelegramUser(result.from.id);
+    if (!admin) return;
+
+    const match = (result.query || '').trim().match(SALE_QUERY_RE);
+    if (!match) return;
+    const [, username, itemName, amountStr] = match;
+    const amount = Number(amountStr);
+    const seller = await prisma.user.findFirst({ where: { username } });
+    if (!seller) return;
+
+    const sale = await prisma.userSale.create({
+      data: { sellerId: seller.id, recordedById: admin.id, itemName: itemName.trim(), agreedAmount: amount },
+    });
+    await prisma.adminAuditLog.create({
+      data: { actorId: admin.id, action: 'USER_SALE_RECORDED_INLINE', targetType: 'UserSale', targetId: sale.id, meta: { itemName, amount } },
+    });
+
+    // Adminning O'ZIGA (botning shaxsiy chatida) alohida tasdiq — chunki bot
+    // sotuvchi bilan adminning shaxsiy suhbatiga ALOHIDA xabar yubora olmaydi
+    // (Telegram bunga ruxsat bermaydi, faqat o'z suhbatiga yuborishi mumkin).
+    await bot.telegram.sendMessage(
+      result.from.id,
+      `📋 Записано в систему: «${itemName.trim()}» — ${amount.toLocaleString('ru-RU')} сум (@${username}).\n` +
+        `Выплата будет доступна через 8 дней.`
+    );
+
+    // Sotuvchiga ham rasmiy xabar — ishonchli kanal orqali (bot orqali, chat
+    // kontekstiga bog'liq emas).
+    await notifyText(
+      seller.telegramId,
+      `✅ Ваш предмет «${itemName.trim()}» принят администратором за ${amount.toLocaleString('ru-RU')} сум. ` +
+        `Выплата будет произведена в течение 8 дней после проверки сделки.`
+    );
+  });
+
   bot.catch((err, ctx) => {
     console.error(`[userBot] xato (update ${ctx.updateType}):`, err);
   });
@@ -69,17 +189,3 @@ function createUserBot() {
 }
 
 module.exports = { createUserBot };
-
-/**
- * auctionScheduler kabi boshqa modullar foydalanuvchiga Telegram orqali
- * xabar yuborishi uchun. index.js botni yaratgandan keyin shu funksiyani
- * scheduler'ga ulaydi (setNotifier orqali) — shunda aylanma import kelib
- * chiqmaydi.
- */
-function makeNotifier(bot) {
-  return async (telegramId, text) => {
-    if (!bot) return;
-    await bot.telegram.sendMessage(String(telegramId), text);
-  };
-}
-module.exports.makeNotifier = makeNotifier;

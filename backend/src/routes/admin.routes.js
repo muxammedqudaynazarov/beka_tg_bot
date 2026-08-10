@@ -390,28 +390,6 @@ router.get('/analytics', async (req, res) => {
 });
 
 // ===========================================================================
-// 5/6-band: TIZIM SOZLAMALARI — kelajakdagi "foydalanuvchi o'z skinini
-// sotadi" funksiyasi uchun admin belgilaydigan maksimal byudjet va kurs.
-// ===========================================================================
-router.get('/settings', async (req, res) => {
-  const { getOrCreateSettings } = require('../services/steamMarketService');
-  const settings = await getOrCreateSettings();
-  res.json(settings);
-});
-
-router.patch('/settings', async (req, res) => {
-  const { maxBuybackBudget, usdToSomRate } = req.body || {};
-  const { getOrCreateSettings } = require('../services/steamMarketService');
-  await getOrCreateSettings();
-  const data = {};
-  if (maxBuybackBudget !== undefined) data.maxBuybackBudget = Number(maxBuybackBudget);
-  if (usdToSomRate !== undefined) data.usdToSomRate = Number(usdToSomRate);
-  const updated = await prisma.systemSetting.update({ where: { id: 1 }, data });
-  await logAction(req.user.id, 'SETTINGS_UPDATED', 'SystemSetting', '1', data);
-  res.json(updated);
-});
-
-// ===========================================================================
 // 1-band: FOYDALANUVCHILAR bo'limi — qidiruv, shaxsiy Steam savdosini qayd
 // etish, va 8 kunlik "Trade Protection" muddati tugagan (to'lovga tayyor)
 // foydalanuvchilar ro'yxati.
@@ -450,17 +428,6 @@ router.get('/users/:id', async (req, res) => {
   });
   if (!user) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
   res.json(user);
-});
-
-// 3-band: admin shu foydalanuvchi bilan hoziroq yozishmoqchi bo'lsa, shu
-// tugmani bosadi — shundan keyin 60 daqiqa davomida shaxsiy xabarda
-// "@bot ItemName % Summa" yozilsa, avtomatik shu foydalanuvchiga bog'lanadi.
-router.post('/users/:id/activate-inline', async (req, res) => {
-  const seller = await prisma.user.findUnique({ where: { id: req.params.id } });
-  if (!seller) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
-  const { setActiveSeller } = require('../services/inlineSaleContext');
-  setActiveSeller(req.user.telegramId, seller);
-  res.json({ ok: true, message: `Активировано на 60 минут: ${seller.username ? '@' + seller.username : seller.firstName}` });
 });
 
 // Admin shaxsiy Steam savdosi orqali foydalanuvchidan inventar sotib
