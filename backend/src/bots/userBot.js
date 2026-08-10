@@ -104,10 +104,10 @@ function createUserBot() {
         [{
           type: 'article',
           id: 'hint',
-          title: '⚠️ В начале не хватает username продавца',
+          title: '⚠️ В начале не хватает username или ID продавца',
           description: `Добавьте username перед этим: username ${query}`,
           input_message_content: {
-            message_text: `⚠️ В начале нужно добавить username продавца.\nДолжно быть: username ${query}`,
+            message_text: `⚠️ В начале нужно добавить username (или Telegram ID) продавца.\nДолжно быть: username ${query}`,
           },
         }],
         { cache_time: 0 }
@@ -119,11 +119,11 @@ function createUserBot() {
         [{
           type: 'article',
           id: 'hint',
-          title: '⚠️ Не хватает username продавца',
-          description: `Формат: username Предмет % Сумма — например: nks2level AWP % 50000`,
+          title: '⚠️ Не хватает username/ID продавца',
+          description: `Формат: username Предмет % Сумма (или Telegram ID вместо username)`,
           input_message_content: {
             message_text:
-              `⚠️ Не хватает username продавца в начале.\n\n` +
+              `⚠️ Не хватает username (или Telegram ID) продавца в начале.\n\n` +
               `Правильный формат: username Предмет % Сумма\n` +
               `Например: nks2level AWP % 50000`,
           },
@@ -132,29 +132,32 @@ function createUserBot() {
       );
     }
 
-    const [, username, itemName, amountStr] = match;
+    const [, identifier, itemName, amountStr] = match;
     const amount = Number(amountStr);
-    const seller = await prisma.user.findFirst({ where: { username } });
+    const seller = /^\d+$/.test(identifier)
+      ? await prisma.user.findUnique({ where: { telegramId: BigInt(identifier) } }).catch(() => null)
+      : await prisma.user.findFirst({ where: { username: identifier } });
 
     if (!seller) {
       return ctx.answerInlineQuery(
         [{
           type: 'article',
           id: 'not-found',
-          title: `⚠️ Пользователь @${username} не найден`,
-          description: 'Проверьте правильность username',
-          input_message_content: { message_text: `⚠️ Пользователь @${username} не найден в системе.` },
+          title: `⚠️ Пользователь "${identifier}" не найден`,
+          description: 'Проверьте username или Telegram ID (см. в разделе «Пользователи»)',
+          input_message_content: { message_text: `⚠️ Пользователь "${identifier}" не найден в системе.` },
         }],
         { cache_time: 0 }
       );
     }
 
+    const sellerLabel = seller.username ? `@${seller.username}` : seller.firstName || identifier;
     return ctx.answerInlineQuery(
       [{
         type: 'article',
         id: 'confirm',
         title: `✅ ${itemName.trim()} — ${amount.toLocaleString('ru-RU')} сум`,
-        description: `Продавец: @${username} · нажмите, чтобы отправить`,
+        description: `Продавец: ${sellerLabel} · нажмите, чтобы отправить`,
         input_message_content: {
           message_text:
             `✅ Обмен принят: «${itemName.trim()}» за ${amount.toLocaleString('ru-RU')} сум.\n` +
@@ -171,17 +174,31 @@ function createUserBot() {
 
     const admin = await isAdminTelegramUser(result.from.id);
     if (!admin) return;
+    console.log(`[inline-sale] Boshlanmoqda: adminId=${admin.id}, so'rov="${result.query}"`);
 
     const match = (result.query || '').trim().match(SALE_QUERY_RE);
-    if (!match) return;
-    const [, username, itemName, amountStr] = match;
+    if (!match) {
+      console.warn(`[inline-sale] Format mos kelmadi: "${result.query}"`);
+      return;
+    }
+    const [, identifier, itemName, amountStr] = match;
     const amount = Number(amountStr);
-    const seller = await prisma.user.findFirst({ where: { username } });
-    if (!seller) return;
+    // 2-band: har bir foydalanuvchida username bo'lavermaydi (bu Telegram'da
+    // ixtiyoriy) — shuning uchun agar identifikator FAQAT raqamlardan iborat
+    // bo'lsa, uni Telegram ID sifatida qidiramiz; aks holda username sifatida.
+    const seller = /^\d+$/.test(identifier)
+      ? await prisma.user.findUnique({ where: { telegramId: BigInt(identifier) } }).catch(() => null)
+      : await prisma.user.findFirst({ where: { username: identifier } });
+    if (!seller) {
+      console.warn(`[inline-sale] Sotuvchi topilmadi: identifikator="${identifier}"`);
+      return;
+    }
+    console.log(`[inline-sale] Sotuvchi topildi: id=${seller.id}, telegramId=${seller.telegramId}`);
 
     const sale = await prisma.userSale.create({
       data: { sellerId: seller.id, recordedById: admin.id, itemName: itemName.trim(), agreedAmount: amount },
     });
+    console.log(`[inline-sale] BAZAGA YOZILDI: saleId=${sale.id}, itemName="${itemName.trim()}", amount=${amount}`);
     await prisma.adminAuditLog.create({
       data: { actorId: admin.id, action: 'USER_SALE_RECORDED_INLINE', targetType: 'UserSale', targetId: sale.id, meta: { itemName, amount } },
     });
@@ -189,11 +206,18 @@ function createUserBot() {
     // Adminning O'ZIGA (botning shaxsiy chatida) alohida tasdiq — chunki bot
     // sotuvchi bilan adminning shaxsiy suhbatiga ALOHIDA xabar yubora olmaydi
     // (Telegram bunga ruxsat bermaydi, faqat o'z suhbatiga yuborishi mumkin).
-    await bot.telegram.sendMessage(
-      result.from.id,
-      `📋 Записано в систему: «${itemName.trim()}» — ${amount.toLocaleString('ru-RU')} сум (@${username}).\n` +
-        `Выплата будет доступна через 8 дней.`
-    );
+    // DIQQAT: bu xabar sotuvchi bilan yozishayotgan chatga EMAS, balki
+    // sizning @cs2auksion_bot bilan bo'lgan ALOHIDA shaxsiy chatingizga keladi.
+    try {
+      await bot.telegram.sendMessage(
+        result.from.id,
+        `📋 Записано в систему: «${itemName.trim()}» — ${amount.toLocaleString('ru-RU')} сум (${seller.username ? '@' + seller.username : seller.firstName || identifier}).\n` +
+          `Выплата будет доступна через 8 дней.`
+      );
+      console.log(`[inline-sale] Admin'ga tasdiq yuborildi (adminTelegramId=${result.from.id})`);
+    } catch (err) {
+      console.error(`[inline-sale] Admin'ga tasdiq YUBORILMADI:`, err.message);
+    }
 
     // Sotuvchiga ham rasmiy xabar — ishonchli kanal orqali (bot orqali, chat
     // kontekstiga bog'liq emas).
@@ -202,6 +226,7 @@ function createUserBot() {
       `✅ Ваш предмет «${itemName.trim()}» принят администратором за ${amount.toLocaleString('ru-RU')} сум. ` +
         `Выплата будет произведена в течение 8 дней после проверки сделки.`
     );
+    console.log(`[inline-sale] Yakunlandi: saleId=${sale.id}`);
   });
 
   bot.catch((err, ctx) => {

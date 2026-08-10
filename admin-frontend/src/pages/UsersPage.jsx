@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, CheckCircle2, Clock3, X } from 'lucide-react';
+import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw } from 'lucide-react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
 
@@ -95,6 +95,11 @@ function UserCard({ user, onChanged }) {
             {user.firstName || 'Без имени'} {user.username ? `· @${user.username}` : ''}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
+          {!user.username && (
+            <p className="mt-0.5 font-mono text-[10px] text-warning">
+              Нет username — используйте ID: {user.telegramId}
+            </p>
+          )}
         </div>
         {user.isBanned && <span className="rounded bg-danger/15 px-1.5 py-0.5 text-[9px] font-semibold text-danger">БАН</span>}
       </button>
@@ -190,6 +195,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState(null);
   const [payouts, setPayouts] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   function loadUsers() {
     api.get('/admin/users', { params: search ? { search } : {} }).then(({ data }) => setUsers(data.items || []));
@@ -207,6 +214,16 @@ export default function UsersPage() {
       return { ...s, ready: false, daysLeft };
     });
     setPayouts([...readyItems, ...pendingItems]);
+    setLastUpdated(new Date());
+  }
+
+  async function refreshAll() {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadPayouts(), loadUsers()]);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   useEffect(loadUsers, [search]);
@@ -214,6 +231,19 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-muted">
+          {lastUpdated ? `Обновлено: ${lastUpdated.toLocaleTimeString('ru-RU')}` : ''}
+        </p>
+        <button
+          onClick={refreshAll}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-[10px] font-medium text-ink disabled:opacity-50"
+        >
+          <RefreshCw size={11} className={refreshing ? 'animate-spin' : ''} /> Обновить
+        </button>
+      </div>
+
       {payouts && payouts.length > 0 && (
         <section>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
