@@ -162,20 +162,18 @@ router.post('/auctions', async (req, res) => {
     if (env.announceChannelId) {
         const {notifyChannel} = require('../services/notifier');
 
-        const lines = [`<tg-emoji emoji-id="5431472507888628163">3️⃣</tg-emoji> <b>${skinName}</b>`, ''];
-        lines.push(`Редкость: ${RARITY_LABELS[rarity] || rarity}`);
-        if (wearCondition) lines.push(`Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}`);
+        const lines = [`⚡️ <b>${skinName}</b>`, ''];
+        lines.push(`<i>Редкость: ${RARITY_LABELS[rarity] || rarity}</i>`);
+        if (wearCondition) lines.push(`<i>Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}</i>`);
         if (floatValue !== undefined && floatValue !== null && floatValue !== '') {
-            lines.push(`Float: <code>${Number(floatValue).toFixed(6)}</code>`);
+            lines.push(`<i>Float: ${Number(floatValue).toFixed(6)}</i>`);
         }
         if (paintSeed !== undefined && paintSeed !== null && paintSeed !== '') {
-            lines.push(`Шаблон раскраски: #${paintSeed}`);
+            lines.push(`<i>Шаблон раскраски: #${paintSeed}</i>`);
         }
         lines.push('');
         lines.push(`<b>Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум</b>`);
-        lines.push(`<i>Завершение: ${endsAt.toLocaleString('ru-RU')}</i>`);
-        lines.push('');
-        lines.push('<i>Вы хотите участвуйте в аукционе прямо сейчас?</i>');
+        lines.push(`<b>Завершение:</b> <code>${endsAt.toLocaleString('ru-RU')}</code>`);
         lines.push('');
         lines.push('@CS2_auction');
 
@@ -188,7 +186,7 @@ router.post('/auctions', async (req, res) => {
             replyMarkup = {
                 inline_keyboard: [[
                     {
-                        text: 'Перейти к лоту 👉',
+                        text: 'Перейти к лоту',
                         url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
                     },
                 ]],
