@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Package, Search } from 'lucide-react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
 import { RARITIES, WEARS, NO_FLOAT_TYPE_NAMES } from '../constants';
@@ -14,6 +14,87 @@ export function Field({ label, children }) {
       <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
       {children}
     </label>
+  );
+}
+
+// 5-band (yangi qulaylik): botning haqiqiy Steam inventaridan tanlab,
+// Asset ID + float + paint seed'ni QO'LDA JSON'dan qidirmasdan avtomatik
+// to'ldirish. Bot sozlanmagan bo'lsa, bu tugma shunchaki xato ko'rsatadi —
+// qolgan forma odatdagidek qo'lda to'ldirishda davom etadi.
+function SteamInventoryPicker({ onPick }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState(null);
+  const [query, setQuery] = useState('');
+
+  async function load() {
+    setOpen(true);
+    if (items) return;
+    try {
+      const { data } = await api.get('/admin/steam-inventory');
+      setItems(data.items || []);
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Не удалось получить инвентарь бота.');
+      setOpen(false);
+    }
+  }
+
+  const filtered = useMemo(() => {
+    if (!items) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it) => it.name.toLowerCase().includes(q));
+  }, [items, query]);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={load}
+        className="flex items-center gap-1.5 rounded-lg border border-dashed border-accent/50 px-3 py-2 text-xs font-medium text-accent"
+      >
+        <Package size={13} /> Выбрать из инвентаря бота
+      </button>
+
+      {open && (
+        <div className="mt-2 rounded-lg border border-border p-2">
+          <div className="mb-2 flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5">
+            <Search size={12} className="shrink-0 text-muted" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Поиск по названию…"
+              className="w-full bg-transparent text-xs text-ink placeholder:text-muted focus:outline-none"
+            />
+            <button type="button" onClick={() => setOpen(false)} className="shrink-0 text-muted"><X size={13} /></button>
+          </div>
+          {items === null ? (
+            <p className="px-1 py-2 text-xs text-muted">Загрузка…</p>
+          ) : filtered.length ? (
+            <div className="max-h-64 space-y-1 overflow-y-auto">
+              {filtered.map((it) => (
+                <button
+                  key={it.assetId}
+                  type="button"
+                  onClick={() => { onPick(it); setOpen(false); }}
+                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-surface"
+                >
+                  {it.imageUrl && <img src={it.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded bg-surface object-contain p-0.5" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs text-ink">{it.name}</p>
+                    <p className="text-[10px] text-muted">
+                      {it.floatValue !== null ? it.floatValue.toFixed(6) : '—'}
+                      {!it.tradable && <span className="ml-1.5 text-warning">не обмениваемо</span>}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="px-1 py-2 text-xs text-muted">Ничего не найдено.</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -83,6 +164,21 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      <SteamInventoryPicker
+        onPick={(it) => {
+          setForm((f) => ({
+            ...f,
+            skinName: it.name.replace(/^StatTrak™\s*/, ''),
+            imageUrl: it.imageUrl || f.imageUrl,
+            steamAssetId: it.assetId,
+            isStatTrak: it.isStatTrak,
+            ...(it.floatValue !== null ? { floatValue: it.floatValue } : {}),
+            ...(it.paintSeed !== null ? { paintSeed: it.paintSeed } : {}),
+          }));
+          showAlert('✅ Поля заполнены из инвентаря. Проверьте и выберите категорию/редкость/износ вручную.');
+        }}
+      />
+
       <Field label="Название скина *">
         <input className={inputCls} value={form.skinName} onChange={(e) => set('skinName', e.target.value)} placeholder="AK-47 | Redline" />
       </Field>

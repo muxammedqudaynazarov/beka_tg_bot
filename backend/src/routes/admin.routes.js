@@ -497,4 +497,11 @@ router.post('/sales/:id/mark-paid', async (req, res) => {
   res.json(updated);
 });
 
+router.get('/steam-inventory', async (req, res) => {
+  const { listBotInventory } = require('../services/steamBotService');
+  const result = await listBotInventory();
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json({ items: result.items });
+});
+
 module.exports = router;

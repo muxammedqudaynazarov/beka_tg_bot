@@ -151,4 +151,42 @@ async function sendItemAutomatically({ tradeUrl, steamAssetId }) {
   });
 }
 
-module.exports = { initSteamBot, isConfigured, validateTradeUrl, sendItemAutomatically };
+/**
+ * 5-band (yangi qulaylik): botning HAQIQIY Steam inventarini ro'yxat
+ * qilib beradi — bu orqali admin Asset ID'ni qo'lda JSON'dan qidirmasdan,
+ * to'g'ridan-to'g'ri ro'yxatdan tanlay oladi. Bot O'ZINING avtorizatsiyalangan
+ * sessiyasi orqali so'rov yuboradi — bu Steam'ning tashqi (anonim)
+ * so'rovlarga qo'yadigan qattiq rate limit'iga deyarli tushmaydi (Steam
+ * "o'z" inventaringizni cookie orqali so'rasangiz erkin ruxsat beradi).
+ */
+let inventoryCache = { items: null, expiresAt: 0 };
+
+async function listBotInventory() {
+  if (!ready) return { ok: false, error: 'Steam bot tayyor emas yoki sozlanmagan.' };
+  if (inventoryCache.items && Date.now() < inventoryCache.expiresAt) {
+    return { ok: true, items: inventoryCache.items, cached: true };
+  }
+  return new Promise((resolve) => {
+    community.getUserInventoryContents(client.steamID, 730, 2, false, 'russian', (err, inventory) => {
+      if (err) return resolve({ ok: false, error: err.message });
+      const items = inventory.map((item) => {
+        const props = item.asset_properties || [];
+        const paintSeedProp = props.find((p) => p.propertyid === 1);
+        const floatProp = props.find((p) => p.propertyid === 2);
+        return {
+          assetId: item.assetid,
+          name: item.market_hash_name || item.name,
+          imageUrl: item.icon_url ? `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}` : null,
+          floatValue: floatProp ? Number(floatProp.float_value) : null,
+          paintSeed: paintSeedProp ? Number(paintSeedProp.int_value) : null,
+          isStatTrak: /^StatTrak™/.test(item.market_hash_name || ''),
+          tradable: Boolean(item.tradable),
+        };
+      });
+      inventoryCache = { items, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 daqiqa keshlanadi
+      resolve({ ok: true, items });
+    });
+  });
+}
+
+module.exports = { initSteamBot, isConfigured, validateTradeUrl, sendItemAutomatically, listBotInventory };
