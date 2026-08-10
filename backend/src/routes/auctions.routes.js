@@ -4,6 +4,20 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { placeBid, attemptCompletePayment, AuctionError } = require('../services/auctionService');
 const { notifyText, notifyAllAdmins } = require('../services/notifier');
 
+// 2-band: takliflar tarixida Telegram username UMUMAN ko'rsatilmaydi, ism esa
+// faqat birinchi (haqiqiy, ko'rinadigan) harfi bilan qisqartiriladi — masalan
+// "Muxammed" -> "M***". Agar ism bo'sh yoki birinchi belgisi normal harf
+// bo'lmasa (emoji, ko'rinmas Unicode belgilar va h.k.), to'liq "***" chiqadi.
+function maskFirstName(firstName) {
+  const trimmed = String(firstName || '').trim();
+  const firstChar = trimmed[0];
+  // \p{L} — istalgan tildagi "harf" (lotin, kirill va h.k.), \u{} bayrog'i bilan
+  if (firstChar && /\p{L}/u.test(firstChar)) {
+    return `${firstChar}***`;
+  }
+  return '***';
+}
+
 const router = express.Router();
 
 // GET /api/auctions
@@ -99,8 +113,12 @@ router.get('/:id', optionalAuth, async (req, res) => {
     where: { id: req.params.id },
     include: {
       subcategory: { include: { category: true } },
-      currentLeader: { select: { id: true, username: true, firstName: true } },
-      bids: { orderBy: { createdAt: 'desc' }, take: 20, include: { user: { select: { username: true, firstName: true } } } },
+      currentLeader: { select: { id: true, firstName: true } },
+      bids: {
+        orderBy: { createdAt: 'desc' },
+        take: 10, // 1-band: oxirgi 10ta
+        select: { id: true, amount: true, createdAt: true, user: { select: { firstName: true } } },
+      },
       stickers: { orderBy: { slot: 'asc' } },
     },
   });
@@ -114,7 +132,12 @@ router.get('/:id', optionalAuth, async (req, res) => {
     isFavorited = Boolean(fav);
   }
 
-  res.json({ ...auction, isFavorited });
+  const maskedAuction = {
+    ...auction,
+    currentLeader: auction.currentLeader ? { ...auction.currentLeader, firstName: maskFirstName(auction.currentLeader.firstName) } : null,
+    bids: auction.bids.map((b) => ({ ...b, user: { firstName: maskFirstName(b.user?.firstName) } })),
+  };
+  res.json({ ...maskedAuction, isFavorited });
 });
 
 // POST /api/auctions/:id/bid — 1.i-1.l bandlaridagi barcha auksion qoidalari shu yerda ishlaydi
@@ -136,7 +159,9 @@ router.post('/:id/bid', requireAuth, async (req, res) => {
       io.to(`auction:${req.params.id}`).emit('auction:update', {
         auctionId: req.params.id,
         currentPrice: result.auction.currentPrice,
-        currentLeader: result.auction.currentLeader,
+        currentLeader: result.auction.currentLeader
+          ? { ...result.auction.currentLeader, firstName: maskFirstName(result.auction.currentLeader.firstName) }
+          : null,
         endsAt: result.auction.endsAt,
         extended: result.extended,
       });

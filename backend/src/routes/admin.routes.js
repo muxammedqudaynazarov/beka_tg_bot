@@ -413,11 +413,11 @@ router.patch('/settings', async (req, res) => {
 
 // ===========================================================================
 // 1-band: FOYDALANUVCHILAR bo'limi — qidiruv, shaxsiy Steam savdosini qayd
-// etish, va 7 kunlik "Trade Protection" muddati tugagan (to'lovga tayyor)
+// etish, va 8 kunlik "Trade Protection" muddati tugagan (to'lovga tayyor)
 // foydalanuvchilar ro'yxati.
 // ===========================================================================
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const SALE_HOLD_MS = 8 * 24 * 60 * 60 * 1000; // 8 kun (Steam'ning 7 kunlik Trade Protection'idan 1 kun zaxira bilan)
 
 router.get('/users', async (req, res) => {
   const { search } = req.query;
@@ -452,6 +452,17 @@ router.get('/users/:id', async (req, res) => {
   res.json(user);
 });
 
+// 3-band: admin shu foydalanuvchi bilan hoziroq yozishmoqchi bo'lsa, shu
+// tugmani bosadi — shundan keyin 60 daqiqa davomida shaxsiy xabarda
+// "@bot ItemName % Summa" yozilsa, avtomatik shu foydalanuvchiga bog'lanadi.
+router.post('/users/:id/activate-inline', async (req, res) => {
+  const seller = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!seller) return res.status(404).json({ error: 'Foydalanuvchi topilmadi.' });
+  const { setActiveSeller } = require('../services/inlineSaleContext');
+  setActiveSeller(req.user.telegramId, seller);
+  res.json({ ok: true, message: `Активировано на 60 минут: ${seller.username ? '@' + seller.username : seller.firstName}` });
+});
+
 // Admin shaxsiy Steam savdosi orqali foydalanuvchidan inventar sotib
 // olganda shuni qayd etadi (summa, item nomi, izoh).
 router.post('/users/:id/sales', async (req, res) => {
@@ -476,16 +487,16 @@ router.post('/users/:id/sales', async (req, res) => {
   await notifyText(
     seller.telegramId,
     `📥 Администратор зафиксировал получение вашего предмета "${itemName}" на сумму ${Number(agreedAmount).toLocaleString('ru-RU')} сум. ` +
-      `Выплата будет произведена после истечения 7-дневного периода защиты сделки в Steam.`
+      `Выплата будет произведена через 8 дней (после периода защиты сделки в Steam).`
   );
 
   res.status(201).json(sale);
 });
 
-// 7 kunlik muddat tugagan, LEKIN hali to'lanmagan barcha savdolar —
+// 8 kunlik muddat tugagan, LEKIN hali to'lanmagan barcha savdolar —
 // "admin foydalanuvchiga pul o'tkazib berishi mumkin" ro'yxati.
 router.get('/sales/ready-to-pay', async (req, res) => {
-  const cutoff = new Date(Date.now() - SEVEN_DAYS_MS);
+  const cutoff = new Date(Date.now() - SALE_HOLD_MS);
   const items = await prisma.userSale.findMany({
     where: { paidAt: null, createdAt: { lte: cutoff } },
     orderBy: { createdAt: 'asc' },
@@ -494,10 +505,10 @@ router.get('/sales/ready-to-pay', async (req, res) => {
   res.json({ items });
 });
 
-// Hali 7 kun to'lmagan, kutilayotgan savdolar (ma'lumot uchun — pastda
+// Hali 8 kun to'lmagan, kutilayotgan savdolar (ma'lumot uchun — pastda
 // alohida ko'rsatiladi, hali "tayyor" emas).
 router.get('/sales/pending', async (req, res) => {
-  const cutoff = new Date(Date.now() - SEVEN_DAYS_MS);
+  const cutoff = new Date(Date.now() - SALE_HOLD_MS);
   const items = await prisma.userSale.findMany({
     where: { paidAt: null, createdAt: { gt: cutoff } },
     orderBy: { createdAt: 'asc' },
@@ -511,11 +522,20 @@ router.post('/sales/:id/mark-paid', async (req, res) => {
   if (!sale) return res.status(404).json({ error: 'Yozuv topilmadi.' });
   if (sale.paidAt) return res.status(400).json({ error: 'Bu allaqachon to\'langan deb belgilangan.' });
 
+  // 3/4-band: SERVERDA majburiy tekshiruv — 8 kunlik muddat o'tmaguncha
+  // to'lovni tasdiqlab bo'lmaydi (frontend tugmani yashirgan bo'lsa ham, bu
+  // haqiqiy himoya chizig'i — to'g'ridan-to'g'ri API so'rovidan ham himoyalaydi).
+  const readyAt = new Date(sale.createdAt.getTime() + SALE_HOLD_MS);
+  if (Date.now() < readyAt.getTime()) {
+    const daysLeft = Math.ceil((readyAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    return res.status(400).json({ error: `Ещё рано — до конца периода защиты сделки осталось ${daysLeft} дн.` });
+  }
+
   const updated = await prisma.userSale.update({ where: { id: sale.id }, data: { paidAt: new Date() } });
   await logAction(req.user.id, 'USER_SALE_PAID', 'UserSale', sale.id, {});
   await notifyText(
     sale.seller.telegramId,
-    `💸 Оплата за "${sale.itemName}" (${Number(sale.agreedAmount).toLocaleString('ru-RU')} сум) произведена. Спасибо за сделку!`
+    `💸 Оплата за "${sale.itemName}" (${Number(sale.agreedAmount).toLocaleString('ru-RU')} сум) произведена на указанную карту. Спасибо за сделку!`
   );
   res.json(updated);
 });

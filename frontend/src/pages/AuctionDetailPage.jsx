@@ -8,7 +8,7 @@ import { useCountdownDHMS } from '../hooks/useCountdown';
 import { hapticNotification, showAlert } from '../telegram';
 import RarityBadge from '../components/RarityBadge';
 import FloatGauge from '../components/FloatGauge';
-import { WEAR_LABELS, formatSom, AUCTION_STATUS_META, RARITY_META } from '../constants';
+import { WEAR_LABELS, formatSom, formatDateTime, AUCTION_STATUS_META, RARITY_META } from '../constants';
 
 const DEPOSIT_PERCENT = 25; // backend .env AUCTION_DEPOSIT_PERCENT bilan mos — faqat ko'rsatish uchun
 const MAX_CONSECUTIVE = 10;
@@ -274,7 +274,7 @@ export default function AuctionDetailPage() {
               <TrendingUp size={12} />
               Лидер:{' '}
               <span className="font-semibold text-ink-primary">
-                {isLeader ? 'Вы' : auction.currentLeader.username ? `@${auction.currentLeader.username}` : auction.currentLeader.firstName}
+                {isLeader ? 'Вы' : auction.currentLeader.firstName}
               </span>
             </p>
           )}
@@ -336,9 +336,10 @@ export default function AuctionDetailPage() {
           <div className="space-y-1.5">
             {(auction.bids || []).map((bid) => (
               <div key={bid.id} className="flex items-center justify-between rounded-lg bg-base-surface px-3 py-2 text-xs">
-                <span className="text-ink-secondary">
-                  {bid.user?.username ? `@${bid.user.username}` : bid.user?.firstName || 'Пользователь'}
-                </span>
+                <div>
+                  <span className="text-ink-secondary">{bid.user?.firstName || '***'}</span>
+                  <p className="font-mono text-[9px] text-ink-muted">{formatDateTime(bid.createdAt)}</p>
+                </div>
                 <span className="font-mono font-semibold text-ink-primary">{formatSom(bid.amount)}</span>
               </div>
             ))}

@@ -24,6 +24,13 @@ export function formatSom(amount) {
   return `${n.toLocaleString('ru-RU')} сум`;
 }
 
+// 1-band: d.m.Y H:i:s formatida, masalan "10.08.2026 14:23:05"
+export function formatDateTime(iso) {
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
 function pad2(n) {
   return String(n).padStart(2, '0');
 }

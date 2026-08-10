@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, CheckCircle2, Clock3, X } from 'lucide-react';
+import { Search, Plus, CheckCircle2, Clock3, X, Zap } from 'lucide-react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
 
@@ -71,6 +71,7 @@ function UserCard({ user, onChanged }) {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   async function toggle() {
     if (!expanded && !detail) {
@@ -87,6 +88,18 @@ function UserCard({ user, onChanged }) {
     onChanged();
   }
 
+  async function activateInline() {
+    setActivating(true);
+    try {
+      const { data } = await api.post(`/admin/users/${user.id}/activate-inline`);
+      showAlert(`🎯 ${data.message}\n\nТеперь в любом чате напишите: @cs2admin_auksion_bot Предмет % Сумма`);
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    } finally {
+      setActivating(false);
+    }
+  }
+
   return (
     <div className="rounded-lg border border-border">
       <button onClick={toggle} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
@@ -101,6 +114,13 @@ function UserCard({ user, onChanged }) {
 
       {expanded && detail && (
         <div className="space-y-2 border-t border-border p-3">
+          <button
+            onClick={activateInline}
+            disabled={activating}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            <Zap size={13} /> {activating ? 'Активация…' : 'Faollashtirish (для inline-записи в чате)'}
+          </button>
           {!showForm ? (
             <button
               onClick={() => setShowForm(true)}
