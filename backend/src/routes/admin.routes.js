@@ -188,7 +188,7 @@ router.post('/auctions', async (req, res) => {
       replyMarkup = {
         inline_keyboard: [[
           {
-            text: 'Перейти к лоту 👉',
+            text: 'Перейти к лоту',
             url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
           },
         ]],
