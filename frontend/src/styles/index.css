@@ -65,3 +65,60 @@ body {
 .animate-breathe {
   animation: breathe-glow 3s ease-in-out infinite;
 }
+
+/* ========================================================================
+   SPLASH-EKRAN animatsiyalari — ilova ochilganda 3 soniya ko'rsatiladi
+   ======================================================================== */
+
+/* Logotipning o'zi — kirishda pastdan biroz "sakrab" chiqadi va kattalashadi */
+@keyframes splash-logo-in {
+  0% { opacity: 0; transform: scale(0.75) translateY(14px); }
+  60% { opacity: 1; transform: scale(1.04) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-splash-logo {
+  animation: splash-logo-in 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Bolg'a (gavel) zarbasidan tarqaladigan "zarba to'lqinlari" — auksion
+   mavzusiga mos, markazdan kengayib, xiralashib ketadigan halqalar */
+@keyframes splash-shockwave {
+  0% { opacity: 0.55; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+.animate-splash-shockwave {
+  animation: splash-shockwave 2s cubic-bezier(0.2, 0.7, 0.4, 1) infinite;
+}
+
+/* Fon nurlanishi — sekin, uzluksiz "nafas olish" */
+@keyframes splash-glow-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.15); }
+}
+.animate-splash-glow {
+  animation: splash-glow-pulse 2.4s ease-in-out infinite;
+}
+
+/* Pastdagi "yuklanmoqda" nuqtalari — navbat bilan yonib-o'chadi */
+@keyframes splash-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+  40% { opacity: 1; transform: scale(1.15); }
+}
+.animate-splash-dot {
+  animation: splash-dot 1.2s ease-in-out infinite;
+}
+
+/* Butun splash-ekranning chiqib ketishi (fade-out) */
+@keyframes splash-exit {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-splash-exit {
+  animation: splash-exit 0.5s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-splash-logo, .animate-splash-shockwave, .animate-splash-glow, .animate-splash-dot {
+    animation: none;
+  }
+}

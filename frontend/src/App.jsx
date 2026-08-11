@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 import { FiltersProvider } from './FiltersContext';
 import BottomNav from './components/BottomNav';
 import AdPopup from './components/AdPopup';
+import SplashScreen from './components/SplashScreen';
 import HomePage from './pages/HomePage';
 import FilterPage from './pages/FilterPage';
 import PaymentPage from './pages/PaymentPage';
@@ -29,14 +30,13 @@ function StartParamRedirect() {
 
 function AuthGate({ children }) {
   const { status, error, showPopupAd } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
 
-  if (status === 'loading') {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-ink-secondary">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-rarity-covert border-t-transparent" />
-        <p className="font-display text-sm">Загрузка…</p>
-      </div>
-    );
+  // Splash-ekran hali "tugatilmagan" bo'lsa — status loading/error/ready
+  // bo'lishidan qat'iy nazar, avval SHUNI ko'rsatamiz (kamida 3 soniya, va
+  // kontent tayyor bo'lguncha davom etadi).
+  if (!splashDone) {
+    return <SplashScreen ready={status !== 'loading'} onDone={() => setSplashDone(true)} />;
   }
 
   if (status === 'error') {
