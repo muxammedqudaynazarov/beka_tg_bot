@@ -74,7 +74,7 @@ export default function SplashScreen({ ready, onDone }) {
             onEnded={handleEnded}
             onError={() => setVideoFailed(true)}
             playsInline
-            className="max-h-[70vh] w-full max-w-sm object-contain"
+            className="h-auto w-full"
           />
           {needsSoundTap && (
             <button
