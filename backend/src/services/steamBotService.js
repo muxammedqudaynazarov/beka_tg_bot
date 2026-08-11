@@ -161,6 +161,42 @@ async function sendItemAutomatically({ tradeUrl, steamAssetId }) {
  */
 let inventoryCache = { items: null, expiresAt: 0 };
 
+// 1-band (yangi qulaylik): item nomi odatda "... (Field-Tested)" kabi
+// qavs ichida износ bilan tugaydi — shundan avtomatik aniqlaymiz.
+const WEAR_NAME_TO_CODE = {
+  'Factory New': 'FN',
+  'Minimal Wear': 'MW',
+  'Field-Tested': 'FT',
+  'Well-Worn': 'WW',
+  'Battle-Scarred': 'BS',
+};
+function detectWearFromName(name) {
+  const match = String(name || '').match(/\(([^)]+)\)\s*$/);
+  return match ? WEAR_NAME_TO_CODE[match[1]] || null : null;
+}
+
+// 2-band (yangi qulaylik): Steam nakleyka/brelok ma'lumotini item
+// tavsifidagi HTML blokidan (sticker_info/keychain_info) ajratib oladi.
+// Bu — Steam'ning o'zi shu formatda beradigan, boshqa yo'li yo'q ma'lumot.
+function extractAccessories(item) {
+  const accessories = [];
+  const descriptions = item.descriptions || [];
+  for (const d of descriptions) {
+    if (d.name !== 'sticker_info' && d.name !== 'keychain_info') continue;
+    const imgTags = String(d.value || '').match(/<img[^>]*>/g) || [];
+    for (const tag of imgTags) {
+      const src = tag.match(/src="([^"]+)"/);
+      const title = tag.match(/title="([^"]+)"/);
+      if (src && title) {
+        // "Наклейка: FL1T (с блёстками, чемпион) | Рио-2022" -> "FL1T (с блёстками, чемпион) | Рио-2022"
+        const cleanName = title[1].replace(/^(Наклейка|Брелок|Sticker|Keychain):\s*/i, '');
+        accessories.push({ imageUrl: src[1], name: cleanName });
+      }
+    }
+  }
+  return accessories;
+}
+
 async function listBotInventory() {
   if (!ready) return { ok: false, error: 'Steam bot tayyor emas yoki sozlanmagan.' };
   if (inventoryCache.items && Date.now() < inventoryCache.expiresAt) {
@@ -173,14 +209,17 @@ async function listBotInventory() {
         const props = item.asset_properties || [];
         const paintSeedProp = props.find((p) => p.propertyid === 1);
         const floatProp = props.find((p) => p.propertyid === 2);
+        const fullName = item.market_hash_name || item.name;
         return {
           assetId: item.assetid,
-          name: item.market_hash_name || item.name,
+          name: fullName,
           imageUrl: item.icon_url ? `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}` : null,
           floatValue: floatProp ? Number(floatProp.float_value) : null,
           paintSeed: paintSeedProp ? Number(paintSeedProp.int_value) : null,
-          isStatTrak: /^StatTrak™/.test(item.market_hash_name || ''),
+          isStatTrak: /^StatTrak™/.test(fullName || ''),
           tradable: Boolean(item.tradable),
+          wearCondition: detectWearFromName(fullName), // 1-band
+          accessories: extractAccessories(item), // 2-band
         };
       });
       inventoryCache = { items, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 daqiqa keshlanadi

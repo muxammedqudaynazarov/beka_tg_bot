@@ -174,8 +174,18 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
             isStatTrak: it.isStatTrak,
             ...(it.floatValue !== null ? { floatValue: it.floatValue } : {}),
             ...(it.paintSeed !== null ? { paintSeed: it.paintSeed } : {}),
+            // 1-band: nomdagi "(Field-Tested)" kabi qismidan avtomatik aniqlangan
+            ...(it.wearCondition ? { wearCondition: it.wearCondition } : {}),
+            // 2-band: Steam'ning o'zidagi nakleyka/brelok ma'lumoti bo'lsa, avtomatik qo'shiladi
+            ...(it.accessories?.length ? { stickers: it.accessories } : {}),
           }));
-          showAlert('✅ Поля заполнены из инвентаря. Проверьте и выберите категорию/редкость/износ вручную.');
+          const extra = [];
+          if (it.wearCondition) extra.push('класс износа');
+          if (it.accessories?.length) extra.push(`${it.accessories.length} аксессуар(ов)`);
+          showAlert(
+            `✅ Поля заполнены из инвентаря${extra.length ? ' (включая ' + extra.join(', ') + ')' : ''}. ` +
+              'Проверьте и выберите категорию/редкость вручную.'
+          );
         }}
       />
 
