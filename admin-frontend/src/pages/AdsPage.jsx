@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image as ImageIcon, Eye, MousePointerClick, Save, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Eye, MousePointerClick, Save, Trash2, Clock } from 'lucide-react';
 import { api } from '../api';
 import { showAlert, showConfirm } from '../telegram';
 
@@ -10,20 +10,36 @@ const SLOT_INFO = {
   },
   POPUP: {
     title: 'Реклама 2 — всплывающее окно',
-    desc: 'Показывается при открытии приложения, но не каждый раз — раз в 3 открытия (чтобы не надоедать).',
+    desc: 'Показывается при открытии приложения — частоту показа настройте ниже.',
   },
 };
+
+const FREQUENCY_OPTIONS = [
+  { v: 1, l: '1/1 — каждый раз' },
+  { v: 2, l: '1/2 — каждый 2-й раз' },
+  { v: 3, l: '1/3 — каждый 3-й раз' },
+  { v: 4, l: '1/4 — каждый 4-й раз' },
+  { v: 5, l: '1/5 — каждый 5-й раз' },
+];
 
 function AdSlotCard({ slot, ad, onSaved }) {
   const [imageUrl, setImageUrl] = useState(ad?.imageUrl || '');
   const [linkUrl, setLinkUrl] = useState(ad?.linkUrl || '');
+  const [durationDays, setDurationDays] = useState(ad?.durationDays ?? '');
+  const [popupFrequency, setPopupFrequency] = useState(ad?.popupFrequency ?? 1);
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!imageUrl.trim()) return showAlert('Укажите URL изображения.');
     setSaving(true);
     try {
-      await api.put(`/admin/ads/${slot}`, { imageUrl: imageUrl.trim(), linkUrl: linkUrl.trim() || undefined, isActive: true });
+      await api.put(`/admin/ads/${slot}`, {
+        imageUrl: imageUrl.trim(),
+        linkUrl: linkUrl.trim() || undefined,
+        isActive: true,
+        durationDays: durationDays === '' ? undefined : Number(durationDays),
+        ...(slot === 'POPUP' ? { popupFrequency } : {}),
+      });
       showAlert('✅ Сохранено.');
       onSaved();
     } catch (err) {
@@ -69,6 +85,40 @@ function AdSlotCard({ slot, ad, onSaved }) {
         />
         {imageUrl && (
           <img src={imageUrl} alt="" className="h-16 rounded-md border border-border bg-surface object-contain p-1" onError={(e) => (e.target.style.display = 'none')} />
+        )}
+
+        {/* 1-band: necha kundan keyin avtomatik o'chishi */}
+        <label className="block">
+          <span className="mb-1 flex items-center gap-1 text-[10px] text-muted"><Clock size={11} /> Показывать (дней) — пусто = бессрочно</span>
+          <input
+            type="number"
+            min="0"
+            value={durationDays}
+            onChange={(e) => setDurationDays(e.target.value)}
+            placeholder="Например 7"
+            className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+          />
+          {ad?.expiresAt && (
+            <span className="mt-0.5 block text-[10px] text-muted">
+              Истекает: {new Date(ad.expiresAt).toLocaleString('ru-RU')}
+            </span>
+          )}
+        </label>
+
+        {/* 2-band: FAQAT POPUP uchun chastota */}
+        {slot === 'POPUP' && (
+          <label className="block">
+            <span className="mb-1 block text-[10px] text-muted">Частота показа</span>
+            <select
+              value={popupFrequency}
+              onChange={(e) => setPopupFrequency(Number(e.target.value))}
+              className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+            >
+              {FREQUENCY_OPTIONS.map((o) => (
+                <option key={o.v} value={o.v}>{o.l}</option>
+              ))}
+            </select>
+          </label>
         )}
       </div>
 

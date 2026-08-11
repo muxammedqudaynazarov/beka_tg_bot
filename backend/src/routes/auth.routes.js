@@ -46,7 +46,11 @@ router.post('/telegram', async (req, res) => {
     where: { id: user.id },
     data: { appOpenCount: { increment: 1 } },
   });
-  const showPopupAd = updatedUser.appOpenCount % 3 === 0;
+  // 2-band: chastota endi admin tomonidan sozlanadi (1/1..1/5), qattiq
+  // yozilgan "3" o'rniga Advertisement.popupFrequency'dan o'qiladi.
+  const popupAd = await prisma.advertisement.findUnique({ where: { slot: 'POPUP' } });
+  const frequency = popupAd?.popupFrequency || 1;
+  const showPopupAd = updatedUser.appOpenCount % frequency === 0;
 
   const token = signSession(user);
   res.json({

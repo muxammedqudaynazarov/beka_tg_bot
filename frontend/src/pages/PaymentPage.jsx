@@ -55,11 +55,18 @@ export default function PaymentPage() {
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [pending, setPending] = useState(null);
+  const [bonus, setBonus] = useState(null);
 
   function loadPending() {
     api.get('/payments/pending').then(({ data }) => setPending(data.items || []));
   }
   useEffect(loadPending, []);
+  // 4-band: agar foydalanuvchi FIRST_DEPOSIT_BONUS promo-kodini
+  // faollashtirgan bo'lsa va hali birinchi to'lovini qilmagan bo'lsa —
+  // shu haqda eslatma bannerini ko'rsatamiz.
+  useEffect(() => {
+    api.get('/promo/active-first-deposit-bonus').then(({ data }) => setBonus(data.bonus));
+  }, []);
 
   async function handleTopup() {
     const numericAmount = Number(amount);
@@ -90,6 +97,17 @@ export default function PaymentPage() {
       <h1 className="mb-1 font-display text-base font-bold text-ink-primary">Пополнение</h1>
       <AdBanner />
       <p className="mb-5 text-xs text-ink-secondary">Пополните баланс, чтобы участвовать в аукционах.</p>
+
+      {bonus && (
+        <div className="mb-5 rounded-xl border border-signal-success/40 bg-signal-success/10 px-3.5 py-3">
+          <p className="font-display text-xs font-bold text-signal-success">
+            🎁 Активирован бонус +{bonus.percent}% на первое пополнение!
+          </p>
+          <p className="mt-0.5 text-[11px] text-ink-secondary">
+            Бонус автоматически добавится к балансу сразу после первого успешного пополнения.
+          </p>
+        </div>
+      )}
 
       <div className="mb-6 rounded-2xl bg-gradient-to-br from-base-surface to-base-surface2 p-4 shadow-glow">
         <div className="flex items-center gap-2 text-ink-secondary">

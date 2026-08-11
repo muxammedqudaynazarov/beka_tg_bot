@@ -38,6 +38,9 @@ model User {
   // 10/11-band: "ilovani ochganda chiqadigan" reklama har 3 ochishda bir
   // marta ko'rsatilishi uchun hisoblagich (auth/profil so'rovida oshiriladi)
   appOpenCount  Int      @default(0)
+  // 4-band: FIRST_DEPOSIT_BONUS promo-kodi faqat shu bayroq false bo'lgan
+  // foydalanuvchilar uchun ishlaydi. Birinchi muvaffaqiyatli TOPUP'da true bo'ladi.
+  hasEverDeposited Boolean @default(false)
 
   ratingScore   Int      @default(0) // avtomatik reyting (faollik + xaridlar asosida)
   discountPct   Int      @default(0) // adminning tasdig'i bilan beriladigan skidka foizi (0-100)
@@ -59,6 +62,8 @@ model User {
   broadcasts    Broadcast[]      @relation("BroadcastSender")
   soldItems     UserSale[]       @relation("SoldItems")
   recordedSales UserSale[]       @relation("RecordedSales")
+  discounts     UserDiscount[]
+  promoRedemptions PromoCodeRedemption[]
 
   @@index([role])
   @@index([isBanned])
@@ -267,6 +272,8 @@ enum TransactionType {
   DEPOSIT_FORFEITED  // 5 soat ichida to'lanmasa, zakladning 50% jarima sifatida ushlab qolinishi (3-band)
   ADMIN_ADJUST       // admin tomonidan qo'lda balans tuzatish
   PAYOUT             // 11/12-band: kelajakda — foydalanuvchi sotgan skin puli kartaga chiqarilganda (hali ishlatilmaydi)
+  PROMO_TOPUP        // 4-band: BALANCE_TOPUP turidagi promo-kod orqali hisobga qo'shilgan summa
+  PROMO_BONUS        // 4-band: FIRST_DEPOSIT_BONUS promo-kodi bo'yicha birinchi to'lovga qo'shilgan bonus
 }
 
 enum TransactionStatus {
@@ -341,11 +348,81 @@ model Advertisement {
   clicks      Int      @default(0) // nechta marta bosilgani
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // 1/2-band: necha kundan keyin avtomatik o'chishi (ikkalasi uchun ham)
+  expiresAt      DateTime? // shu vaqt o'tgach avtomatik isActive=false qilinadi
+  durationDays   Int?      // admin necha kun kiritgani (ko'rsatish uchun saqlanadi)
+  // 2-band: FAQAT POPUP uchun — har N-marta ochilishda 1 marta ko'rsatish
+  // (1 = har safar, 2 = har ikkinchisida, ... 5 = har beshinchisida)
+  popupFrequency Int       @default(1)
 }
 
 enum AdSlot {
   BANNER
   POPUP
+}
+
+// ===========================================================================
+// 3-band: SKIDKALAR — bitta foydalanuvchida BIR NECHTA turli skidka
+// bo'lishi mumkin (masalan 3%, 5%, 4%), har birining o'z "necha marta
+// ishlatish mumkin" chegarasi bor. Ishlatilganda remainingUses kamayadi.
+// ===========================================================================
+model UserDiscount {
+  id                String    @id @default(uuid())
+  user              User      @relation(fields: [userId], references: [id])
+  userId            String
+  percent           Decimal   @db.Decimal(5, 2) // masalan 3.00 = 3%
+  remainingUses     Int
+  totalUses         Int // boshlang'ich miqdor (tarix/ko'rsatish uchun)
+  sourcePromoCodeId String? // 4-band: agar promo-kod orqali berilgan bo'lsa
+  createdById       String? // qaysi admin qo'lda bergani (promo bo'lsa null)
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ===========================================================================
+// 4-band: PROMO-KODLAR — uchta tur: skidka berish, hisobni belgilangan
+// summaga to'ldirish, yoki birinchi to'lovga +% bonus.
+// ===========================================================================
+enum PromoCodeType {
+  DISCOUNT             // ishlatilganda UserDiscount yaratadi (3-band bilan bir xil mexanizm)
+  BALANCE_TOPUP        // hisobga to'g'ridan-to'g'ri belgilangan summa qo'shadi
+  FIRST_DEPOSIT_BONUS  // foydalanuvchining BIRINCHI to'lovida +% bonus beradi
+}
+
+model PromoCode {
+  id              String   @id @default(uuid())
+  code            String   @unique @db.VarChar(64)
+  type            PromoCodeType
+  // DISCOUNT turi uchun:
+  discountPercent Decimal? @db.Decimal(5, 2)
+  discountUses    Int? // shu skidkani necha marta ishlatish mumkin
+  // BALANCE_TOPUP turi uchun:
+  topupAmount     Decimal? @db.Decimal(14, 2)
+  // FIRST_DEPOSIT_BONUS turi uchun:
+  bonusPercent    Decimal? @db.Decimal(5, 2)
+  isActive        Boolean  @default(true)
+  maxRedemptions  Int? // umumiy nechta marta ishlatilishi mumkin (null = cheksiz)
+  redemptionCount Int      @default(0)
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  redemptions PromoCodeRedemption[]
+}
+
+model PromoCodeRedemption {
+  id          String    @id @default(uuid())
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  promoCodeId String
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  // FIRST_DEPOSIT_BONUS uchun: ACTIVE (hali to'lov kutilmoqda) -> CONSUMED
+  // (birinchi to'lovda bonus berildi). Boshqa turlarda darhol CONSUMED.
+  status      String    @default("CONSUMED")
+  createdAt   DateTime  @default(now())
+  consumedAt  DateTime?
+
+  @@unique([promoCodeId, userId]) // bitta foydalanuvchi bitta kodni faqat bir marta ishlata oladi
 }
 
 // 1-band: admin biror foydalanuvchidan (shaxsiy Steam savdosi orqali)

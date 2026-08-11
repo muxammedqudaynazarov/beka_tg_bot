@@ -200,7 +200,7 @@ router.post('/:id/complete-payment', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Этот аукцион сейчас не в статусе ожидания оплаты.' });
   }
 
-  const result = await attemptCompletePayment(req.params.id);
+  const result = await attemptCompletePayment(req.params.id, req.body?.discountId || undefined);
   if (!result.ok) {
     if (result.reason === 'INSUFFICIENT_BALANCE') {
       return res.status(400).json({
@@ -208,6 +208,9 @@ router.post('/:id/complete-payment', requireAuth, async (req, res) => {
         code: result.reason,
         missingAmount: result.missingAmount,
       });
+    }
+    if (result.reason === 'INVALID_DISCOUNT') {
+      return res.status(400).json({ error: 'Эта скидка недоступна.', code: result.reason });
     }
     return res.status(400).json({ error: 'Не удалось завершить оплату.', code: result.reason });
   }

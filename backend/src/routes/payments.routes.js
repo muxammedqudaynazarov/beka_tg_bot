@@ -26,21 +26,59 @@ const CLICK_ERROR = {
  */
 async function markTransactionPaid(tx, clickPaydocId) {
   if (tx.status === 'SUCCESS') return; // allaqachon hisoblangan — qayta hisoblamaymiz
-  await prisma.$transaction([
+
+  const userBefore = await prisma.user.findUnique({ where: { id: tx.userId } });
+  const isFirstDeposit = !userBefore?.hasEverDeposited;
+
+  // 4-band: agar bu FOYDALANUVCHINING BIRINCHI to'lovi bo'lsa va u
+  // FIRST_DEPOSIT_BONUS promo-kodini oldindan faollashtirgan bo'lsa —
+  // shu to'lov ustiga qo'shimcha % bonus ham qo'shiladi.
+  let bonusAmount = 0;
+  let activeRedemption = null;
+  if (isFirstDeposit) {
+    activeRedemption = await prisma.promoCodeRedemption.findFirst({
+      where: { userId: tx.userId, status: 'ACTIVE' },
+      include: { promoCode: true },
+    });
+    if (activeRedemption?.promoCode.type === 'FIRST_DEPOSIT_BONUS') {
+      bonusAmount = (Number(tx.amount) * Number(activeRedemption.promoCode.bonusPercent)) / 100;
+    }
+  }
+
+  const ops = [
     prisma.transaction.update({
       where: { id: tx.id },
       data: { status: 'SUCCESS', clickPaydocId: clickPaydocId ? String(clickPaydocId) : tx.clickPaydocId },
     }),
     prisma.user.update({
       where: { id: tx.userId },
-      data: { balance: { increment: tx.amount } },
+      data: { balance: { increment: tx.amount }, hasEverDeposited: true },
     }),
-  ]);
+  ];
+  if (bonusAmount > 0) {
+    ops.push(
+      prisma.user.update({ where: { id: tx.userId }, data: { balance: { increment: bonusAmount } } }),
+      prisma.transaction.create({
+        data: {
+          userId: tx.userId,
+          type: 'PROMO_BONUS',
+          status: 'SUCCESS',
+          amount: bonusAmount,
+          note: `Бонус +${activeRedemption.promoCode.bonusPercent}% за первое пополнение (промо-код ${activeRedemption.promoCode.code})`,
+        },
+      }),
+      prisma.promoCodeRedemption.update({ where: { id: activeRedemption.id }, data: { status: 'CONSUMED', consumedAt: new Date() } })
+    );
+  }
+  await prisma.$transaction(ops);
+
   // 6-band: hisob to'ldirilgani haqida xabar
   const user = await prisma.user.findUnique({ where: { id: tx.userId } });
   await notifyText(
     user?.telegramId,
-    `✅ Баланс пополнен на ${Number(tx.amount).toLocaleString('ru-RU')} сум.`
+    bonusAmount > 0
+      ? `✅ Баланс пополнен на ${Number(tx.amount).toLocaleString('ru-RU')} сум + бонус ${bonusAmount.toLocaleString('ru-RU')} сум (промо-код) = ${(Number(tx.amount) + bonusAmount).toLocaleString('ru-RU')} сум!`
+      : `✅ Баланс пополнен на ${Number(tx.amount).toLocaleString('ru-RU')} сум.`
   );
 }
 

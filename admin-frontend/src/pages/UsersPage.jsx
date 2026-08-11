@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw, Ban, ShieldOff, Trash2, Copy, MessageCircle } from 'lucide-react';
+import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw, Ban, ShieldOff, Trash2, Copy, MessageCircle, Gift } from 'lucide-react';
 import { api } from '../api';
 import { showAlert, showConfirm } from '../telegram';
 
@@ -74,6 +74,60 @@ function RecordSaleForm({ userId, onDone }) {
   );
 }
 
+// 3-band: bitta foydalanuvchiga bir nechta, turli foizli va turli
+// "necha marta ishlatish mumkin"ligiga ega skidkalarni qo'lda berish.
+function DiscountForm({ userId, onDone }) {
+  const [percent, setPercent] = useState('');
+  const [uses, setUses] = useState('1');
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!percent || Number(percent) <= 0) return showAlert('Укажите процент скидки.');
+    setSaving(true);
+    try {
+      await api.post(`/admin/users/${userId}/discounts`, { percent: Number(percent), uses: Number(uses) });
+      showAlert('🎁 Скидка начислена.');
+      setPercent('');
+      setUses('1');
+      onDone();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-success/30 bg-success/5 p-3">
+      <div className="flex gap-2">
+        <input
+          type="number"
+          min="1"
+          max="100"
+          value={percent}
+          onChange={(e) => setPercent(e.target.value)}
+          placeholder="Скидка, %"
+          className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-success focus:outline-none"
+        />
+        <input
+          type="number"
+          min="1"
+          value={uses}
+          onChange={(e) => setUses(e.target.value)}
+          placeholder="Кол-во раз"
+          className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-success focus:outline-none"
+        />
+      </div>
+      <button onClick={submit} disabled={saving} className="w-full rounded-md bg-success py-1.5 text-xs font-semibold text-black disabled:opacity-50">
+        {saving ? 'Сохранение…' : 'Начислить скидку'}
+      </button>
+      <p className="text-[10px] text-muted">
+        Например: 3% на 5 использований — пользователь сможет применить эту скидку до 5 раз при выигрыше на аукционе.
+      </p>
+    </div>
+  );
+}
+
 // 4-band: ban qilish — sababi majburiy so'raladi, foydalanuvchiga shu
 // sabab bilan xabar ketadi (backend'da amalga oshirilgan).
 function BanForm({ userId, onDone }) {
@@ -113,6 +167,7 @@ function UserCard({ user, onChanged, autoExpand }) {
   const [detail, setDetail] = useState(null);
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [showBanForm, setShowBanForm] = useState(false);
+  const [showDiscountForm, setShowDiscountForm] = useState(false);
 
   async function loadDetail() {
     const { data } = await api.get(`/admin/users/${user.id}`);
@@ -136,6 +191,7 @@ function UserCard({ user, onChanged, autoExpand }) {
     await loadDetail();
     setShowSaleForm(false);
     setShowBanForm(false);
+    setShowDiscountForm(false);
     onChanged();
   }
 
@@ -193,6 +249,14 @@ function UserCard({ user, onChanged, autoExpand }) {
                 <Plus size={13} /> Продажа
               </button>
             )}
+            {!showDiscountForm && (
+              <button
+                onClick={() => setShowDiscountForm(true)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-success/40 px-3 py-1.5 text-xs text-success"
+              >
+                <Gift size={13} /> Скидка
+              </button>
+            )}
             {!showBanForm && (
               detail.isBanned ? (
                 <button
@@ -218,10 +282,41 @@ function UserCard({ user, onChanged, autoExpand }) {
               <RecordSaleForm userId={user.id} onDone={refreshDetail} />
             </div>
           )}
+          {showDiscountForm && (
+            <div className="relative">
+              <button onClick={() => setShowDiscountForm(false)} className="absolute -right-1 -top-1 text-muted"><X size={14} /></button>
+              <DiscountForm userId={user.id} onDone={refreshDetail} />
+            </div>
+          )}
           {showBanForm && (
             <div className="relative">
               <button onClick={() => setShowBanForm(false)} className="absolute -right-1 -top-1 text-muted"><X size={14} /></button>
               <BanForm userId={user.id} onDone={refreshDetail} />
+            </div>
+          )}
+
+          {detail.discounts?.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Активные скидки</p>
+              {detail.discounts.map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-md bg-success/10 px-2.5 py-1.5 text-xs">
+                  <span className="text-ink">{Number(d.percent)}% скидка</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] text-muted">{d.remainingUses}/{d.totalUses} раз</span>
+                    <button
+                      onClick={async () => {
+                        const ok = await showConfirm('Удалить эту скидку?');
+                        if (!ok) return;
+                        await api.delete(`/admin/discounts/${d.id}`);
+                        refreshDetail();
+                      }}
+                      className="text-muted hover:text-danger"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

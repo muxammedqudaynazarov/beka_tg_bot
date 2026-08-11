@@ -288,7 +288,7 @@ async function closeExpiredAuctions() {
  *
  * @returns {{ ok: boolean, reason?: string, missingAmount?: number }}
  */
-async function attemptCompletePayment(auctionId) {
+async function attemptCompletePayment(auctionId, discountId) {
   return prisma.$transaction(async (tx) => {
     const auction = await tx.auction.findUnique({ where: { id: auctionId } });
     if (!auction) return { ok: false, reason: 'NOT_FOUND' };
@@ -300,7 +300,22 @@ async function attemptCompletePayment(auctionId) {
       orderBy: { createdAt: 'desc' },
     });
     const holdAmount = winningBid ? Number(winningBid.holdAmount) : 0;
-    const finalPrice = Number(auction.currentPrice);
+    let finalPrice = Number(auction.currentPrice);
+
+    // 3-band: agar g'olib o'zining mavjud skidkalaridan birini qo'llashni
+    // tanlasa — lot narxi shu foizga kamayadi, va skidkaning ishlatilishi
+    // (remainingUses) shu YERDA, to'lov MUVAFFAQIYATLI bo'lgandagina
+    // kamayadi (agar balans yetmasa, skidka "isrof" bo'lib ketmaydi).
+    let appliedDiscount = null;
+    if (discountId) {
+      const discount = await tx.userDiscount.findUnique({ where: { id: discountId } });
+      if (!discount || discount.userId !== auction.currentLeaderId || discount.remainingUses <= 0) {
+        return { ok: false, reason: 'INVALID_DISCOUNT' };
+      }
+      appliedDiscount = discount;
+      finalPrice = round2(finalPrice * (1 - Number(discount.percent) / 100));
+    }
+
     const remainder = round2(finalPrice - holdAmount);
 
     const winner = await tx.user.findUnique({ where: { id: auction.currentLeaderId } });
@@ -312,6 +327,9 @@ async function attemptCompletePayment(auctionId) {
       where: { id: auction.currentLeaderId },
       data: { balance: { decrement: remainder }, holdBalance: { decrement: holdAmount } },
     });
+    if (appliedDiscount) {
+      await tx.userDiscount.update({ where: { id: appliedDiscount.id }, data: { remainingUses: { decrement: 1 } } });
+    }
     await tx.transaction.create({
       data: {
         userId: auction.currentLeaderId,
@@ -319,7 +337,9 @@ async function attemptCompletePayment(auctionId) {
         type: 'PURCHASE',
         status: 'SUCCESS',
         amount: finalPrice,
-        note: `"${auction.skinName}" uchun qolgan to'lov (${remainder} so'm) qabul qilindi.`,
+        note: appliedDiscount
+          ? `"${auction.skinName}" uchun qolgan to'lov (${remainder} so'm, ${appliedDiscount.percent}% skidka bilan) qabul qilindi.`
+          : `"${auction.skinName}" uchun qolgan to'lov (${remainder} so'm) qabul qilindi.`,
       },
     });
     await tx.ratingEvent.create({

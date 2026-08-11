@@ -74,4 +74,14 @@ router.patch('/trade-url', requireAuth, async (req, res) => {
   res.json({ ok: true, tradeUrl: updated.tradeUrl, warning });
 });
 
+// 3-band: g'olib to'lovni yakunlashdan oldin qaysi skidkalari borligini
+// ko'rishi uchun (faqat hali ishlatilmagan qolganlari).
+router.get('/discounts', requireAuth, async (req, res) => {
+  const discounts = await prisma.userDiscount.findMany({
+    where: { userId: req.user.id, remainingUses: { gt: 0 } },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({ items: discounts });
+});
+
 module.exports = router;
