@@ -99,6 +99,17 @@ function initSteamBot() {
     ready = false;
     console.error('[steamBot] Ulanish xatosi:', err.message);
   });
+
+  // MUHIM TUZATISH: avval faqat 'error' hodisasida ready=false qilinardi,
+  // lekin uzilib qolish (masalan tarmoq beqarorligi, Steam tomonidan
+  // qayta ulanish) 'disconnected' hodisasi orqali keladi — bu hisobga
+  // olinmagani sabab, "ready" noto'g'ri holda true bo'lib qolib, client.steamID
+  // hali tiklanmagan paytda ishlatilib, "SteamID is invalid or missing"
+  // xatosiga olib kelgan.
+  client.on('disconnected', (eresult, msg) => {
+    ready = false;
+    console.warn(`[steamBot] Uzildi (${eresult}): ${msg || ''} — qayta ulanish kutilmoqda.`);
+  });
 }
 
 /**
@@ -107,7 +118,7 @@ function initSteamBot() {
  * (hech qanday haqiqiy taklif YUBORILMAYDI — faqat getUserDetails chaqiriladi).
  */
 async function validateTradeUrl(tradeUrl) {
-  if (!ready) {
+  if (!ready || !client?.steamID) {
     return { ok: false, checked: false, reason: 'Steam bot hozircha sozlanmagan yoki tayyor emas — faqat shakl tekshirildi.' };
   }
   return new Promise((resolve) => {
@@ -133,7 +144,7 @@ async function validateTradeUrl(tradeUrl) {
  * chaqirmasdan, oddiy qo'lda yetkazish yo'liga o'tadi.
  */
 async function sendItemAutomatically({ tradeUrl, steamAssetId }) {
-  if (!ready) return { ok: false, reason: 'Steam bot tayyor emas.' };
+  if (!ready || !client?.steamID) return { ok: false, reason: 'Steam bot tayyor emas.' };
   return new Promise((resolve) => {
     let offer;
     try {
@@ -198,7 +209,9 @@ function extractAccessories(item) {
 }
 
 async function listBotInventory() {
-  if (!ready) return { ok: false, error: 'Steam bot tayyor emas yoki sozlanmagan.' };
+  if (!ready || !client?.steamID) {
+    return { ok: false, error: 'Steam bot tayyor emas yoki sozlanmagan (ulanish tiklanmoqda bo\'lishi mumkin, biroz kutib qayta urinib ko\'ring).' };
+  }
   if (inventoryCache.items && Date.now() < inventoryCache.expiresAt) {
     return { ok: true, items: inventoryCache.items, cached: true };
   }

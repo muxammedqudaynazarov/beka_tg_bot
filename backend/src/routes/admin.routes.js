@@ -164,20 +164,22 @@ router.post('/auctions', async (req, res) => {
   if (env.announceChannelId) {
     const { notifyChannel } = require('../services/notifier');
 
-    const lines = [`⚡️ <b>${skinName}</b>`, ''];
-    lines.push(`<i>Редкость: ${RARITY_LABELS[rarity] || rarity}</i>`);
-    if (wearCondition) lines.push(`<i>Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}</i>`);
+    const lines = [`🆕 <b>${skinName}</b>`, ''];
+    lines.push(`Редкость: ${RARITY_LABELS[rarity] || rarity}`);
+    if (wearCondition) lines.push(`Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}`);
     if (floatValue !== undefined && floatValue !== null && floatValue !== '') {
-      lines.push(`<i>Float: ${Number(floatValue).toFixed(6)}</i>`);
+      lines.push(`Float: ${Number(floatValue).toFixed(6)}`);
     }
     if (paintSeed !== undefined && paintSeed !== null && paintSeed !== '') {
-      lines.push(`<i>Шаблон раскраски: #${paintSeed}</i>`);
+      lines.push(`Шаблон раскраски: #${paintSeed}`);
     }
     lines.push('');
-    lines.push(`<b>Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум</b>`);
-    lines.push(`<i>Завершение: ${endsAt.toLocaleString('ru-RU')}</i>`);
+    lines.push(`Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум`);
+    lines.push(`Завершение: ${endsAt.toLocaleString('ru-RU')}`);
     lines.push('');
-    lines.push('@CS2_auction');
+    lines.push('Участвуйте в аукционе прямо сейчас! 👇');
+    lines.push('');
+    lines.push('📢 @CS2_auction');
 
     // web_app tugmasi KANALLARDA ishlamaydi (Telegram cheklovi) — shuning
     // uchun t.me/BOT/APPNAME?startapp=... deep-link ishlatiladi, bu esa
@@ -188,7 +190,7 @@ router.post('/auctions', async (req, res) => {
       replyMarkup = {
         inline_keyboard: [[
           {
-            text: 'Перейти к лоту',
+            text: 'Перейти к лоту 👉',
             url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
           },
         ]],
