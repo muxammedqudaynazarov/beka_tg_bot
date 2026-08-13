@@ -361,6 +361,21 @@ enum AdSlot {
   POPUP
 }
 
+// Rasm yuklash bo'limi: admin to'g'ridan-to'g'ri rasm yuklaydi, tizim uni
+// avtomatik optimallashtiradi (width<=1500px, sifat 60%) va o'zining
+// serverida saqlab, foydalanish uchun URL beradi — tashqi rasm xosting
+// xizmatiga muhtoj bo'lmaslik uchun.
+model UploadedMedia {
+  id          String   @id @default(uuid())
+  filename    String   @db.VarChar(255)
+  url         String   @db.VarChar(1000)
+  sizeBytes   Int?
+  width       Int?
+  height      Int?
+  createdById String?
+  createdAt   DateTime @default(now())
+}
+
 // ===========================================================================
 // 3-band: SKIDKALAR — bitta foydalanuvchida BIR NECHTA turli skidka
 // bo'lishi mumkin (masalan 3%, 5%, 4%), har birining o'z "necha marta

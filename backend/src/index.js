@@ -7,6 +7,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -25,6 +26,7 @@ const profileRoutes = require('./routes/profile.routes');
 const favoritesRoutes = require('./routes/favorites.routes');
 const adsRoutes = require('./routes/ads.routes');
 const promoRoutes = require('./routes/promo.routes');
+const mediaRoutes = require('./routes/media.routes');
 const adminRoutes = require('./routes/admin.routes');
 
 // Prisma Decimal/BigInt qiymatlarini JSON'ga xavfsiz aylantirish (masalan
@@ -78,6 +80,8 @@ app.use(cors(corsOptions));
 // qo'shib qo'yish xavfsiz — Content-Type'ga qarab faqat kerakli middleware ishlaydi.
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+// Rasm yuklash bo'limi orqali optimallashtirilgan fayllar shu yerdan xizmat qiladi
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
@@ -89,6 +93,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/promo', promoRoutes);
+app.use('/api/admin/media', mediaRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Umumiy xato ushlagich — hech qanday kutilmagan xato butun serverni

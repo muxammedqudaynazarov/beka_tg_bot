@@ -8,6 +8,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import UsersPage from './pages/UsersPage';
 import AdsPage from './pages/AdsPage';
 import PromoCodesPage from './pages/PromoCodesPage';
+import MediaPage from './pages/MediaPage';
 
 const TABS = [
   { key: 'new', label: 'Новый аукцион' },
@@ -18,6 +19,7 @@ const TABS = [
   { key: 'analytics', label: 'Аналитика' },
   { key: 'ads', label: 'Реклама' },
   { key: 'promo', label: 'Промокоды' },
+  { key: 'media', label: 'Медиа' },
 ];
 
 function Shell() {
@@ -67,6 +69,7 @@ function Shell() {
         {tab === 'analytics' && <AnalyticsPage />}
         {tab === 'ads' && <AdsPage />}
         {tab === 'promo' && <PromoCodesPage />}
+        {tab === 'media' && <MediaPage />}
       </main>
     </div>
   );
