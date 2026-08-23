@@ -522,7 +522,6 @@ model WheelSpin {
   auctionId   String? // SKIN uchun (auksion mexanizmi qayta ishlatiladi)
   createdAt   DateTime      @default(now())
 }
-}
 
 // 1-band: admin biror foydalanuvchidan (shaxsiy Steam savdosi orqali)
 // inventar sotib olganda shuni qayd etadi. 7 kunlik "Trade Protection"
