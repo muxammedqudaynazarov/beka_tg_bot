@@ -1,99 +1,61 @@
-import { useEffect, useRef, useState } from 'react';
-import { Volume2 } from 'lucide-react';
-import splashVideo from '../assets/splash.mp4';
+import { useEffect, useState } from 'react';
 import logo from '../assets/logo.jpg';
 
+const MIN_DURATION_MS = 3000;
+
 /**
- * Ilova ochilganda ko'rsatiladigan videoli splash-ekran. Video kamida bir
- * marta to'liq ijro etiladi (o'zining tabiiy davomiyligi — taxminan 5
- * soniya). Agar shu vaqt ichida kontent (auth) hali tayyor bo'lmasa, video
- * qaytadan aylanadi (loop), kontent tayyor bo'lgandagina yakunlanadi.
+ * Ilova ochilganda ko'rsatiladigan animatsion splash-ekran. Kamida
+ * MIN_DURATION_MS (3 soniya) turadi, lekin agar kontent (auth/profil)
+ * shundan uzoqroq yuklansa — kontent tayyor bo'lguncha davom etadi (hech
+ * qachon bo'sh/tugallanmagan ilovani ko'rsatib qo'ymaslik uchun).
  *
- * OVOZ HAQIDA: mobil brauzerlar/WebView'lar ovozli videoni AVTOMATIK ijro
- * etishni ko'pincha bloklaydi (bu — platformaning o'zining xavfsizlik
- * siyosati, bizning kodimizga bog'liq emas). Shuning uchun: avval ovoz
- * BILAN ijro qilishga harakat qilamiz; agar brauzer buni rad etsa,
- * avtomatik ravishda OVOZSIZ rejimga o'tamiz va foydalanuvchiga bitta
- * bosish bilan ovozni yoqish imkonini beruvchi kichik tugma ko'rsatamiz.
+ * `ready` — tashqi kontent (masalan autentifikatsiya) tugaganda true bo'ladi.
+ * `onDone` — splash butunlay yashiringandan keyin (chiqish animatsiyasi
+ * ham tugagach) chaqiriladi.
  */
 export default function SplashScreen({ ready, onDone }) {
-  const videoRef = useRef(null);
-  const [needsSoundTap, setNeedsSoundTap] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
+  const [minElapsed, setMinElapsed] = useState(false);
   const [exiting, setExiting] = useState(false);
-  const readyRef = useRef(ready);
-  readyRef.current = ready;
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = false;
-    const playPromise = video.play();
-    if (playPromise?.catch) {
-      playPromise.catch(() => {
-        // Ovoz bilan avtomatik ijro bloklandi — ovozsiz davom ettiramiz
-        video.muted = true;
-        setNeedsSoundTap(true);
-        video.play().catch(() => setVideoFailed(true));
-      });
-    }
+    const t = setTimeout(() => setMinElapsed(true), MIN_DURATION_MS);
+    return () => clearTimeout(t);
   }, []);
 
-  function finishAndExit() {
-    setExiting(true);
-    setTimeout(onDone, 500);
-  }
-
-  function handleEnded() {
-    if (readyRef.current) {
-      finishAndExit();
-    } else {
-      // Kontent hali tayyor emas — videoni yana boshidan aylantiramiz
-      const video = videoRef.current;
-      video.currentTime = 0;
-      video.play().catch(() => {});
+  useEffect(() => {
+    if (ready && minElapsed && !exiting) {
+      setExiting(true);
+      const t = setTimeout(onDone, 550); // chiqish animatsiyasi (0.5s) tugashini kutamiz
+      return () => clearTimeout(t);
     }
-  }
-
-  function enableSound() {
-    const video = videoRef.current;
-    video.muted = false;
-    video.play().catch(() => {});
-    setNeedsSoundTap(false);
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, minElapsed]);
 
   return (
     <div
       className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0a0c10] ${exiting ? 'animate-splash-exit' : ''}`}
     >
-      {!videoFailed ? (
-        <>
-          <video
-            ref={videoRef}
-            src={splashVideo}
-            onEnded={handleEnded}
-            onError={() => setVideoFailed(true)}
-            playsInline
-            className="h-auto w-full"
-          />
-          {needsSoundTap && (
-            <button
-              onClick={enableSound}
-              className="mt-6 flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur"
-            >
-              <Volume2 size={14} /> Нажмите, чтобы включить звук
-            </button>
-          )}
-        </>
-      ) : (
-        // Video biror sababdan yuklanmasa/ijro bo'lmasa — statik logotip +
-        // CSS animatsiyasiga qaytamiz, foydalanuvchi bo'sh ekran ko'rmasin.
-        <div className="relative flex items-center justify-center">
-          <span className="absolute h-40 w-40 rounded-full border-2 border-rarity-covert animate-splash-shockwave" />
-          <span className="absolute h-56 w-56 rounded-full bg-rarity-covert/20 blur-3xl animate-splash-glow" />
-          <img src={logo} alt="CS2 Skins Auction" className="relative h-40 w-40 rounded-2xl object-cover animate-splash-logo" />
-        </div>
-      )}
+      <div className="relative flex items-center justify-center">
+        {/* Bolg'a zarbasi to'lqinlari — bir-biridan kechikib boshlanadigan uchta halqa */}
+        <span className="absolute h-40 w-40 rounded-full border-2 border-rarity-covert animate-splash-shockwave" style={{ animationDelay: '0s' }} />
+        <span className="absolute h-40 w-40 rounded-full border-2 border-rarity-covert animate-splash-shockwave" style={{ animationDelay: '0.65s' }} />
+        <span className="absolute h-40 w-40 rounded-full border-2 border-rarity-covert animate-splash-shockwave" style={{ animationDelay: '1.3s' }} />
+
+        {/* Orqa fondagi sekin nafas oluvchi nurlanish */}
+        <span className="absolute h-56 w-56 rounded-full bg-rarity-covert/20 blur-3xl animate-splash-glow" />
+
+        <img
+          src={logo}
+          alt="CS2 Skins Auction"
+          className="relative h-40 w-40 rounded-2xl object-cover shadow-[0_0_40px_rgba(235,75,75,0.35)] animate-splash-logo"
+        />
+      </div>
+
+      <div className="mt-10 flex gap-1.5">
+        <span className="h-2 w-2 rounded-full bg-rarity-covert animate-splash-dot" style={{ animationDelay: '0s' }} />
+        <span className="h-2 w-2 rounded-full bg-rarity-covert animate-splash-dot" style={{ animationDelay: '0.15s' }} />
+        <span className="h-2 w-2 rounded-full bg-rarity-covert animate-splash-dot" style={{ animationDelay: '0.3s' }} />
+      </div>
     </div>
   );
 }
