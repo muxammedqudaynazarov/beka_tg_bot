@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Send, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import { showAlert, showConfirm } from '../telegram';
+import TelegramRichTextEditor from '../components/TelegramRichTextEditor';
 
 export default function BroadcastPage() {
-  const [message, setMessage] = useState('');
+  const editorRef = useRef(null);
   const [imageUrl, setImageUrl] = useState('');
   const [sending, setSending] = useState(false);
   const [history, setHistory] = useState(null);
@@ -26,12 +27,13 @@ export default function BroadcastPage() {
   useEffect(load, []);
 
   async function send() {
-    if (!message.trim()) return showAlert('Введите текст сообщения.');
+    if (editorRef.current.isEmpty()) return showAlert('Введите текст сообщения.');
     setSending(true);
     try {
-      await api.post('/admin/broadcasts', { message: message.trim(), imageUrl: imageUrl.trim() || undefined });
+      const html = editorRef.current.getHtml();
+      await api.post('/admin/broadcasts', { message: html, imageUrl: imageUrl.trim() || undefined });
       showAlert('✅ Рассылка запущена — отправка идёт в фоновом режиме.');
-      setMessage('');
+      editorRef.current.clear();
       setImageUrl('');
       setTimeout(load, 1500);
     } catch (err) {
@@ -45,13 +47,13 @@ export default function BroadcastPage() {
     <div className="space-y-6">
       <section className="space-y-2">
         <h2 className="text-xs font-bold uppercase tracking-wide text-muted">Новая рассылка</h2>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          rows={5}
-          placeholder="Текст сообщения для всех пользователей…"
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-        />
+
+        {/* 1-band: endi Markdown emas — boy matn muharriri, HTML rejimida
+            yuboriladi. Bu "_" kabi belgilar oddiy matnda (masalan
+            @username_bot) TASODIFAN formatlash sifatida talqin qilinishining
+            OLDINI TO'LIQ oladi — Markdown'da bu tuzatib bo'lmaydigan muammo edi. */}
+        <TelegramRichTextEditor ref={editorRef} placeholder="Текст сообщения для всех пользователей…" />
+
         <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
           <ImageIcon size={14} className="shrink-0 text-muted" />
           <input
@@ -72,7 +74,8 @@ export default function BroadcastPage() {
           <Send size={14} /> {sending ? 'Запуск…' : 'Отправить всем'}
         </button>
         <p className="text-[10px] text-muted">
-          Сообщение будет отправлено всем незаблокированным пользователям через бота. Поддерживается разметка: *жирный* или **жирный**, _курсив_ или __курсив__, `код`, [текст](ссылка) — оба варианта написания работают.
+          Выделите текст и нажмите кнопку на панели, чтобы отформатировать. Никакой ручной разметки не нужно —
+          символы вроде "_" в обычном тексте (например, в @username) теперь никогда не ломают форматирование.
           Если указано изображение — с картинкой, иначе текстом. Отправка занимает время (~25 сообщений в секунду).
         </p>
       </section>
@@ -86,7 +89,7 @@ export default function BroadcastPage() {
             {history.map((b) => (
               <div key={b.id} className="flex items-start justify-between gap-2 rounded-lg border border-border p-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-ink line-clamp-2">{b.message}</p>
+                  <p className="text-xs text-ink line-clamp-2">{b.message.replace(/<[^>]+>/g, '')}</p>
                   <p className="mt-1 text-[10px] text-muted">
                     {new Date(b.createdAt).toLocaleString('ru-RU')} · {b.admin?.firstName || b.admin?.username} ·{' '}
                     {b.sentCount + b.failedCount > 0

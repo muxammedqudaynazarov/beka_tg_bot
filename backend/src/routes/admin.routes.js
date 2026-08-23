@@ -11,16 +11,11 @@ async function logAction(actorId, action, targetType, targetId, meta) {
   await prisma.adminAuditLog.create({ data: { actorId, action, targetType, targetId, meta } });
 }
 
-// 2-band: Telegram'ning "Markdown" (legacy) rejimi FAQAT yagona *bold* va
-// _italic_ belgilarini tushunadi — ko'pchilik odatlangan **bold**/__italic__
-// (qo'sh belgili) formatini emas. Shu sabab admin qo'sh belgi bilan yozganda
-// hech narsa ishlamay, xom matn sifatida ketardi. Bu yerda ikkalasini ham
-// qabul qilib, Telegram tushunadigan yagona-belgili formatga o'giramiz.
-function normalizeMarkdownForTelegram(text) {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '*$1*') // **bold** -> *bold*
-    .replace(/__(.+?)__/g, '_$1_');    // __italic__ -> _italic_
-}
+// ESKI: Markdown normalizatsiyasi olib tashlandi — Рассылка endi HTML
+// rejimida ishlaydi (pastga qarang), bu tasodifiy "_" belgilari (masalan
+// @username_bilan yonma-yon kelganda) formatlash sifatida noto'g'ri
+// talqin qilinishining OLDINI TO'LIQ oladi (Markdown'da bu tuzatib
+// bo'lmaydigan tur muammo edi).
 
 // 9-band: shu "Тип"lardagi narsalarda format factory (float/wear) YO'Q —
 // admin forma bilan bir xil ro'yxat, seed.js'dagi Тип nomlariga mos bo'lishi shart.
@@ -71,7 +66,11 @@ router.delete('/broadcasts/:id', async (req, res) => {
 
 router.post('/broadcasts', async (req, res) => {
   const { message, imageUrl } = req.body || {};
-  const trimmed = normalizeMarkdownForTelegram(String(message || '').trim());
+  // Frontend (BroadcastPage.jsx) matnni ALLAQACHON Telegram'ning xavfsiz
+  // HTML formatiga (faqat <b>,<i>,<u>,<s>,<code>,<a>,<tg-spoiler>) o'girib
+  // yuboradi — bu yerda qo'shimcha o'zgartirish qilinmaydi (aks holda
+  // qayta-ishlov xatoga olib kelishi mumkin).
+  const trimmed = String(message || '').trim();
   if (!trimmed) return res.status(400).json({ error: 'Текст сообщения обязателен.' });
 
   const broadcast = await prisma.broadcast.create({
@@ -89,8 +88,8 @@ router.post('/broadcasts', async (req, res) => {
     let failed = 0;
     for (const u of users) {
       const ok = broadcast.imageUrl
-        ? await notifyPhoto(u.telegramId, broadcast.imageUrl, trimmed, { parse_mode: 'Markdown' })
-        : await notifyText(u.telegramId, trimmed, { parse_mode: 'Markdown' });
+        ? await notifyPhoto(u.telegramId, broadcast.imageUrl, trimmed, { parse_mode: 'HTML' })
+        : await notifyText(u.telegramId, trimmed, { parse_mode: 'HTML' });
       if (ok) sent++; else failed++;
       // Telegram bot API'ning umumiy chegarasi ~30 xabar/soniya — xavfsiz
       // bo'lish uchun tanaffus qilamiz.

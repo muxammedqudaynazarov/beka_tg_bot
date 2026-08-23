@@ -6,3 +6,11 @@
 html, body, #root { height: 100%; background-color: #0F1115; }
 body { font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 ::-webkit-scrollbar { height: 0; width: 0; }
+
+/* TelegramRichTextEditor.jsx uchun — contentEditable elementda placeholder
+   HTML atributi yo'q, shuning uchun :empty:before orqali qo'lda qilinadi */
+.editor-placeholder:empty:before {
+  content: attr(data-placeholder);
+  color: #6b7280;
+  pointer-events: none;
+}
