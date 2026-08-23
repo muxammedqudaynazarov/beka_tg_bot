@@ -294,10 +294,20 @@ model Transaction {
   status          TransactionStatus  @default(PENDING)
   amount          Decimal            @db.Decimal(14, 2)
 
-  // Click.uz bilan bog'liq maydonlar
+  // Click.uz bilan bog'liq maydonlar (ESKI, endi faol ishlatilmaydi — tarixiy
+  // tranzaksiyalar uchun saqlab qolingan)
   clickTransId    String?            @unique
   clickPaydocId   String?
-  merchantTransId String?            @unique // bizning tizimdagi noyob buyurtma raqami
+  merchantTransId String?            @unique // bizning tizimdagi noyob buyurtma raqami (Payme uchun ham ishlatiladi)
+
+  // 1-band: Payme bilan bog'liq maydonlar — ularning o'z protokoli talab
+  // qiladigan holat (state) va vaqt belgilarini saqlaymiz.
+  paymeTransId      String?  @unique // Payme'ning o'z tranzaksiya ID'si
+  paymeState        Int? // 1=yaratilgan, 2=amalga oshirilgan, -1/-2=bekor qilingan
+  paymeCreateTime   BigInt? // millisekundlarda (Payme protokoli talabi)
+  paymePerformTime  BigInt?
+  paymeCancelTime   BigInt?
+  paymeCancelReason Int?
 
   note            String?            @db.VarChar(500)
   createdAt       DateTime           @default(now())

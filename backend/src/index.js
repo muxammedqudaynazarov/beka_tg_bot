@@ -22,6 +22,7 @@ const authRoutes = require('./routes/auth.routes');
 const auctionsRoutes = require('./routes/auctions.routes');
 const categoriesRoutes = require('./routes/categories.routes');
 const paymentsRoutes = require('./routes/payments.routes');
+const paymeRoutes = require('./routes/payme.routes');
 const profileRoutes = require('./routes/profile.routes');
 const favoritesRoutes = require('./routes/favorites.routes');
 const adsRoutes = require('./routes/ads.routes');
@@ -79,7 +80,10 @@ app.use(cors(corsOptions));
 // bo'lsa ham, bizning tizimda balans hech qachon oshmaydi). Ikkalasini ham
 // qo'shib qo'yish xavfsiz — Content-Type'ga qarab faqat kerakli middleware ishlaydi.
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+// 1-band: standart 'application/json'dan tashqari, Payme'ning o'z
+// hujjatlarida ko'rsatilgan "text/json" turini ham qabul qilamiz — aks holda
+// ularning webhook so'rovlari bo'sh req.body bilan kelib qolishi mumkin.
+app.use(express.json({ type: ['application/json', 'text/json'] }));
 // Rasm yuklash bo'limi orqali optimallashtirilgan fayllar shu yerdan xizmat qiladi
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -89,6 +93,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auctions', auctionsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/payments', paymentsRoutes);
+// 1-band: Payme'ning YAGONA Merchant API kirish nuqtasi — barcha
+// CheckPerformTransaction/CreateTransaction/... so'rovlari shu manzilga keladi
+app.use('/api/payme', paymeRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/ads', adsRoutes);

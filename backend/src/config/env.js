@@ -52,6 +52,8 @@ const env = {
     .map((s) => s.trim())
     .filter(Boolean),
 
+  // ESKI (Click.uz) — endi FAOL ishlatilmaydi, faqat eski kod hech joyda
+  // buzilib qolmasligi uchun saqlab qo'yilgan. 1-band: butunlay Payme'ga o'tildi.
   click: {
     serviceId: process.env.CLICK_SERVICE_ID || '',
     merchantId: process.env.CLICK_MERCHANT_ID || '',
@@ -59,6 +61,17 @@ const env = {
     secretKey: process.env.CLICK_SECRET_KEY || '',
     checkoutBaseUrl: process.env.CLICK_CHECKOUT_BASE_URL || 'https://my.click.uz/services/pay',
     merchantApiUrl: process.env.CLICK_MERCHANT_API_URL || 'https://api.click.uz/v2/merchant',
+  },
+
+  // 1-band: Payme — endi YAGONA, FAOL to'lov tizimi.
+  payme: {
+    merchantId: process.env.PAYME_MERCHANT_ID || '',
+    key: process.env.PAYME_KEY || '', // Merchant API (webhook) so'rovlarini tekshirish uchun
+    checkoutBaseUrl: process.env.PAYME_CHECKOUT_BASE_URL || 'https://checkout.paycom.uz',
+    // 2-band talabi bo'yicha: komissiyani mijozga "ko'chirish" — agar
+    // shu foizga o'rnatilsa, checkout summasi shuncha foizga oshiriladi
+    // (Payme'ning o'zida bunday tayyor funksiya yo'q, biz hisoblab qo'shamiz).
+    surchargePercent: Number(process.env.PAYME_SURCHARGE_PERCENT || 0),
   },
 
   auction: {
