@@ -80,21 +80,21 @@ export default function PromoCodeSection() {
   }
 
   return (
-    <div className="mb-6 rounded-xl bg-base-surface p-3.5">
+    <div className="mb-6 rounded-2xl bg-gradient-to-br from-base-surface to-base-surface2 p-4 shadow-glow">
       <h2 className="mb-2 flex items-center gap-1.5 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">
-        <Tag size={13} /> Промокод
+        <Tag size={14} className="text-rarity-covert" /> У вас есть промокод?
       </h2>
       <div className="flex gap-2">
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="Введите код"
-          className="w-full rounded-lg border border-base-border bg-base-bg px-3 py-2 text-xs uppercase text-ink-primary placeholder:text-ink-muted focus:border-rarity-covert focus:outline-none"
+          className="w-full rounded-lg border border-base-border bg-base-bg px-3 py-2.5 text-sm font-semibold uppercase tracking-wide text-ink-primary placeholder:text-ink-muted placeholder:tracking-normal placeholder:font-normal focus:border-rarity-covert focus:outline-none"
         />
         <button
           onClick={() => redeem()}
           disabled={submitting || !code.trim()}
-          className="shrink-0 rounded-lg bg-rarity-covert px-4 py-2 font-display text-xs font-bold text-white disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-rarity-covert px-5 py-2.5 font-display text-xs font-bold text-white disabled:opacity-50"
         >
           {submitting ? '…' : 'Ок'}
         </button>

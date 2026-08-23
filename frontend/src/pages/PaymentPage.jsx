@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Wallet, Lock, Clock3, RefreshCw } from 'lucide-react';
+import { Clock3, RefreshCw } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
 import PromoCodeSection from '../components/PromoCodeSection';
@@ -52,7 +52,7 @@ function PendingPaymentRow({ tx, onResolved }) {
 }
 
 export default function PaymentPage() {
-  const { user, refreshProfile } = useAuth();
+  const { refreshProfile } = useAuth();
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [pending, setPending] = useState(null);
@@ -111,20 +111,6 @@ export default function PaymentPage() {
         </div>
       )}
 
-      <div className="mb-6 rounded-2xl bg-gradient-to-br from-base-surface to-base-surface2 p-4 shadow-glow">
-        <div className="flex items-center gap-2 text-ink-secondary">
-          <Wallet size={14} />
-          <span className="text-[10px] uppercase tracking-wide">Текущий баланс</span>
-        </div>
-        <p className="mt-1 font-mono text-2xl font-bold text-ink-primary">{formatSom(user?.balance)}</p>
-        {Number(user?.holdBalance) > 0 && (
-          <p className="mt-1 text-[11px] text-ink-muted">
-            <Lock size={10} className="mr-1 inline" />
-            {formatSom(user.holdBalance)} заблокировано как залог на аукционах
-          </p>
-        )}
-      </div>
-
       {pending && pending.length > 0 && (
         <div className="mb-6">
           <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">
@@ -170,7 +156,7 @@ export default function PaymentPage() {
         {submitting ? 'Загрузка…' : 'Пополнить'}
       </button>
       <p className="mt-3 text-center text-[10px] text-ink-muted">
-        Вы будете перенаправлены на официальную защищённую страницу оплаты Click.
+        Вы будете перенаправлены на официальную защищённую страницу оплаты Payme.
       </p>
     </div>
   );

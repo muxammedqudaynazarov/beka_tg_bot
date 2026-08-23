@@ -154,7 +154,7 @@ router.post('/spin', requireAuth, async (req, res) => {
   );
 
   res.json({
-    result: { type: won.type, label: won.label, promoCode: promoCode?.code || null, auctionId },
+    result: { wheelItemId: won.id, type: won.type, label: won.label, promoCode: promoCode?.code || null, auctionId },
   });
 });
 

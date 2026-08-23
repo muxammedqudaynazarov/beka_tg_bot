@@ -11,6 +11,7 @@ const TYPE_LABELS = {
   DISCOUNT: 'Скидка на лот',
   BALANCE_TOPUP: 'Пополнение баланса',
   FIRST_DEPOSIT_BONUS: 'Бонус на первое пополнение',
+  NEXT_DEPOSIT_BONUS: 'Бонус на пополнение (Барабан)',
 };
 
 function CreateForm({ onCreated }) {
@@ -144,6 +145,7 @@ function PromoRow({ promo, onChanged }) {
   if (promo.type === 'DISCOUNT') detail = `${Number(promo.discountPercent)}% × ${promo.discountUses} исп.`;
   if (promo.type === 'BALANCE_TOPUP') detail = formatSom(promo.topupAmount);
   if (promo.type === 'FIRST_DEPOSIT_BONUS') detail = `+${Number(promo.bonusPercent)}% на первый депозит`;
+  if (promo.type === 'NEXT_DEPOSIT_BONUS') detail = `+${Number(promo.bonusPercent)}% на ближайшее пополнение`;
 
   return (
     <div className="rounded-lg border border-border p-3">
@@ -154,6 +156,12 @@ function PromoRow({ promo, onChanged }) {
           <p className="mt-0.5 text-[10px] text-muted">
             Активаций: {promo.redemptionCount}{promo.maxRedemptions ? ` / ${promo.maxRedemptions}` : ''}
           </p>
+          {/* 3-band: Барабан orqali yutilgan bo'lsa — kimga tegishli ekani ko'rsatiladi */}
+          {promo.wonByUser && (
+            <p className="mt-0.5 flex items-center gap-1 text-[10px] text-accent">
+              🎲 Выигрыш барабана · {promo.wonByUser.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser.telegramId)}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button onClick={toggleActive} className={promo.isActive ? 'text-success' : 'text-muted'}>

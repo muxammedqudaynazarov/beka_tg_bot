@@ -544,7 +544,33 @@ router.delete('/discounts/:id', async (req, res) => {
 // to'lovga +% bonus). Ishlatilish (redemption) mantiqi promo.routes.js'da.
 // ===========================================================================
 router.get('/promo-codes', async (req, res) => {
-  const items = await prisma.promoCode.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+  const now = Date.now();
+  const all = await prisma.promoCode.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
+
+  // 3-band: ishlatilgan (limit to'lgan) yoki muddati o'tgan kodlar
+  // ro'yxatda ko'rsatilmaydi (ular allaqachon o'z vazifasini bajargan).
+  const visible = all.filter((p) => {
+    const usedUp = p.maxRedemptions !== null && p.redemptionCount >= p.maxRedemptions;
+    const expired = p.expiresAt && p.expiresAt.getTime() < now;
+    return !usedUp && !expired;
+  });
+
+  // Барабан orqali yutilgan (restrictedToUserId bor) kodlar uchun, egasi
+  // (foydalanuvchi)ni ham qo'shib beramiz — admin kimga tegishli ekanini ko'rishi uchun.
+  const userIds = [...new Set(visible.filter((p) => p.restrictedToUserId).map((p) => p.restrictedToUserId))];
+  const users = userIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true, telegramId: true, firstName: true },
+      })
+    : [];
+  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+  const items = visible.map((p) => ({
+    ...p,
+    wonByUser: p.restrictedToUserId ? userMap[p.restrictedToUserId] || null : null,
+  }));
+
   res.json({ items });
 });
 

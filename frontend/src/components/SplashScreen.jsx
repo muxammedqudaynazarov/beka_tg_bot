@@ -44,10 +44,11 @@ export default function SplashScreen({ ready, onDone }) {
         {/* Orqa fondagi sekin nafas oluvchi nurlanish */}
         <span className="absolute h-56 w-56 rounded-full bg-rarity-covert/20 blur-3xl animate-splash-glow" />
 
+        {/* 5-band: rasm endi AYLANA (rounded-full) shaklda — effektlarga mos tushishi uchun */}
         <img
           src={logo}
           alt="CS2 Skins Auction"
-          className="relative h-40 w-40 rounded-2xl object-cover shadow-[0_0_40px_rgba(235,75,75,0.35)] animate-splash-logo"
+          className="relative h-40 w-40 rounded-full object-cover shadow-[0_0_40px_rgba(235,75,75,0.35)] animate-splash-logo"
         />
       </div>
 
