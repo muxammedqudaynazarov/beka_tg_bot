@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import FilterPage from './pages/FilterPage';
 import PaymentPage from './pages/PaymentPage';
 import ProfilePage from './pages/ProfilePage';
+import WheelPage from './pages/WheelPage';
 import AuctionDetailPage from './pages/AuctionDetailPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
@@ -68,6 +69,7 @@ export default function App() {
               <Route path="/filter" element={<FilterPage />} />
               <Route path="/payment" element={<PaymentPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/wheel" element={<WheelPage />} />
               <Route path="/auction/:id" element={<AuctionDetailPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
             </Routes>

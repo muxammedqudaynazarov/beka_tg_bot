@@ -746,4 +746,75 @@ router.delete('/ads/:slot', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ===========================================================================
+// 3/4-band: БАРАБАН — admin elementlarni boshqaradi (qo'shish, o'chirish,
+// yoqish/o'chirish). Bir xil turdan xohlagancha qo'shish mumkin.
+// ===========================================================================
+router.get('/wheel-items', async (req, res) => {
+  const items = await prisma.wheelItem.findMany({ orderBy: { createdAt: 'asc' } });
+  const totalWeight = items.filter((i) => i.isActive).reduce((s, i) => s + i.weight, 0);
+  res.json({ items, totalWeight });
+});
+
+router.post('/wheel-items', async (req, res) => {
+  const { type, label, weight, percent, amount, discountUses, skinName, skinImageUrl, skinRarity, skinWearCondition, skinFloatValue, skinPaintSeed, skinSteamAssetId } = req.body || {};
+
+  if (!['TOPUP_BONUS_PROMO', 'PAID_PROMO', 'BOMB', 'SKIN', 'DISCOUNT_PROMO'].includes(type)) {
+    return res.status(400).json({ error: 'Неверный тип элемента.' });
+  }
+  const w = Number(weight);
+  if (!Number.isInteger(w) || w <= 0) return res.status(400).json({ error: 'Вес (вероятность) должен быть положительным целым числом.' });
+  if (!label || !String(label).trim()) return res.status(400).json({ error: 'Укажите название элемента.' });
+
+  const data = { type, label: String(label).trim(), weight: w };
+
+  if (type === 'TOPUP_BONUS_PROMO' || type === 'DISCOUNT_PROMO') {
+    const p = Number(percent);
+    if (!Number.isFinite(p) || p <= 0 || p > 100) return res.status(400).json({ error: 'Укажите корректный процент.' });
+    data.percent = p;
+    if (type === 'DISCOUNT_PROMO') {
+      const u = Number(discountUses);
+      if (!Number.isInteger(u) || u <= 0) return res.status(400).json({ error: 'Укажите количество использований скидки.' });
+      data.discountUses = u;
+    }
+  } else if (type === 'PAID_PROMO') {
+    const a = Number(amount);
+    if (!Number.isFinite(a) || a <= 0) return res.status(400).json({ error: 'Укажите корректную сумму.' });
+    data.amount = a;
+  } else if (type === 'SKIN') {
+    if (!skinName || !skinImageUrl) return res.status(400).json({ error: 'Для приза-скина укажите название и изображение.' });
+    data.skinName = skinName;
+    data.skinImageUrl = skinImageUrl;
+    data.skinRarity = skinRarity || 'CONSUMER';
+    data.skinWearCondition = skinWearCondition || null;
+    data.skinFloatValue = skinFloatValue !== undefined && skinFloatValue !== '' ? Number(skinFloatValue) : null;
+    data.skinPaintSeed = skinPaintSeed !== undefined && skinPaintSeed !== '' ? Number(skinPaintSeed) : null;
+    data.skinSteamAssetId = skinSteamAssetId || null;
+  }
+  // BOMB uchun qo'shimcha maydon kerak emas
+
+  const item = await prisma.wheelItem.create({ data });
+  await logAction(req.user.id, 'WHEEL_ITEM_CREATED', 'WheelItem', item.id, { type, label });
+  res.status(201).json(item);
+});
+
+router.patch('/wheel-items/:id', async (req, res) => {
+  const { isActive, weight } = req.body || {};
+  const data = {};
+  if (isActive !== undefined) data.isActive = Boolean(isActive);
+  if (weight !== undefined) {
+    const w = Number(weight);
+    if (!Number.isInteger(w) || w <= 0) return res.status(400).json({ error: 'Неверный вес.' });
+    data.weight = w;
+  }
+  const item = await prisma.wheelItem.update({ where: { id: req.params.id }, data });
+  res.json(item);
+});
+
+router.delete('/wheel-items/:id', async (req, res) => {
+  await prisma.wheelItem.delete({ where: { id: req.params.id } }).catch(() => {});
+  await logAction(req.user.id, 'WHEEL_ITEM_DELETED', 'WheelItem', req.params.id, {});
+  res.json({ ok: true });
+});
+
 module.exports = router;

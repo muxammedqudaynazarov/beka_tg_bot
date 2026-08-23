@@ -20,15 +20,22 @@ async function markTransactionPaid(tx) {
   const userBefore = await prisma.user.findUnique({ where: { id: tx.userId } });
   const isFirstDeposit = !userBefore?.hasEverDeposited;
 
+  // NEXT_DEPOSIT_BONUS (Барабан) — ILGARI to'lov qilgan-qilmaganidan qat'iy
+  // nazar qo'llanadi. FIRST_DEPOSIT_BONUS esa — faqat haqiqiy birinchi
+  // to'lovda.
   let bonusAmount = 0;
-  let activeRedemption = null;
-  if (isFirstDeposit) {
-    activeRedemption = await prisma.promoCodeRedemption.findFirst({
-      where: { userId: tx.userId, status: 'ACTIVE' },
-      include: { promoCode: true },
-    });
-    if (activeRedemption?.promoCode.type === 'FIRST_DEPOSIT_BONUS') {
+  let activeRedemption = await prisma.promoCodeRedemption.findFirst({
+    where: { userId: tx.userId, status: 'ACTIVE' },
+    include: { promoCode: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (activeRedemption) {
+    const type = activeRedemption.promoCode.type;
+    const eligible = type === 'NEXT_DEPOSIT_BONUS' || (type === 'FIRST_DEPOSIT_BONUS' && isFirstDeposit);
+    if (eligible) {
       bonusAmount = (Number(tx.amount) * Number(activeRedemption.promoCode.bonusPercent)) / 100;
+    } else {
+      activeRedemption = null;
     }
   }
 

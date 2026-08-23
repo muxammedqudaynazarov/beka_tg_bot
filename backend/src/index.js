@@ -23,6 +23,7 @@ const auctionsRoutes = require('./routes/auctions.routes');
 const categoriesRoutes = require('./routes/categories.routes');
 const paymentsRoutes = require('./routes/payments.routes');
 const paymeRoutes = require('./routes/payme.routes');
+const wheelRoutes = require('./routes/wheel.routes');
 const profileRoutes = require('./routes/profile.routes');
 const favoritesRoutes = require('./routes/favorites.routes');
 const adsRoutes = require('./routes/ads.routes');
@@ -96,6 +97,7 @@ app.use('/api/payments', paymentsRoutes);
 // 1-band: Payme'ning YAGONA Merchant API kirish nuqtasi — barcha
 // CheckPerformTransaction/CreateTransaction/... so'rovlari shu manzilga keladi
 app.use('/api/payme', paymeRoutes);
+app.use('/api/wheel', wheelRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/ads', adsRoutes);

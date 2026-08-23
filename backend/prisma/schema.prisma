@@ -64,6 +64,9 @@ model User {
   recordedSales UserSale[]       @relation("RecordedSales")
   discounts     UserDiscount[]
   promoRedemptions PromoCodeRedemption[]
+  wheelSpins    WheelSpin[]
+  // 3-band: har 24 soatda bir marta aylantirish cheklovi uchun
+  lastWheelSpinAt DateTime?
 
   @@index([role])
   @@index([isBanned])
@@ -410,9 +413,14 @@ model UserDiscount {
 // summaga to'ldirish, yoki birinchi to'lovga +% bonus.
 // ===========================================================================
 enum PromoCodeType {
-  DISCOUNT             // ishlatilganda UserDiscount yaratadi (3-band bilan bir xil mexanizm)
-  BALANCE_TOPUP        // hisobga to'g'ridan-to'g'ri belgilangan summa qo'shadi
-  FIRST_DEPOSIT_BONUS  // foydalanuvchining BIRINCHI to'lovida +% bonus beradi
+  DISCOUNT              // ishlatilganda UserDiscount yaratadi (3-band bilan bir xil mexanizm)
+  BALANCE_TOPUP         // hisobga to'g'ridan-to'g'ri belgilangan summa qo'shadi
+  FIRST_DEPOSIT_BONUS   // foydalanuvchining BIRINCHI to'lovida +% bonus beradi
+  // Барабан (3/4-band): FIRST_DEPOSIT_BONUS'dan farqli — bu foydalanuvchi
+  // ILGARI to'lov qilgan-qilmaganidan qat'iy nazar, ENG YAQIN keyingi
+  // to'lovga +% bonus beradi (chunki baraban aylantirgan HAR QANDAY
+  // foydalanuvchiga tegishli bo'lishi kerak, faqat yangilariga emas).
+  NEXT_DEPOSIT_BONUS
 }
 
 model PromoCode {
@@ -424,13 +432,23 @@ model PromoCode {
   discountUses    Int? // shu skidkani necha marta ishlatish mumkin
   // BALANCE_TOPUP turi uchun:
   topupAmount     Decimal? @db.Decimal(14, 2)
-  // FIRST_DEPOSIT_BONUS turi uchun:
+  // FIRST_DEPOSIT_BONUS / NEXT_DEPOSIT_BONUS turi uchun:
   bonusPercent    Decimal? @db.Decimal(5, 2)
   isActive        Boolean  @default(true)
   maxRedemptions  Int? // umumiy nechta marta ishlatilishi mumkin (null = cheksiz)
   redemptionCount Int      @default(0)
-  createdById     String
+  createdById     String?  // Барабан orqali avtomatik yaratilgan bo'lsa — null
   createdAt       DateTime @default(now())
+
+  // Барабан (4.e-band): agar shu qiymat o'rnatilgan bo'lsa, kod FAQAT shu
+  // BITTA foydalanuvchi tomonidan ishlatilishi mumkin (boshqa hech kim,
+  // hatto kodni bilsa ham, ishlata olmaydi).
+  restrictedToUserId String?
+  // Барабан (4.d-band): shu vaqtgacha ishlatilmasa, kod avtomatik
+  // "muddati tugagan" deb hisoblanadi (redeem so'ralganda tekshiriladi).
+  expiresAt          DateTime?
+  // Промокод bo'limida "baraban orqali yutib olingan" deb ko'rsatish uchun
+  wonViaWheel         Boolean  @default(false)
 
   redemptions PromoCodeRedemption[]
 }
@@ -448,6 +466,62 @@ model PromoCodeRedemption {
   consumedAt  DateTime?
 
   @@unique([promoCodeId, userId]) // bitta foydalanuvchi bitta kodni faqat bir marta ishlata oladi
+}
+
+// ===========================================================================
+// 3/4-band: БАРАБАН — foydalanuvchi har 24 soatda bir marta aylantirib,
+// og'irlikka (weight) asoslangan tasodifiy yutuq oladi.
+// ===========================================================================
+enum WheelItemType {
+  TOPUP_BONUS_PROMO // "Hisobni to'ldirish uchun promokod" — keyingi to'lovga +% bonus
+  PAID_PROMO        // "Pulli promokod" — belgilangan summa
+  BOMB              // "Bomba" — hech qanday yutuqsiz
+  SKIN              // haqiqiy skin yutish
+  DISCOUNT_PROMO    // "Savdo uchun skidka promokodi" — auksionda ishlatiladigan %
+}
+
+model WheelItem {
+  id       String        @id @default(uuid())
+  type     WheelItemType
+  label    String        @db.VarChar(255) // Admin App'da ko'rsatish uchun qisqa nom, masalan "15% qo'shimcha"
+  // Nisbiy og'irlik — "100/20" formatidagi 20-raqam. Umumiy 100ga
+  // yig'ilishi SHART emas (nisbiy ishlatiladi), lekin admin panelida
+  // "X/umumiy" ko'rinishida ko'rsatiladi, qulay bo'lishi uchun.
+  weight   Int
+  isActive Boolean       @default(true)
+
+  // TOPUP_BONUS_PROMO / DISCOUNT_PROMO uchun:
+  percent Decimal? @db.Decimal(5, 2)
+  // PAID_PROMO uchun:
+  amount  Decimal? @db.Decimal(14, 2)
+  // DISCOUNT_PROMO uchun — skidkani necha marta ishlatish mumkin
+  discountUses Int?
+
+  // SKIN uchun:
+  skinName          String?         @db.VarChar(255)
+  skinImageUrl      String?         @db.VarChar(1000)
+  skinRarity        SkinRarity?
+  skinWearCondition WearCondition?
+  skinFloatValue    Decimal?        @db.Decimal(19, 17)
+  skinPaintSeed     Int?
+  skinSteamAssetId  String?         @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  spins     WheelSpin[]
+}
+
+model WheelSpin {
+  id          String        @id @default(uuid())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      String
+  wheelItem   WheelItem     @relation(fields: [wheelItemId], references: [id])
+  wheelItemId String
+  resultType  WheelItemType
+  resultLabel String        @db.VarChar(255) // o'sha paytdagi label — WheelItem keyin o'zgarsa ham tarix to'g'ri qolishi uchun
+  promoCodeId String? // TOPUP_BONUS_PROMO/PAID_PROMO/DISCOUNT_PROMO uchun
+  auctionId   String? // SKIN uchun (auksion mexanizmi qayta ishlatiladi)
+  createdAt   DateTime      @default(now())
+}
 }
 
 // 1-band: admin biror foydalanuvchidan (shaxsiy Steam savdosi orqali)
