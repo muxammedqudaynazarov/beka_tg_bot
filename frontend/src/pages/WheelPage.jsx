@@ -38,6 +38,13 @@ function useCountdown(targetDate) {
   return label;
 }
 
+// 1-band: g'ildirak QANCHA ELEMENT bo'lishidan qat'iy nazar HAR DOIM 8ta
+// katak (обманка) bo'lib ko'rinadi — admin nechta narsa qo'shgani mijozga
+// hech qachon oshkor bo'lmaydi. Haqiqiy natija backend'da (real elementlar
+// orasida, og'irlikka asoslangan) hal qilinadi, g'ildirakning o'zi esa
+// SHU 8ta vizual katakdan tasodifiy biriga to'xtaydi — faqat effekt uchun.
+const FIXED_SEGMENTS = 8;
+
 export default function WheelPage() {
   const { refreshProfile } = useAuth();
   const [status, setStatus] = useState(null);
@@ -52,17 +59,14 @@ export default function WheelPage() {
 
   const countdown = useCountdown(status?.nextAvailableAt);
   const canSpin = status?.canSpin && !countdown;
-  const items = status?.items || [];
-  const segmentAngle = items.length ? 360 / items.length : 0;
+  const segmentAngle = 360 / FIXED_SEGMENTS;
 
-  const wheelBackground = items.length
-    ? `conic-gradient(from 0deg, ${items
-        .map((_, i) => {
-          const color = SEGMENT_COLORS[i % 2];
-          return `${color} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg`;
-        })
-        .join(', ')})`
-    : '#3D1052';
+  const wheelBackground = `conic-gradient(from 0deg, ${Array.from({ length: FIXED_SEGMENTS })
+    .map((_, i) => {
+      const color = SEGMENT_COLORS[i % 2];
+      return `${color} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg`;
+    })
+    .join(', ')})`;
 
   async function spin() {
     if (spinning || !canSpin) return;
@@ -73,14 +77,15 @@ export default function WheelPage() {
       const { data } = await api.post('/wheel/spin');
       const won = data.result;
 
-      const wonIndex = items.findIndex((it) => it.id === won.wheelItemId);
-      const targetMidAngle = wonIndex >= 0 ? wonIndex * segmentAngle + segmentAngle / 2 : 0;
-      // Segment ichida ozgina tasodifiy joy (haddan tashqari markazga tushib qolmasligi uchun)
+      // Haqiqiy elementlar soni bilan HECH QANDAY bog'liqlik yo'q — g'ildirak
+      // shunchaki 8ta vizual katakdan TASODIFIY biriga to'xtaydi (обманка).
+      const randomSegment = Math.floor(Math.random() * FIXED_SEGMENTS);
+      const targetMidAngle = randomSegment * segmentAngle + segmentAngle / 2;
       const jitterDeg = (Math.random() - 0.5) * (segmentAngle * 0.6);
       const targetAngle = targetMidAngle + jitterDeg;
 
       // G'ildirak HAR DOIM OLDINGA aylanishi (hech qachon orqaga "sakramasligi")
-      // va aynan shu segment tepada (ko'rsatkichda) to'xtashi uchun aniq hisob-kitob:
+      // uchun aniq hisob-kitob:
       const currentEffective = ((rotation % 360) + 360) % 360;
       const desiredEffective = ((-targetAngle % 360) + 360) % 360;
       let delta = desiredEffective - currentEffective;
@@ -143,17 +148,17 @@ export default function WheelPage() {
               transition: spinning ? 'transform 4.1s cubic-bezier(0.12, 0.72, 0.15, 1)' : 'none',
             }}
           >
-            {items.map((it, i) => {
+            {Array.from({ length: FIXED_SEGMENTS }).map((_, i) => {
               const angle = i * segmentAngle + segmentAngle / 2;
               return (
-                <div key={it.id} className="absolute inset-0" style={{ transform: `rotate(${angle}deg)` }}>
+                <div key={i} className="absolute inset-0" style={{ transform: `rotate(${angle}deg)` }}>
                   <div className="absolute left-1/2 top-4 -translate-x-1/2">
                     <Gift size={22} className="text-white drop-shadow" strokeWidth={2} />
                   </div>
                 </div>
               );
             })}
-            {items.map((_, i) => (
+            {Array.from({ length: FIXED_SEGMENTS }).map((_, i) => (
               <div
                 key={`line-${i}`}
                 className="absolute left-1/2 top-1/2 h-1/2 w-px origin-top bg-black/20"
