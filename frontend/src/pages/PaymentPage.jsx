@@ -144,17 +144,17 @@ export default function PaymentPage() {
             <button
               key={p.key}
               onClick={() => setProvider(p.key)}
-              className={`relative flex items-center justify-center rounded-xl border-2 bg-base-surface px-3 py-3 transition-colors ${
+              className={`relative flex items-center justify-center rounded-xl border-2 bg-base-surface p-2.5 transition-colors ${
                 active ? 'border-rarity-covert' : 'border-base-border'
               }`}
             >
               {active && (
-                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rarity-covert">
-                  <Check size={11} className="text-white" strokeWidth={3} />
+                <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rarity-covert">
+                  <Check size={13} className="text-white" strokeWidth={3} />
                 </span>
               )}
-              <span className="flex h-9 items-center justify-center rounded-lg bg-white px-4">
-                <img src={p.logo} alt={p.label} className="h-5 object-contain" />
+              <span className="flex h-12 w-full items-center justify-center rounded-lg bg-white px-3">
+                <img src={p.logo} alt={p.label} className="h-8 object-contain" />
               </span>
             </button>
           );
