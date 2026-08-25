@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Clock3, RefreshCw, Check } from 'lucide-react';
+import { Clock3, RefreshCw, Check, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
 import PromoCodeSection from '../components/PromoCodeSection';
 import { useAuth } from '../AuthContext';
-import { openLink, showAlert, hapticNotification } from '../telegram';
+import { openLink, showAlert, showConfirm, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
 import paymeLogo from '../assets/payme-logo.png';
 import clickLogo from '../assets/click-logo.png';
@@ -17,8 +17,9 @@ const PROVIDERS = [
   { key: 'CLICK', label: 'Click', logo: clickLogo },
 ];
 
-function PendingPaymentRow({ tx, onResolved }) {
+function PendingPaymentRow({ tx, onResolved, onDeleted }) {
   const [checking, setChecking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function checkStatus() {
     setChecking(true);
@@ -38,6 +39,22 @@ function PendingPaymentRow({ tx, onResolved }) {
     }
   }
 
+  async function remove() {
+    const ok = await showConfirm('Удалить эту незавершённую оплату из списка?');
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/payments/${tx.id}`);
+      hapticNotification('success');
+      onDeleted();
+    } catch (err) {
+      hapticNotification('error');
+      showAlert(err.response?.data?.error || 'Не удалось удалить.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex items-center justify-between rounded-xl bg-base-surface px-3.5 py-3">
       <div>
@@ -47,14 +64,23 @@ function PendingPaymentRow({ tx, onResolved }) {
         </p>
         <p className="text-[10px] text-ink-muted">{new Date(tx.createdAt).toLocaleString('ru-RU')}</p>
       </div>
-      <button
-        onClick={checkStatus}
-        disabled={checking}
-        className="flex items-center gap-1.5 rounded-lg bg-base-surface2 px-3 py-1.5 text-xs font-semibold text-ink-primary disabled:opacity-50"
-      >
-        <RefreshCw size={12} className={checking ? 'animate-spin' : ''} />
-        {checking ? 'Проверка…' : 'Проверить'}
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={checkStatus}
+          disabled={checking || deleting}
+          className="flex items-center gap-1.5 rounded-lg bg-base-surface2 px-3 py-1.5 text-xs font-semibold text-ink-primary disabled:opacity-50"
+        >
+          <RefreshCw size={12} className={checking ? 'animate-spin' : ''} />
+          {checking ? 'Проверка…' : 'Проверить'}
+        </button>
+        <button
+          onClick={remove}
+          disabled={checking || deleting}
+          className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-base-surface2 text-ink-muted hover:text-signal-danger disabled:opacity-50"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -127,7 +153,7 @@ export default function PaymentPage() {
           </h2>
           <div className="space-y-2">
             {pending.map((tx) => (
-              <PendingPaymentRow key={tx.id} tx={tx} onResolved={handleResolved} />
+              <PendingPaymentRow key={tx.id} tx={tx} onResolved={handleResolved} onDeleted={loadPending} />
             ))}
           </div>
           <p className="mt-2 text-[10px] text-ink-muted">

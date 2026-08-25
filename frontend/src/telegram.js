@@ -34,6 +34,13 @@ export function showAlert(message) {
   else window.alert(message);
 }
 
+export function showConfirm(message) {
+  return new Promise((resolve) => {
+    if (tg?.showConfirm) tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+    else resolve(window.confirm(message));
+  });
+}
+
 export function openLink(url) {
   if (tg?.openLink) tg.openLink(url);
   else window.open(url, '_blank');

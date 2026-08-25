@@ -98,7 +98,11 @@ app.use('/api/payments', paymentsRoutes);
 // 1-band: Payme'ning YAGONA Merchant API kirish nuqtasi — barcha
 // CheckPerformTransaction/CreateTransaction/... so'rovlari shu manzilga keladi
 app.use('/api/payme', paymeRoutes);
-app.use('/api/click', clickRoutes);
+// MUHIM: Click Merchant kabinetida ALLAQACHON /api/payments/click/... manzili
+// ko'rsatilgan (avvalgi integratsiyadan qolgan) — shu sabab YANGI /api/click
+// emas, aynan shu ESKI, kabinetda saqlangan manzilga mos qilib o'rnatamiz.
+// Bu yerda hech narsa Click kabinetida o'zgartirilishi shart emas.
+app.use('/api/payments/click', clickRoutes);
 app.use('/api/wheel', wheelRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/favorites', favoritesRoutes);

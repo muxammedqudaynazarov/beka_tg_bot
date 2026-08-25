@@ -148,5 +148,21 @@ router.post('/:id/check-status', requireAuth, async (req, res) => {
   });
 });
 
+// Незавершённые платежи ro'yxatidan keraksiz (masalan tasodifan yaratilgan
+// yoki umuman to'lamoqchi bo'lmagan) yozuvlarni o'chirish. Xavfsizlik uchun
+// faqat FAQAT o'zining va FAQAT hali PENDING (hali to'lanmagan) tranzaksiyani
+// o'chirishga ruxsat beriladi — SUCCESS (moliyaviy yozuv) hech qachon o'chirilmaydi.
+router.delete('/:id', requireAuth, async (req, res) => {
+  const tx = await prisma.transaction.findUnique({ where: { id: req.params.id } });
+  if (!tx || tx.userId !== req.user.id) {
+    return res.status(404).json({ error: 'Транзакция не найдена.' });
+  }
+  if (tx.status !== 'PENDING') {
+    return res.status(400).json({ error: 'Можно удалить только неподтверждённый платёж.' });
+  }
+  await prisma.transaction.delete({ where: { id: tx.id } });
+  res.json({ ok: true });
+});
+
 module.exports = router;
 module.exports.markTransactionPaid = markTransactionPaid;
