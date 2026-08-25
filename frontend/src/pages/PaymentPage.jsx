@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Clock3, RefreshCw } from 'lucide-react';
+import { Clock3, RefreshCw, Check } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
 import PromoCodeSection from '../components/PromoCodeSection';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
+import paymeLogo from '../assets/payme-logo.png';
+import clickLogo from '../assets/click-logo.png';
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
+
+// 5-band: ikkala to'lov tizimi bir vaqtda — Payme asosiy (standart tanlov).
+const PROVIDERS = [
+  { key: 'PAYME', label: 'Payme', logo: paymeLogo },
+  { key: 'CLICK', label: 'Click', logo: clickLogo },
+];
 
 function PendingPaymentRow({ tx, onResolved }) {
   const [checking, setChecking] = useState(false);
@@ -54,6 +62,7 @@ function PendingPaymentRow({ tx, onResolved }) {
 export default function PaymentPage() {
   const { refreshProfile } = useAuth();
   const [amount, setAmount] = useState('');
+  const [provider, setProvider] = useState('PAYME');
   const [submitting, setSubmitting] = useState(false);
   const [pending, setPending] = useState(null);
   const [bonus, setBonus] = useState(null);
@@ -77,7 +86,7 @@ export default function PaymentPage() {
     }
     setSubmitting(true);
     try {
-      const { data } = await api.post('/payments/topup', { amount: numericAmount });
+      const { data } = await api.post('/payments/topup', { amount: numericAmount, provider });
       hapticNotification('success');
       openLink(data.checkoutUrl);
       loadPending();
@@ -122,10 +131,35 @@ export default function PaymentPage() {
             ))}
           </div>
           <p className="mt-2 text-[10px] text-ink-muted">
-            Если вы уже оплатили через Click, но баланс не обновился — нажмите «Проверить».
+            Если вы уже оплатили, но баланс не обновился — нажмите «Проверить».
           </p>
         </div>
       )}
+
+      <label className="mb-2 block font-display text-xs font-semibold text-ink-secondary">Способ оплаты</label>
+      <div className="mb-5 grid grid-cols-2 gap-2.5">
+        {PROVIDERS.map((p) => {
+          const active = provider === p.key;
+          return (
+            <button
+              key={p.key}
+              onClick={() => setProvider(p.key)}
+              className={`relative flex items-center justify-center rounded-xl border-2 bg-base-surface px-3 py-3 transition-colors ${
+                active ? 'border-rarity-covert' : 'border-base-border'
+              }`}
+            >
+              {active && (
+                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rarity-covert">
+                  <Check size={11} className="text-white" strokeWidth={3} />
+                </span>
+              )}
+              <span className="flex h-9 items-center justify-center rounded-lg bg-white px-4">
+                <img src={p.logo} alt={p.label} className="h-5 object-contain" />
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       <label className="mb-2 block font-display text-xs font-semibold text-ink-secondary">Сумма пополнения</label>
       <input
@@ -156,7 +190,7 @@ export default function PaymentPage() {
         {submitting ? 'Загрузка…' : 'Пополнить'}
       </button>
       <p className="mt-3 text-center text-[10px] text-ink-muted">
-        Вы будете перенаправлены на официальную защищённую страницу оплаты Payme.
+        Вы будете перенаправлены на официальную защищённую страницу оплаты {PROVIDERS.find((p) => p.key === provider)?.label}.
       </p>
     </div>
   );

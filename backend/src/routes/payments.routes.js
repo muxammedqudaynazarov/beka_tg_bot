@@ -2,17 +2,19 @@ const express = require('express');
 const crypto = require('crypto');
 const prisma = require('../db/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { buildCheckoutUrl } = require('../services/paymeService');
+const { buildCheckoutUrl: buildPaymeCheckoutUrl } = require('../services/paymeService');
+const { buildCheckoutUrl: buildClickCheckoutUrl, checkClickPaymentStatus } = require('../services/clickPaymentService');
 const { notifyText } = require('../services/notifier');
 
 const router = express.Router();
 
 /**
  * Tranzaksiyani "to'landi" deb belgilab, balansni oshiradi. Bu funksiya
- * TO'LOV TIZIMIDAN MUSTAQIL (avval Click, endi Payme uchun bir xil ishlatiladi)
- * — provayderga xos ID'larni ESHITMAYDI, faqat balans/bonus/xabar mantig'ini
- * bajaradi. Provayderga xos maydonlar (masalan paymeState) chaqiruvchi
- * tomonidan alohida yangilanadi.
+ * TO'LOV TIZIMIDAN MUSTAQIL — ikkala provayder (Click, Payme) uchun ham
+ * BIR XIL ishlatiladi, provayderga xos ID'larni ESHITMAYDI, faqat
+ * balans/bonus/xabar mantig'ini bajaradi. Provayderga xos maydonlar
+ * (masalan paymeState yoki clickTransId) chaqiruvchi tomonidan alohida
+ * yangilanadi.
  */
 async function markTransactionPaid(tx) {
   if (tx.status === 'SUCCESS') return; // allaqachon hisoblangan — qayta hisoblamaymiz
@@ -20,9 +22,6 @@ async function markTransactionPaid(tx) {
   const userBefore = await prisma.user.findUnique({ where: { id: tx.userId } });
   const isFirstDeposit = !userBefore?.hasEverDeposited;
 
-  // NEXT_DEPOSIT_BONUS (Барабан) — ILGARI to'lov qilgan-qilmaganidan qat'iy
-  // nazar qo'llanadi. FIRST_DEPOSIT_BONUS esa — faqat haqiqiy birinchi
-  // to'lovda.
   let bonusAmount = 0;
   let activeRedemption = await prisma.promoCodeRedemption.findFirst({
     where: { userId: tx.userId, status: 'ACTIVE' },
@@ -72,12 +71,15 @@ async function markTransactionPaid(tx) {
   );
 }
 
+// Ikkala to'lov tizimi bir vaqtda — foydalanuvchi tanlagan provayderga qarab
+// mos checkout havolasi yaratiladi. Standart holatda PAYME (asosiy tizim).
 router.post('/topup', requireAuth, async (req, res) => {
-  const { amount } = req.body || {};
+  const { amount, provider } = req.body || {};
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
     return res.status(400).json({ error: 'Неверная сумма пополнения.' });
   }
+  const selectedProvider = provider === 'CLICK' ? 'CLICK' : 'PAYME';
 
   const merchantTransId = crypto.randomUUID();
   await prisma.transaction.create({
@@ -87,11 +89,16 @@ router.post('/topup', requireAuth, async (req, res) => {
       status: 'PENDING',
       amount: numericAmount,
       merchantTransId,
+      provider: selectedProvider,
     },
   });
 
-  const checkoutUrl = buildCheckoutUrl({ amount: numericAmount, merchantTransId });
-  res.json({ checkoutUrl, merchantTransId });
+  const checkoutUrl =
+    selectedProvider === 'CLICK'
+      ? buildClickCheckoutUrl({ amount: numericAmount, merchantTransId })
+      : buildPaymeCheckoutUrl({ amount: numericAmount, merchantTransId });
+
+  res.json({ checkoutUrl, merchantTransId, provider: selectedProvider });
 });
 
 router.get('/history', requireAuth, async (req, res) => {
@@ -112,6 +119,9 @@ router.get('/pending', requireAuth, async (req, res) => {
   res.json({ items });
 });
 
+// Click uchun — jonli tekshiruv (Click'ning o'z API'siga so'rov yuboriladi).
+// Payme uchun — Payme PUSH asosida ishlaydi (o'zi qayta urinadi), shuning
+// uchun bizga ma'lum bo'lgan oxirgi holatni qaytaramiz.
 router.post('/:id/check-status', requireAuth, async (req, res) => {
   const tx = await prisma.transaction.findUnique({ where: { id: req.params.id } });
   if (!tx || tx.userId !== req.user.id) {
@@ -120,6 +130,18 @@ router.post('/:id/check-status', requireAuth, async (req, res) => {
   if (tx.status === 'SUCCESS') {
     return res.json({ status: 'SUCCESS', message: 'Этот платёж уже подтверждён.' });
   }
+
+  if (tx.provider === 'CLICK') {
+    const result = await checkClickPaymentStatus(tx);
+    if (result.ok && result.paid) {
+      await markTransactionPaid(tx);
+      if (result.paymentId) {
+        await prisma.transaction.update({ where: { id: tx.id }, data: { clickTransId: String(result.paymentId) } });
+      }
+      return res.json({ status: 'SUCCESS', message: 'Платёж подтверждён!' });
+    }
+  }
+
   res.json({
     status: 'PENDING',
     message: 'Платёж пока не подтверждён. Если вы уже оплатили, обновление обычно занимает не более минуты.',

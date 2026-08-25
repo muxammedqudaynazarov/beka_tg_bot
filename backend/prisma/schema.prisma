@@ -286,12 +286,21 @@ enum TransactionStatus {
   CANCELLED
 }
 
+// Ikkala to'lov tizimi bir vaqtda ishlashi uchun — TOPUP tranzaksiyasi
+// qaysi provayder orqali yaratilganini bilishimiz kerak (checkout havolasini
+// to'g'ri qurish va webhook'larni to'g'ri yo'naltirish uchun).
+enum PaymentProvider {
+  CLICK
+  PAYME
+}
+
 model Transaction {
   id              String             @id @default(uuid())
   user            User               @relation(fields: [userId], references: [id])
   userId          String
   auction         Auction?           @relation(fields: [auctionId], references: [id])
   auctionId       String?
+  provider        PaymentProvider?   // faqat TOPUP turi uchun to'ldiriladi
 
   type            TransactionType
   status          TransactionStatus  @default(PENDING)
