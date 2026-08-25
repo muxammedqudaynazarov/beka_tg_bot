@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../db/prisma');
 const { verifyAuth } = require('../services/paymeService');
+const { env } = require('../config/env');
 
 const router = express.Router();
 
@@ -49,7 +50,30 @@ async function handleCheckPerformTransaction(id, params) {
   const expectedTiyin = Math.round(Number(tx.amount) * 100);
   if (Number(params.amount) !== expectedTiyin) return ERR.invalidAmount(id);
 
-  return { jsonrpc: '2.0', id, result: { allow: true } };
+  const result = { allow: true };
+
+  // Payme qo'llab-quvvatlash xizmati talabi (fiskal chek soliq oborotida
+  // ko'rinishi uchun): mxikCode to'ldirilgan bo'lsagina detail qo'shamiz —
+  // to'ldirilmagan bo'lsa, hech narsa yubormaymiz (Payme buni ixtiyoriy deb
+  // hisoblaydi, lekin to'ldirilgani ma'qul).
+  if (env.payme.fiscal.mxikCode) {
+    result.detail = {
+      receipt_type: 0,
+      items: [
+        {
+          title: env.payme.fiscal.itemTitle,
+          price: expectedTiyin,
+          count: 1,
+          code: env.payme.fiscal.mxikCode,
+          package_code: env.payme.fiscal.packageCode,
+          vat_percent: env.payme.fiscal.vatPercent,
+          discount: 0,
+        },
+      ],
+    };
+  }
+
+  return { jsonrpc: '2.0', id, result };
 }
 
 async function handleCreateTransaction(id, params) {
@@ -164,6 +188,40 @@ async function handleCheckTransaction(id, params) {
   };
 }
 
+// GetStatement — Payme berilgan sana oralig'idagi barcha (Payme orqali
+// yaratilgan) tranzaksiyalar ro'yxatini so'raydi, o'zining hisobotlarini
+// solishtirish (rekonsilyatsiya) uchun.
+async function handleGetStatement(id, params) {
+  const from = new Date(Number(params?.from) || 0);
+  const to = new Date(Number(params?.to) || Date.now());
+
+  const txs = await prisma.transaction.findMany({
+    where: {
+      paymeTransId: { not: null },
+      paymeCreateTime: { gte: BigInt(from.getTime()), lte: BigInt(to.getTime()) },
+    },
+    orderBy: { paymeCreateTime: 'asc' },
+  });
+
+  return {
+    jsonrpc: '2.0', id,
+    result: {
+      transactions: txs.map((tx) => ({
+        id: tx.paymeTransId,
+        time: Number(tx.paymeCreateTime) || 0,
+        amount: Math.round(Number(tx.amount) * 100),
+        account: { order_id: tx.merchantTransId },
+        create_time: Number(tx.paymeCreateTime) || 0,
+        perform_time: Number(tx.paymePerformTime) || 0,
+        cancel_time: Number(tx.paymeCancelTime) || 0,
+        transaction: tx.id,
+        state: tx.paymeState || 1,
+        reason: tx.paymeCancelReason || null,
+      })),
+    },
+  };
+}
+
 // Payme JSON-RPC 2.0 ning YAGONA kirish nuqtasi — barcha metodlar shu
 // yerga POST so'rov sifatida keladi, "method" maydoni orqali ajratiladi.
 router.post('/', async (req, res) => {
@@ -192,6 +250,9 @@ router.post('/', async (req, res) => {
         break;
       case 'CheckTransaction':
         response = await handleCheckTransaction(id, params);
+        break;
+      case 'GetStatement':
+        response = await handleGetStatement(id, params);
         break;
       default:
         response = ERR.methodNotFound(id);

@@ -72,6 +72,18 @@ const env = {
     // shu foizga o'rnatilsa, checkout summasi shuncha foizga oshiriladi
     // (Payme'ning o'zida bunday tayyor funksiya yo'q, biz hisoblab qo'shamiz).
     surchargePercent: Number(process.env.PAYME_SURCHARGE_PERCENT || 0),
+    // Payme qo'llab-quvvatlash xizmati talabi: cheklar soliq oborotida
+    // ko'rinishi uchun CheckPerformTransaction javobida fiskal "detail"
+    // ma'lumoti bo'lishi shart. DIQQAT: mxikCode va packageCode'ni
+    // tasnif.soliq.uz saytida O'ZINGIZNING aniq xizmat turingiz bo'yicha
+    // shaxsan tekshirib, to'g'irlab qo'ying — bular soliq hisoboti bilan
+    // bog'liq, noto'g'ri bo'lsa muammo tug'dirishi mumkin.
+    fiscal: {
+      itemTitle: process.env.PAYME_ITEM_TITLE || 'Пополнение баланса',
+      mxikCode: process.env.PAYME_MXIK_CODE || '',
+      packageCode: process.env.PAYME_PACKAGE_CODE || '',
+      vatPercent: Number(process.env.PAYME_VAT_PERCENT || 0),
+    },
   },
 
   auction: {
