@@ -146,12 +146,20 @@ router.post('/spin', requireAuth, async (req, res) => {
     },
   });
 
-  await notifyText(
-    req.user.telegramId,
-    won.type === 'BOMB'
-      ? '💣 Барабан: сегодня не повезло — попробуйте завтра!'
-      : `🎉 Барабан: вы выиграли «${won.label}»! Подробности — в приложении.`
-  );
+  // MUHIM: xabar darhol emas, foydalanuvchi TARAF (frontend) aylanish
+  // animatsiyasini tugatib, natijani ko'rsatgandan KEYIN boradi — aks holda
+  // "aylantirish" bosilgan zahoti xabar kelib, natija hali animatsiya
+  // paytida ma'lum bo'lib qolgani foydalanuvchida shubha uyg'otishi mumkin
+  // edi. 4200ms — frontend'dagi aylanish animatsiyasi bilan bir xil vaqt
+  // (WheelPage.jsx). So'rovning o'zi buni KUTMAYDI — darhol javob qaytadi.
+  setTimeout(() => {
+    notifyText(
+      req.user.telegramId,
+      won.type === 'BOMB'
+        ? '💣 Барабан: сегодня не повезло — попробуйте завтра!'
+        : `🎉 Барабан: вы выиграли «${won.label}»! Подробности — в приложении.`
+    ).catch(() => {});
+  }, 7000);
 
   res.json({
     result: { wheelItemId: won.id, type: won.type, label: won.label, promoCode: promoCode?.code || null, auctionId },
