@@ -159,7 +159,7 @@ router.post('/spin', requireAuth, async (req, res) => {
         ? '💣 Барабан: сегодня не повезло — попробуйте завтра!'
         : `🎉 Барабан: вы выиграли «${won.label}»! Подробности — в приложении.`
     ).catch(() => {});
-  }, 7000);
+  }, 4200);
 
   res.json({
     result: { wheelItemId: won.id, type: won.type, label: won.label, promoCode: promoCode?.code || null, auctionId },

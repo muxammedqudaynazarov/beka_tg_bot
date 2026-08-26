@@ -130,7 +130,22 @@ async function validateTradeUrl(tradeUrl) {
     }
     offer.getUserDetails((err) => {
       if (err) {
-        return resolve({ ok: false, checked: true, reason: 'Bu Trade URL Steam\'da yaroqsiz yoki eskirgan.' });
+        // MUHIM TUZATISH: avval BU YERDAGI har qanday xato "Trade URL
+        // yaroqsiz" deb noto'g'ri umumlashtirilardi — lekin xato sababi
+        // Trade URL'ning o'zida emas, balki BOTNING o'zida (masalan hali
+        // 15 kunlik "yangi qurilma" bandidan chiqmagan bo'lsa) bo'lishi ham
+        // mumkin. Shu farqni bilmasdan qattiq "yaroqsiz" deb rad etish —
+        // haqiqiy, to'g'ri Trade URL'larni ham noto'g'ri bloklab qo'yishi
+        // mumkin edi. Shuning uchun: haqiqiy sababni logga yozamiz, lekin
+        // foydalanuvchiga faqat SHAKL tekshirilgan holatda saqlashga ruxsat
+        // beramiz (qattiq rad etmaymiz) — checked:false qaytarib, yumshoq
+        // ogohlantirish bilan.
+        console.warn('[steamBot] Trade URL jonli tekshiruvi muvaffaqiyatsiz (bot cheklovi bo\'lishi mumkin):', err.message);
+        return resolve({
+          ok: false,
+          checked: false,
+          reason: 'Не удалось проверить ссылку через Steam прямо сейчас (возможно, временное ограничение бота). Ссылка сохранена по формату — если она неверна, отправка предмета не пройдёт, и мы сообщим вам об этом отдельно.',
+        });
       }
       resolve({ ok: true, checked: true });
     });

@@ -94,11 +94,16 @@ async function handleCreateTransaction(id, params) {
 
   const tx = await prisma.transaction.findUnique({ where: { merchantTransId: orderId } });
   if (!tx) return ERR.orderNotFound(id);
-  if (tx.paymeTransId && tx.paymeTransId !== paymeId) return ERR.cantPerform(id);
-  if (tx.status !== 'PENDING') return ERR.cantPerform(id);
 
+  // MUHIM TUZATISH: summa tekshiruvi BOSHQA (holat/egalik) tekshiruvlaridan
+  // OLDIN bo'lishi kerak — Payme'ning o'z test to'plami (sandbox) buni aniq
+  // talab qiladi (noto'g'ri summa bilan chaqirilganda -31001 kutiladi,
+  // boshqa -31008 kabi xatolar emas, hatto boshqa sabablar ham mavjud bo'lsa).
   const expectedTiyin = Math.round(Number(tx.amount) * 100);
   if (Number(params.amount) !== expectedTiyin) return ERR.invalidAmount(id);
+
+  if (tx.paymeTransId && tx.paymeTransId !== paymeId) return ERR.cantPerform(id);
+  if (tx.status !== 'PENDING') return ERR.cantPerform(id);
 
   const createTime = Date.now();
   await prisma.transaction.update({
