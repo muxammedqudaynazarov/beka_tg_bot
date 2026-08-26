@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles, ShoppingBag } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
+import PromoCodeSection from '../components/PromoCodeSection';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
@@ -104,9 +105,8 @@ function AwaitingPaymentRow({ auction, onPaid }) {
   );
 }
 
-// 4-band: foydalanuvchi promo-kodni kiritadigan bo'lim endi
-// components/PromoCodeSection.jsx'ga ko'chirildi (2-band: Платежи
-// bo'limida ham ishlatish uchun qayta ishlatiladigan qilib chiqarildi).
+// Promo-kod kiritish bo'limi — components/PromoCodeSection.jsx'da,
+// bu sahifada Баланс/Рейтинг ostida ko'rsatiladi.
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -206,7 +206,9 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen px-4 pb-28 pt-6">
-      <div className="mb-6 flex items-center gap-3">
+      <AdBanner />
+
+      <div className="mb-6 mt-4 flex items-center gap-3">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-rarity-restricted to-rarity-covert font-display text-lg font-bold text-white">
           {(user?.firstName || 'U')[0]}
         </div>
@@ -215,8 +217,6 @@ export default function ProfilePage() {
           <p className="text-xs text-ink-secondary">@{user?.username || 'нет username'}</p>
         </div>
       </div>
-
-      <AdBanner />
 
       <div className="mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-base-surface p-3.5">
@@ -232,6 +232,8 @@ export default function ProfilePage() {
           <p className="mt-1 font-mono text-base font-bold text-ink-primary">{user?.ratingScore ?? 0}</p>
         </div>
       </div>
+
+      <PromoCodeSection />
 
       {Number(user?.discountPct) > 0 && (
         <div className="mb-6 flex items-center gap-2 rounded-xl bg-signal-success/10 px-3.5 py-2.5 text-xs text-signal-success">

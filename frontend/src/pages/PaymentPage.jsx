@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Clock3, RefreshCw, Check, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
-import PromoCodeSection from '../components/PromoCodeSection';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, showConfirm, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
@@ -130,7 +129,6 @@ export default function PaymentPage() {
 
   return (
     <div className="min-h-screen px-4 pb-28 pt-6">
-      <PromoCodeSection />
       <h1 className="mb-1 font-display text-base font-bold text-ink-primary">Пополнение</h1>
       <AdBanner />
       <p className="mb-5 text-xs text-ink-secondary">Пополните баланс, чтобы участвовать в аукционах.</p>
