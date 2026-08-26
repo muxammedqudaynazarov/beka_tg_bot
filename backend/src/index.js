@@ -90,6 +90,10 @@ app.use(express.json({ type: ['application/json', 'text/json'] }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+// 6-band: zaklad foizi (va kelajakda shunga o'xshash sozlamalar) FAQAT
+// .env'dan boshqarilishi uchun — frontend endi bu qiymatni o'zida qattiq
+// yozib qo'ymaydi, shu yerdan (jonli, .env'ga bog'liq holda) oladi.
+app.get('/api/config', (req, res) => res.json({ depositPercent: env.auction.depositPercent }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/auctions', auctionsRoutes);

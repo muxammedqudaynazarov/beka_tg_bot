@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles } from 'lucide-react';
+import { Star, ShieldCheck, FileText, LifeBuoy, ChevronRight, Link2, Clock, CheckCircle2, Heart, Tag, Sparkles, ShoppingBag } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, hapticNotification } from '../telegram';
-import { formatSom, RARITY_META } from '../constants';
+import { formatSom } from '../constants';
 import { useCountdownDHMS } from '../hooks/useCountdown';
-import RarityBadge from '../components/RarityBadge';
 
 const STEAM_TRADE_URL_RE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/;
 
@@ -119,6 +118,33 @@ export default function ProfilePage() {
   const [tradeUrl, setTradeUrl] = useState('');
   const [savingTradeUrl, setSavingTradeUrl] = useState(false);
 
+  // 2-band: chinakam push (soket) qurish butun tizim bo'ylab juda ko'p
+  // joyga o'zgartirish talab qilardi — shuning uchun amaliy, kam
+  // yuklamali yechim: sahifa ochiq turganda har 5 soniyada balansni
+  // qayta so'raymiz VA o'zgarish sodir bo'lsa, raqamni ko'zga tashlanadigan
+  // qilib "pulslatib" ko'rsatamiz — foydalanuvchiga "darhol o'zgardi"
+  // degan aniq hissiyot beradi.
+  const prevBalanceRef = useRef(null);
+  const [balancePulse, setBalancePulse] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshProfile();
+    }, 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (user?.balance === undefined) return;
+    const current = Number(user.balance);
+    if (prevBalanceRef.current !== null && prevBalanceRef.current !== current) {
+      setBalancePulse(true);
+      setTimeout(() => setBalancePulse(false), 500);
+    }
+    prevBalanceRef.current = current;
+  }, [user?.balance]);
+
   function loadAll() {
     api.get('/profile').then(({ data }) => {
       setPurchases(data.purchases || []);
@@ -195,7 +221,9 @@ export default function ProfilePage() {
       <div className="mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-base-surface p-3.5">
           <p className="text-[10px] uppercase tracking-wide text-ink-secondary">Баланс</p>
-          <p className="mt-1 font-mono text-base font-bold text-ink-primary">{formatSom(user?.balance)}</p>
+          <p className={`mt-1 font-mono text-base font-bold text-ink-primary ${balancePulse ? 'animate-pulse-price' : ''}`}>
+            {formatSom(user?.balance)}
+          </p>
         </div>
         <div className="rounded-xl bg-base-surface p-3.5">
           <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-secondary">
@@ -277,48 +305,7 @@ export default function ProfilePage() {
         </>
       )}
 
-      <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">
-        Купленные скины
-      </h2>
-      {purchases.length ? (
-        <div className="mb-6 space-y-2">
-          {purchases.map((p) => {
-            const a = p.auction;
-            if (!a) return null;
-            const meta = RARITY_META[a.rarity] || RARITY_META.CONSUMER;
-            return (
-              <button
-                key={p.id}
-                onClick={() => navigate(`/auction/${a.id}`)}
-                className="flex w-full items-center gap-3 rounded-lg bg-base-surface px-2.5 py-2.5 text-left"
-                style={{ borderLeft: `3px solid ${meta.color}`, backgroundImage: `linear-gradient(90deg, ${meta.color}14, transparent 45%)` }}
-              >
-                <div className="h-14 w-14 shrink-0 rounded-md bg-base-surface2">
-                  <img src={a.imageUrl} alt={a.skinName} className="h-full w-full object-contain p-1.5" style={{ filter: `drop-shadow(0 0 8px ${meta.color}33)` }} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-0.5 flex items-center gap-1.5">
-                    <RarityBadge rarity={a.rarity} />
-                    {a.wearCondition && (
-                      <span className="rounded bg-rarity-milspec/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-rarity-milspec">
-                        {a.wearCondition}
-                      </span>
-                    )}
-                    {a.floatValue !== null && a.floatValue !== undefined && (
-                      <span className="truncate font-mono text-[10px] text-ink-muted">{Number(a.floatValue).toFixed(4)}</span>
-                    )}
-                  </div>
-                  <h3 className="truncate font-display text-[13px] font-semibold leading-tight text-ink-primary">{a.skinName}</h3>
-                  <p className="mt-0.5 text-[10px] text-ink-muted">{new Date(p.createdAt).toLocaleDateString('ru-RU')}</p>
-                </div>
-                <p className="shrink-0 font-mono text-[13px] font-bold" style={{ color: meta.color }}>{formatSom(p.amount)}</p>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="mb-6 text-xs text-ink-muted">Пока нет купленных скинов.</p>
-      )}
+      {/* 3-band: "Купленные скины" endi alohida sahifaga ko'chirildi — pastdagi "Другое" ro'yxatida */}
 
       {/* 4-band: "Skin sotmoqchimisiz?" — pastroq qismda, chiroyli animatsiya bilan */}
       {links?.supportGroupUrl && (
@@ -348,6 +335,21 @@ export default function ProfilePage() {
 
       <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">Другое</h2>
       <div className="divide-y divide-base-border overflow-hidden rounded-xl bg-base-surface">
+        <button
+          onClick={() => navigate('/purchased-skins')}
+          className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
+        >
+          <ShoppingBag size={14} className="text-ink-secondary" />
+          Купленные скины
+          <span className="ml-auto flex items-center gap-1.5">
+            {purchases.length > 0 && (
+              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rarity-covert px-1 font-mono text-[10px] font-bold text-white">
+                {purchases.length}
+              </span>
+            )}
+            <ChevronRight size={14} className="text-ink-muted" />
+          </span>
+        </button>
         <button
           onClick={() => navigate('/privacy')}
           className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"

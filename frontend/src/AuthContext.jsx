@@ -9,11 +9,19 @@ export function AuthProvider({ children }) {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState(null);
   const [showPopupAd, setShowPopupAd] = useState(false);
+  // 6-band: zaklad foizi endi qattiq yozilmagan — backend'ning o'z .env
+  // qiymatidan (jonli) olinadi. Backend hali javob bermagan bo'lsa, 25 —
+  // faqat vaqtinchalik, ilova ochilayotgan bir necha soniya uchun standart.
+  const [depositPercent, setDepositPercent] = useState(25);
 
   const refreshProfile = useCallback(async () => {
     const { data } = await api.get('/profile');
     setUser((prev) => ({ ...prev, ...data.user }));
     return data;
+  }, []);
+
+  useEffect(() => {
+    api.get('/config').then(({ data }) => setDepositPercent(data.depositPercent)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -43,7 +51,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, status, error, refreshProfile, showPopupAd }}>
+    <AuthContext.Provider value={{ user, setUser, status, error, refreshProfile, showPopupAd, depositPercent }}>
       {children}
     </AuthContext.Provider>
   );

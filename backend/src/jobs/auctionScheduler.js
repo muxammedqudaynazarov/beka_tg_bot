@@ -52,8 +52,8 @@ function startAuctionScheduler(io) {
           const winner = await prisma.user.findUnique({ where: { id: auction.currentLeaderId } });
           await notifyText(
             winner?.telegramId,
-            `✅ "${auction.skinName}" to'liq to'landi (balansingizdan avtomatik yechildi). ` +
-              `Skin Profil bo'limida saqlanadi — tayyor bo'lganingizda "Отправить в Steam" tugmasini bosing.`
+            `✅ «${auction.skinName}» полностью оплачен (сумма автоматически списана с вашего баланса). ` +
+              `Скин сохранён в разделе «Профиль» — когда будете готовы, нажмите кнопку «Отправить в Steam».`
           );
         }
         // 13-band: to'liq to'langan skin haqida barcha adminlarga xabar —

@@ -178,6 +178,18 @@ router.post('/:id/bid', requireAuth, async (req, res) => {
       });
     }
 
+    // 4-band: yangi auksionga BIRINCHI marta narx belgilanganda — adminlarga
+    // skin nomi, kim va qachon narx qo'yganini bildiruvchi xabar (faqat
+    // birinchi taklifda, keyingi barcha oshirishlarda EMAS).
+    if (result.isFirstBid) {
+      const bidderLabel = req.user.username ? `@${req.user.username}` : req.user.firstName || String(req.user.telegramId);
+      notifyAllAdmins(
+        `🆕 Birinchi taklif! "${result.auction.skinName}" auksioniga ${bidderLabel} tomonidan ` +
+          `${Number(result.bid.amount).toLocaleString('ru-RU')} so'm narx qo'yildi — ` +
+          `${new Date(result.bid.createdAt).toLocaleString('ru-RU')}.`
+      );
+    }
+
     res.json(result);
   } catch (err) {
     if (err instanceof AuctionError) {

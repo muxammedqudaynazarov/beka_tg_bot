@@ -11,7 +11,6 @@ import RarityBadge from '../components/RarityBadge';
 import FloatGauge from '../components/FloatGauge';
 import { WEAR_LABELS, formatSom, formatDateTime, AUCTION_STATUS_META, RARITY_META } from '../constants';
 
-const DEPOSIT_PERCENT = 25; // backend .env AUCTION_DEPOSIT_PERCENT bilan mos — faqat ko'rsatish uchun
 const MAX_CONSECUTIVE = 10;
 
 function PaymentPanel({ auction, isLeader, onChanged }) {
@@ -99,7 +98,7 @@ function PaymentPanel({ auction, isLeader, onChanged }) {
 export default function AuctionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, depositPercent } = useAuth();
 
   const [auction, setAuction] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -143,7 +142,7 @@ export default function AuctionDetailPage() {
   const rarityMeta = RARITY_META[auction.rarity] || RARITY_META.CONSUMER;
   const suggestedStep = Math.round(currentPrice * 0.05); // aynan 5% — backend'dagi minRaisePercent bilan bir xil
   const nextRaiseAmount = currentPrice + suggestedStep;
-  const requiredDeposit = Math.round((nextRaiseAmount * DEPOSIT_PERCENT) / 100);
+  const requiredDeposit = Math.round((nextRaiseAmount * depositPercent) / 100);
   const isBiddingOpen = auction.status === 'ACTIVE' && new Date(auction.endsAt).getTime() > Date.now();
   const consecutiveBlocked = isLeader && auction.consecutiveRaises >= MAX_CONSECUTIVE;
   const statusMeta = AUCTION_STATUS_META[auction.status];
@@ -286,7 +285,7 @@ export default function AuctionDetailPage() {
           <div className="space-y-3 rounded-2xl border border-base-border p-4">
             <div className="flex items-center gap-1.5 text-[11px] text-ink-secondary">
               <Lock size={11} />
-              За каждую ставку с вашего баланса удерживается {DEPOSIT_PERCENT}% от цены в качестве залога.
+              За каждую ставку с вашего баланса удерживается {depositPercent}% от цены в качестве залога.
             </div>
 
             <button

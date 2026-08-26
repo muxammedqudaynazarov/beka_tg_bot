@@ -245,6 +245,9 @@ async function attemptPlaceBid({ auctionId, userId, mode, customAmount, raiseSte
       // tranzaksiya MUVAFFAQIYATLI yakunlangandan keyin, chaqiruvchi
       // marshrutda yuboriladi — DB tranzaksiyasi ichida tashqi tarmoq
       // so'rovi qilmaslik kerak).
+      // 4-band: bu auksionga qo'yilgan ENG BIRINCHI taklifmi — auction.currentLeaderId
+      // OLDIN (shu taklifdan avval) bo'sh bo'lsa, demak ha.
+      isFirstBid: !auction.currentLeaderId,
       outbidUserId: auction.currentLeaderId && !isSameLeader ? auction.currentLeaderId : null,
     };
   }, { isolationLevel: 'Serializable' });
