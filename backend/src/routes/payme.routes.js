@@ -20,6 +20,18 @@ const ERR = {
     jsonrpc: '2.0', id,
     error: { code: -31050, message: { ru: 'Заказ не найден', uz: "Buyurtma topilmadi", en: 'Order not found' }, data: 'order_id' },
   }),
+  // Payme hujjatlari talabi: buyurtma/hisob bilan bog'liq XATO turlari
+  // (topilmadi, allaqachon boshqa tranzaksiyaga bog'langan, holati mos
+  // emas) — BARCHASI -31050...-31099 oralig'ida bo'lishi SHART, umumiy
+  // -31008 (bu FAQAT tranzaksiya darajasidagi xatolar uchun) EMAS.
+  orderAlreadyHasTransaction: (id) => ({
+    jsonrpc: '2.0', id,
+    error: { code: -31051, message: { ru: 'По заказу уже создана другая транзакция', uz: "Buyurtma bo'yicha allaqachon boshqa tranzaksiya yaratilgan", en: 'Another transaction already exists for this order' }, data: 'order_id' },
+  }),
+  orderNotPending: (id) => ({
+    jsonrpc: '2.0', id,
+    error: { code: -31052, message: { ru: 'Заказ не находится в состоянии ожидания оплаты', uz: "Buyurtma to'lov kutish holatida emas", en: 'Order is not awaiting payment' }, data: 'order_id' },
+  }),
   invalidAmount: (id) => ({
     jsonrpc: '2.0', id,
     error: { code: -31001, message: { ru: 'Неверная сумма', uz: "Noto'g'ri summa", en: 'Invalid amount' }, data: 'amount' },
@@ -102,8 +114,8 @@ async function handleCreateTransaction(id, params) {
   const expectedTiyin = Math.round(Number(tx.amount) * 100);
   if (Number(params.amount) !== expectedTiyin) return ERR.invalidAmount(id);
 
-  if (tx.paymeTransId && tx.paymeTransId !== paymeId) return ERR.cantPerform(id);
-  if (tx.status !== 'PENDING') return ERR.cantPerform(id);
+  if (tx.paymeTransId && tx.paymeTransId !== paymeId) return ERR.orderAlreadyHasTransaction(id);
+  if (tx.status !== 'PENDING') return ERR.orderNotPending(id);
 
   const createTime = Date.now();
   await prisma.transaction.update({
