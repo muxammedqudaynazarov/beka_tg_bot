@@ -182,9 +182,9 @@ router.post('/auctions', async (req, res) => {
         lines.push(`💎 <b>Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум</b>`);
         lines.push(`⏰ <b>Завершение:</b> <code>${endsAt.toLocaleString('ru-RU')}</code>`);
         lines.push('');
-        lines.push('<i>🤩 Ставки открыты — забирайте скин, пока не забрали другие!</i>');
+        lines.push('<i>Ставки открыты — забирайте скин, пока не забрали другие!</i>');
         lines.push('');
-        lines.push('<i>📢 @CS2_auksion</i>');
+        lines.push('📢 <i>@CS2_auksion</i>');
 
         // web_app tugmasi KANALLARDA ishlamaydi (Telegram cheklovi) — shuning
         // uchun t.me/BOT/APPNAME?startapp=... deep-link ishlatiladi, bu esa
@@ -195,7 +195,7 @@ router.post('/auctions', async (req, res) => {
             replyMarkup = {
                 inline_keyboard: [[
                     {
-                        text: 'Перейти к лоту',
+                        text: 'Перейти к лоту 👉',
                         url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
                     },
                 ]],
@@ -307,16 +307,59 @@ router.patch('/auctions/:id/time', async (req, res) => {
 });
 
 router.post('/auctions/:id/cancel', async (req, res) => {
-    const auction = await prisma.auction.update({
-        where: {id: req.params.id},
-        data: {status: 'CANCELLED'},
+    const result = await prisma.$transaction(async (tx) => {
+        const auction = await tx.auction.update({
+            where: {id: req.params.id},
+            data: {status: 'CANCELLED'},
+        });
+
+        // MUHIM TUZATISH: avval bu yerda faqat auksion holati o'zgartirilar,
+        // lekin taklif bergan foydalanuvchining ZAKLADI (holdBalance) hech
+        // qachon qaytarilmasdi — pul "muzlab" qolib ketardi. Endi: agar shu
+        // auksionda hozircha g'olib turgan (isWinning) taklif bo'lsa, uning
+        // zakladi to'liq balansga qaytariladi.
+        let refunded = null;
+        if (auction.currentLeaderId) {
+            const winningBid = await tx.bid.findFirst({
+                where: {auctionId: auction.id, userId: auction.currentLeaderId, isWinning: true},
+                orderBy: {createdAt: 'desc'},
+            });
+            if (winningBid && Number(winningBid.holdAmount) > 0) {
+                await tx.user.update({
+                    where: {id: auction.currentLeaderId},
+                    data: {
+                        balance: {increment: winningBid.holdAmount},
+                        holdBalance: {decrement: winningBid.holdAmount},
+                    },
+                });
+                await tx.transaction.create({
+                    data: {
+                        userId: auction.currentLeaderId,
+                        auctionId: auction.id,
+                        type: 'BID_HOLD_RELEASE',
+                        status: 'SUCCESS',
+                        amount: winningBid.holdAmount,
+                        note: `Аукцион "${auction.skinName}" отменён администратором — залог возвращён.`,
+                    },
+                });
+                refunded = {userId: auction.currentLeaderId, amount: winningBid.holdAmount};
+            }
+        }
+
+        return {auction, refunded};
     });
-    // TODO: agar auksionda aktiv zaklad ushlab turgan foydalanuvchi bo'lsa,
-    // uning holdBalance'ini balansiga qaytarish kerak (bu yerda soddalik uchun
-    // qoldirilgan — production'da auctionService'ga "refundAllHolds(auctionId)"
-    // funksiyasi qo'shilishi tavsiya etiladi).
-    await logAction(req.user.id, 'AUCTION_CANCELLED', 'Auction', auction.id, {});
-    res.json(auction);
+
+    if (result.refunded) {
+        const user = await prisma.user.findUnique({where: {id: result.refunded.userId}});
+        await notifyText(
+            user?.telegramId,
+            `↩️ Аукцион "${result.auction.skinName}" был отменён администратором. ` +
+            `Ваш залог ${Number(result.refunded.amount).toLocaleString('ru-RU')} сум возвращён на баланс.`
+        );
+    }
+
+    await logAction(req.user.id, 'AUCTION_CANCELLED', 'Auction', result.auction.id, {refundedUserId: result.refunded?.userId || null});
+    res.json(result.auction);
 });
 
 // 8-band: to'liq to'lov qilingan (status=PAID) auksionni admin Steam Trade
