@@ -77,6 +77,24 @@ router.post('/spin', requireAuth, async (req, res) => {
     if (won.type === 'BOMB') {
       // Hech narsa berilmaydi
     } else if (won.type === 'SKIN') {
+      // Poyga holatidan (race condition) himoya: agar ikkita so'rov AYNAN
+      // BIR VAQTDA shu bitta skinni "yutib olsa", faqat BITTASI muvaffaqiyatli
+      // "band qilishi" (claim) kerak — buni SHARTLI (conditional) yangilash
+      // orqali ta'minlaymiz: faqat hali isActive=true bo'lsa o'zgartiramiz,
+      // va NECHTA qator o'zgargani (count) orqali kim g'olib bo'lganini bilamiz.
+      const claim = await prisma.wheelItem.updateMany({
+        where: { id: won.id, isActive: true },
+        data: { isActive: false },
+      });
+      if (claim.count === 0) {
+        // Boshqa so'rov bir necha millisekund oldinroq shu skinni allaqachon
+        // band qilib ulgurgan — juda kamdan-kam holat. Foydalanuvchiga
+        // to'g'ridan-to'g'ri qayta urinishni so'raymiz (spin sanog'i endi
+        // aylantirilgan hisoblanmasin uchun lastWheelSpinAt'ni qaytaramiz).
+        await prisma.user.update({ where: { id: req.user.id }, data: { lastWheelSpinAt: null } });
+        return res.status(409).json({ error: 'Этот приз только что был выигран другим пользователем. Попробуйте крутить ещё раз.' });
+      }
+
       const subcategoryId = await getWheelSubcategoryId();
       const auction = await prisma.auction.create({
         data: {

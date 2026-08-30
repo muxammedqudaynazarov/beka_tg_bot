@@ -107,8 +107,18 @@ function CreateForm({ onCreated }) {
 
 function ItemRow({ item, totalWeight, onChanged }) {
   const percentOfTotal = totalWeight > 0 ? ((item.weight / totalWeight) * 100).toFixed(1) : '0';
+  const isClaimedSkin = item.type === 'SKIN' && item.timesWon > 0;
 
   async function toggleActive() {
+    // Yutilgan skinni QAYTA yoqish — jismoniy nusxa allaqachon berilgan
+    // bo'lgani uchun juda xavfli (yana kimgadir "tushishi" mumkin, lekin
+    // uni hech kim ololmaydi). Shuning uchun bu holatda alohida tasdiqlash so'raladi.
+    if (isClaimedSkin && !item.isActive) {
+      const ok = await showConfirm(
+        `Внимание: этот скин УЖЕ был выигран (${item.timesWon} раз) — физическая копия, скорее всего, уже отдана. Включить его снова означает, что он может "выпасть" ещё раз, но реально отправить будет нечего. Всё равно включить?`
+      );
+      if (!ok) return;
+    }
     await api.patch(`/admin/wheel-items/${item.id}`, { isActive: !item.isActive });
     onChanged();
   }
@@ -120,7 +130,7 @@ function ItemRow({ item, totalWeight, onChanged }) {
   }
 
   return (
-    <div className="rounded-lg border border-border p-3">
+    <div className={`rounded-lg border p-3 ${isClaimedSkin ? 'border-warning/40 bg-warning/5' : 'border-border'}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-ink">{item.label}</p>
@@ -128,6 +138,11 @@ function ItemRow({ item, totalWeight, onChanged }) {
             {TYPE_OPTIONS.find((o) => o.v === item.type)?.l} · вес {item.weight}
             {item.isActive && ` (${percentOfTotal}% шанс)`}
           </p>
+          {isClaimedSkin && (
+            <p className="mt-0.5 text-[10px] font-semibold text-warning">
+              ⚠️ Уже выигран ({item.timesWon}×) — добавьте новый скин вместо этого
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button onClick={toggleActive} className={item.isActive ? 'text-success' : 'text-muted'}>

@@ -184,7 +184,6 @@ router.post('/auctions', async (req, res) => {
         lines.push('');
         lines.push('<i>Ставки открыты — забирайте скин, пока не забрали другие!</i>');
         lines.push('');
-
         lines.push('📢 <i>@CS2_auksion</i>');
 
         // web_app tugmasi KANALLARDA ishlamaydi (Telegram cheklovi) — shuning
