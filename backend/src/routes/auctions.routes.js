@@ -264,14 +264,38 @@ router.post('/:id/claim', requireAuth, async (req, res) => {
   }
 
   if (auction.steamAssetId) {
-    const { sendItemAutomatically } = require('../services/steamBotService');
+    const { sendItemAutomatically, validateTradeUrl } = require('../services/steamBotService');
+
+    // 2-band: item yuborishga urinishdan OLDIN, Trade URL'ni AYNIQSA
+    // tekshiramiz — agar Steam uni ANIQ "yaroqsiz" desa, foydalanuvchiga
+    // buni DARHOL, ANIQ aytamiz (jim tarzda "adminga yuborildi" deb
+    // qo'ymasdan) — chunki aynan shu sabab bilan yuborish
+    // muvaffaqiyatsiz bo'lishi eng ko'p uchraydigan holat.
+    const urlCheck = await validateTradeUrl(req.user.tradeUrl);
+    if (urlCheck.checked && !urlCheck.ok) {
+      return res.status(400).json({
+        error: `Не удалось отправить: ваш Trade URL недействителен в Steam (возможно, устарел). Обновите ссылку в разделе «Профиль» и попробуйте снова.`,
+      });
+    }
+
     const result = await sendItemAutomatically({ tradeUrl: req.user.tradeUrl, steamAssetId: auction.steamAssetId });
     if (result.ok) {
       await prisma.auction.update({ where: { id: auction.id }, data: { status: 'DELIVERED', deliveredAt: new Date() } });
       return res.json({ status: 'DELIVERED', message: 'Скин отправлен! Проверьте предложения обмена в Steam.' });
     }
-    // Avtomatik urinish muvaffaqiyatsiz bo'lsa ham, so'rovni adminlarga
-    // yuboramiz — pastdagi umumiy yo'lga tushamiz.
+
+    // Avtomatik urinish muvaffaqiyatsiz bo'ldi — SABABINI ochiq aytamiz,
+    // keyin ham (zaxira sifatida) adminga xabar yuboramiz.
+    console.warn(`[claim] Avtomatik yuborish muvaffaqiyatsiz (auction=${auction.id}, user=${req.user.id}):`, result.reason);
+    await notifyAllAdmins(
+      `📬 @${req.user.username || req.user.firstName || req.user.id} "${auction.skinName}" skinini hoziroq Steam'ga chiqarishni so'ramoqda.\n` +
+        `Avtomatik yuborish muvaffaqiyatsiz bo'ldi: ${result.reason}\n` +
+        `Admin panel > Auksionlar bo'limidan qo'lda yuboring.`
+    );
+    return res.json({
+      status: 'REQUESTED',
+      message: `Автоматическая отправка не удалась (${result.reason || 'причина неизвестна'}). Запрос передан администратору — скин будет отправлен вручную в ближайшее время.`,
+    });
   }
 
   await notifyAllAdmins(
