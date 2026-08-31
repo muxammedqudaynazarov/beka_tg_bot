@@ -44,7 +44,7 @@ router.post('/telegram', async (req, res) => {
   // har 3-ochilishda bir marta popup-reklama ko'rsatiladi.
   const updatedUser = await prisma.user.update({
     where: { id: user.id },
-    data: { appOpenCount: { increment: 1 } },
+    data: { appOpenCount: { increment: 1 }, lastActiveAt: new Date() },
   });
   // 2-band: chastota endi admin tomonidan sozlanadi (1/1..1/5), qattiq
   // yozilgan "3" o'rniga Advertisement.popupFrequency'dan o'qiladi.

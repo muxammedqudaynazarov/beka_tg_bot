@@ -14,6 +14,21 @@ function userLabel(user) {
   return user.username ? `@${user.username}` : String(user.telegramId);
 }
 
+// 2-band: "real" foydalanuvchilarni aniqlash uchun — oxirgi faollik
+// vaqtini o'qish oson, nisbiy shaklda ko'rsatish.
+function formatLastActive(dateStr) {
+  if (!dateStr) return { text: 'Никогда не открывал', tone: 'text-danger' };
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return { text: 'Только что', tone: 'text-success' };
+  if (min < 60) return { text: `${min} мин назад`, tone: 'text-success' };
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return { text: `${hours} ч назад`, tone: 'text-success' };
+  const days = Math.floor(hours / 24);
+  if (days < 7) return { text: `${days} дн назад`, tone: 'text-warning' };
+  return { text: `${days} дн назад`, tone: 'text-muted' };
+}
+
 function RecordSaleForm({ userId, onDone }) {
   const [itemName, setItemName] = useState('');
   const [amount, setAmount] = useState('');
@@ -168,6 +183,7 @@ function UserCard({ user, onChanged, autoExpand }) {
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [showBanForm, setShowBanForm] = useState(false);
   const [showDiscountForm, setShowDiscountForm] = useState(false);
+  const lastActive = formatLastActive(user.lastActiveAt);
 
   async function loadDetail() {
     const { data } = await api.get(`/admin/users/${user.id}`);
@@ -225,6 +241,7 @@ function UserCard({ user, onChanged, autoExpand }) {
             {userLabel(user)} {user.firstName && <span className="font-normal text-muted">· {user.firstName}</span>}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
+          <p className={`text-[10px] font-medium ${lastActive.tone}`}>🕐 {lastActive.text}</p>
           {/* 3-band: Telegram ID endi HAR DOIM ko'rinadi, accordion'ni ochish shart emas */}
           <button onClick={copyId} className="mt-1 flex items-center gap-1 font-mono text-[10px] text-accent">
             <Copy size={10} /> ID: {String(user.telegramId)}

@@ -38,6 +38,10 @@ model User {
   // 10/11-band: "ilovani ochganda chiqadigan" reklama har 3 ochishda bir
   // marta ko'rsatilishi uchun hisoblagich (auth/profil so'rovida oshiriladi)
   appOpenCount  Int      @default(0)
+  // 2-band: foydalanuvchi haqiqatan botni oxirgi marta qachon ochgani —
+  // "real" (faol) foydalanuvchilarni aniqlash uchun. Yangi, ixtiyoriy
+  // (nullable) maydon — mavjud ma'lumotlarga hech qanday ta'sir qilmaydi.
+  lastActiveAt  DateTime?
   // 4-band: FIRST_DEPOSIT_BONUS promo-kodi faqat shu bayroq false bo'lgan
   // foydalanuvchilar uchun ishlaydi. Birinchi muvaffaqiyatli TOPUP'da true bo'ladi.
   hasEverDeposited Boolean @default(false)

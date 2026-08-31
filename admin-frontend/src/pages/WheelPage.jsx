@@ -167,6 +167,23 @@ export default function WheelPage() {
 
   return (
     <div className="space-y-4">
+      {data?.stats24h && (
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-lg bg-surface p-3 text-center">
+            <p className="font-mono text-lg font-bold text-ink">{data.stats24h.totalUsers}</p>
+            <p className="text-[10px] text-muted">Пользователи</p>
+          </div>
+          <div className="rounded-lg bg-surface p-3 text-center">
+            <p className="font-mono text-lg font-bold text-accent">{data.stats24h.uniqueSpinners}</p>
+            <p className="text-[10px] text-muted">Крутили (24ч)</p>
+          </div>
+          <div className="rounded-lg bg-surface p-3 text-center">
+            <p className="font-mono text-lg font-bold text-success">{data.stats24h.spinPercent}%</p>
+            <p className="text-[10px] text-muted">Активность</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/5 p-3 text-[11px] text-muted">
         <Dices size={14} className="mt-0.5 shrink-0 text-accent" />
         Пользователи крутят барабан раз в 24 часа. Промокоды на пополнение/скидку/сумму активируются пользователем

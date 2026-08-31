@@ -182,8 +182,10 @@ router.post('/auctions', async (req, res) => {
         lines.push(`💎 <b>Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум</b>`);
         lines.push(`⏰ <b>Завершение:</b> <code>${endsAt.toLocaleString('ru-RU')}</code>`);
         lines.push('');
+
         lines.push('<i>Ставки открыты — забирайте скин, пока не забрали другие!</i>');
         lines.push('');
+
         lines.push('📢 <i>@CS2_auksion</i>');
 
         // web_app tugmasi KANALLARDA ishlamaydi (Telegram cheklovi) — shuning

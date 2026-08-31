@@ -12,16 +12,16 @@ import MediaPage from './pages/MediaPage';
 import WheelPage from './pages/WheelPage';
 
 const TABS = [
-  { key: 'new', label: 'Новый аукцион' },
   { key: 'auctions', label: 'Аукционы' },
+  { key: 'new', label: 'Новый аукцион' },
   { key: 'categories', label: 'Категории' },
   { key: 'users', label: 'Пользователи' },
-  { key: 'broadcast', label: 'Рассылка' },
   { key: 'analytics', label: 'Аналитика' },
   { key: 'ads', label: 'Реклама' },
+  { key: 'wheel', label: 'Барабан' },
   { key: 'promo', label: 'Промокоды' },
   { key: 'media', label: 'Медиа' },
-  { key: 'wheel', label: 'Барабан' },
+  { key: 'broadcast', label: 'Рассылка' },
 ];
 
 function Shell() {
