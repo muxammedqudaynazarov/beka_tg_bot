@@ -182,10 +182,8 @@ router.post('/auctions', async (req, res) => {
         lines.push(`💎 <b>Стартовая цена: ${Number(startPrice).toLocaleString('ru-RU')} сум</b>`);
         lines.push(`⏰ <b>Завершение:</b> <code>${endsAt.toLocaleString('ru-RU')}</code>`);
         lines.push('');
-
         lines.push('<i>Ставки открыты — забирайте скин, пока не забрали другие!</i>');
         lines.push('');
-
         lines.push('📢 <i>@CS2_auksion</i>');
 
         // web_app tugmasi KANALLARDA ishlamaydi (Telegram cheklovi) — shuning
@@ -575,11 +573,15 @@ router.get('/users', async (req, res) => {
         : {};
     const users = await prisma.user.findMany({
         where,
-        orderBy: {createdAt: 'desc'},
+        // 2-band: "real" (haqiqatan faol) foydalanuvchilarni aniqlash uchun —
+        // eng oxirgi ochganlar birinchi, hech qachon ochmaganlar (lastActiveAt
+        // = NULL) esa MySQL'ning standart xatti-harakati bo'yicha ro'yxat
+        // oxirida qoladi.
+        orderBy: {lastActiveAt: 'desc'},
         take: 30,
         select: {
             id: true, telegramId: true, username: true, firstName: true, lastName: true, role: true,
-            balance: true, isBanned: true, createdAt: true,
+            balance: true, isBanned: true, createdAt: true, lastActiveAt: true,
             _count: {select: {soldItems: true}},
         },
     });
@@ -879,7 +881,28 @@ router.delete('/ads/:slot', async (req, res) => {
 router.get('/wheel-items', async (req, res) => {
     const items = await prisma.wheelItem.findMany({orderBy: {createdAt: 'asc'}});
     const totalWeight = items.filter((i) => i.isActive).reduce((s, i) => s + i.weight, 0);
-    res.json({items, totalWeight});
+    // Admin "qo'lda o'chirilgan" va "yutilgani sabab avtomatik o'chirilgan"
+    // elementlarni farqlay olishi uchun — har biri necha marta yutilganini
+    // ham qo'shib beramiz (SKIN uchun bu >0 bo'lsa, qayta yoqmaslik kerak).
+    const spinCounts = await prisma.wheelSpin.groupBy({by: ['wheelItemId'], _count: true});
+    const countMap = Object.fromEntries(spinCounts.map((s) => [s.wheelItemId, s._count]));
+    const itemsWithCounts = items.map((i) => ({...i, timesWon: countMap[i.id] || 0}));
+
+    // 3-band: so'nggi 24 soatda barabanni aylantirganlar statistikasi —
+    // "real" foydalanuvchi faolligini ko'rsatish uchun.
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [totalUsers, spins24h] = await Promise.all([
+        prisma.user.count(),
+        prisma.wheelSpin.findMany({where: {createdAt: {gte: since24h}}, select: {userId: true}}),
+    ]);
+    const uniqueSpinners24h = new Set(spins24h.map((s) => s.userId)).size;
+    const spinPercent = totalUsers > 0 ? Math.round((uniqueSpinners24h / totalUsers) * 100) : 0;
+
+    res.json({
+        items: itemsWithCounts,
+        totalWeight,
+        stats24h: {totalUsers, uniqueSpinners: uniqueSpinners24h, spinPercent, totalSpins: spins24h.length},
+    });
 });
 
 router.post('/wheel-items', async (req, res) => {
