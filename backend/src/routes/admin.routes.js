@@ -205,6 +205,7 @@ router.post('/auctions', async (req, res) => {
             ...(replyMarkup ? {reply_markup: replyMarkup} : {}),
         });
     }
+
     res.status(201).json(auction);
 });
 
@@ -709,6 +710,8 @@ router.get('/promo-codes', async (req, res) => {
     const items = visible.map((p) => ({
         ...p,
         redemptions: undefined, // xom ma'lumotni frontendga yubormaslik uchun
+        // BigInt JSON'ga avtomatik aylantirilmaydi — String'ga o'tkazamiz
+        referralTelegramId: p.referralTelegramId ? String(p.referralTelegramId) : null,
         wonByUser: p.restrictedToUserId ? userMap[p.restrictedToUserId] || null : null,
         depositStats: depositStats[p.id] || null,
     }));
