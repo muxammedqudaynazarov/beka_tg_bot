@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Send, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { api } from '../api';
+import { formatDate } from '../constants';
 import { showAlert, showConfirm } from '../telegram';
 import TelegramRichTextEditor from '../components/TelegramRichTextEditor';
 
@@ -91,7 +92,7 @@ export default function BroadcastPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-ink line-clamp-2">{b.message.replace(/<[^>]+>/g, '')}</p>
                   <p className="mt-1 text-[10px] text-muted">
-                    {new Date(b.createdAt).toLocaleString('ru-RU')} · {b.admin?.firstName || b.admin?.username} ·{' '}
+                    {formatDate(b.createdAt)} · {b.admin?.firstName || b.admin?.username} ·{' '}
                     {b.sentCount + b.failedCount > 0
                       ? `✅ ${b.sentCount} · ❌ ${b.failedCount}`
                       : 'отправляется…'}

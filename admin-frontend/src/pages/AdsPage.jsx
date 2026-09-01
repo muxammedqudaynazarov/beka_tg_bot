@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Image as ImageIcon, Eye, MousePointerClick, Save, Trash2, Clock } from 'lucide-react';
 import { api } from '../api';
+import { formatDate } from '../constants';
 import { showAlert, showConfirm } from '../telegram';
 
 const SLOT_INFO = {
@@ -100,7 +101,7 @@ function AdSlotCard({ slot, ad, onSaved }) {
           />
           {ad?.expiresAt && (
             <span className="mt-0.5 block text-[10px] text-muted">
-              Истекает: {new Date(ad.expiresAt).toLocaleString('ru-RU')}
+              Истекает: {formatDate(ad.expiresAt)}
             </span>
           )}
         </label>

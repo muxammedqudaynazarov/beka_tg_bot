@@ -156,7 +156,17 @@ function PromoRow({ promo, onChanged }) {
           <p className="mt-0.5 text-[10px] text-muted">
             Активаций: {promo.redemptionCount}{promo.maxRedemptions ? ` / ${promo.maxRedemptions}` : ''}
           </p>
-          {/* 3-band: Барабан orqali yutilgan bo'lsa — kimga tegishli ekani ko'rsatiladi */}
+          {/* 1-band: depozit bonus promo-kodlari uchun — haqiqiy
+              aktivlashtirilgan va shu orqali tushgan depozit summasi */}
+          {promo.depositStats && (promo.type === 'FIRST_DEPOSIT_BONUS' || promo.type === 'NEXT_DEPOSIT_BONUS') && (
+            <div className="mt-1.5 rounded-md bg-surface px-2 py-1.5">
+              <p className="text-[10px] text-muted">
+                Активации: <span className="font-semibold text-ink">{promo.depositStats.activations}</span>
+                {' · '}
+                Общая сумма: <span className="font-semibold text-success">{formatSom(promo.depositStats.totalAmount)}</span>
+              </p>
+            </div>
+          )}
           {promo.wonByUser && (
             <p className="mt-0.5 flex items-center gap-1 text-[10px] text-accent">
               🎲 Выигрыш барабана · {promo.wonByUser.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser.telegramId)}

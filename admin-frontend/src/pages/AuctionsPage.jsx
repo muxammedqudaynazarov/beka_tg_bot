@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { showAlert } from '../telegram';
-import { formatSom } from '../constants';
+import { formatSom, formatDate } from '../constants';
 import AuctionForm from '../components/AuctionForm';
 
 function ActiveAuctionRow({ auction, onChanged }) {
@@ -48,7 +48,7 @@ function ActiveAuctionRow({ auction, onChanged }) {
         <div>
           <p className="text-sm font-medium text-ink">{auction.skinName}</p>
           <p className="mt-0.5 text-xs text-muted">
-            Текущая цена: {formatSom(auction.currentPrice)} · Окончание: {new Date(auction.endsAt).toLocaleString('ru-RU')}
+            Текущая цена: {formatSom(auction.currentPrice)} · Окончание: {formatDate(auction.endsAt)}
           </p>
         </div>
         {!hasBids && !editing && (

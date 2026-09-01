@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../db/prisma');
 const {requireAuth, requireRole} = require('../middleware/auth');
-const {notifyText, notifyPhoto} = require('../services/notifier');
+const {notifyText, notifyPhoto, notifyChannel} = require('../services/notifier');
 const {env} = require('../config/env');
 
 const router = express.Router();
@@ -641,18 +641,24 @@ router.delete('/discounts/:id', async (req, res) => {
 // ===========================================================================
 router.get('/promo-codes', async (req, res) => {
     const now = Date.now();
-    const all = await prisma.promoCode.findMany({orderBy: {createdAt: 'desc'}, take: 200});
+    const all = await prisma.promoCode.findMany({
+        orderBy: {createdAt: 'desc'},
+        take: 200,
+        include: {
+            redemptions: {
+                where: {status: 'CONSUMED'},
+                select: {userId: true, consumedAt: true, createdAt: true},
+            },
+        },
+    });
 
-    // 3-band: ishlatilgan (limit to'lgan) yoki muddati o'tgan kodlar
-    // ro'yxatda ko'rsatilmaydi (ular allaqachon o'z vazifasini bajargan).
     const visible = all.filter((p) => {
         const usedUp = p.maxRedemptions !== null && p.redemptionCount >= p.maxRedemptions;
         const expired = p.expiresAt && p.expiresAt.getTime() < now;
         return !usedUp && !expired;
     });
 
-    // Барабан orqali yutilgan (restrictedToUserId bor) kodlar uchun, egasi
-    // (foydalanuvchi)ni ham qo'shib beramiz — admin kimga tegishli ekanini ko'rishi uchun.
+    // Барабан yutilgan kodlar egasini aniqlash uchun
     const userIds = [...new Set(visible.filter((p) => p.restrictedToUserId).map((p) => p.restrictedToUserId))];
     const users = userIds.length
         ? await prisma.user.findMany({
@@ -662,9 +668,52 @@ router.get('/promo-codes', async (req, res) => {
         : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
+    // 1-band: FIRST_DEPOSIT_BONUS / NEXT_DEPOSIT_BONUS uchun — shu promo-kod
+    // orqali amalga oshgan haqiqiy depozitlar summasi. Mantiq: promo-kod
+    // aktivlashtirilgandan keyin (createdAt) va bonus berilganda (consumedAt)
+    // o'rtasida yuzaga kelgan eng birinchi muvaffaqiyatli TOPUP topiladi.
+    // Ko'rsatiladigan summa — foydalanuvchi kiritgan asosiy summa (bonus
+    // qo'shilmasidan oldin), ya'ni to'lov to'liq o'tganidan keyin hisoblangan.
+    const depositTypeIds = visible
+        .filter((p) => p.type === 'FIRST_DEPOSIT_BONUS' || p.type === 'NEXT_DEPOSIT_BONUS')
+        .map((p) => p.id);
+
+    const depositStats = {};
+    if (depositTypeIds.length) {
+        // Har bir promo-kod uchun yutilgan redemption'larni ko'rib chiqamiz
+        const relevantCodes = visible.filter((p) => depositTypeIds.includes(p.id));
+        for (const promo of relevantCodes) {
+            let totalAmount = 0;
+            let activations = 0;
+            for (const r of promo.redemptions) {
+                // Shu foydalanuvchining redemption yaratilgan va bekor qilingan
+                // vaqt oralig'idagi birinchi muvaffaqiyatli TOPUP tranzaksiyasini topamiz
+                const tx = await prisma.transaction.findFirst({
+                    where: {
+                        userId: r.userId,
+                        type: 'TOPUP',
+                        status: 'SUCCESS',
+                        createdAt: {
+                            gte: r.createdAt,
+                            ...(r.consumedAt ? {lte: r.consumedAt} : {}),
+                        },
+                    },
+                    orderBy: {createdAt: 'asc'},
+                });
+                if (tx) {
+                    totalAmount += Number(tx.amount);
+                    activations += 1;
+                }
+            }
+            depositStats[promo.id] = {activations, totalAmount};
+        }
+    }
+
     const items = visible.map((p) => ({
         ...p,
+        redemptions: undefined, // xom ma'lumotni frontendga yubormaslik uchun
         wonByUser: p.restrictedToUserId ? userMap[p.restrictedToUserId] || null : null,
+        depositStats: depositStats[p.id] || null,
     }));
 
     res.json({items});

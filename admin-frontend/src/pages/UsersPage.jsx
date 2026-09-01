@@ -1,11 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
+import { formatDate, formatDateOnly, formatTimeOnly, formatSom } from '../constants';
 import { Search, Plus, CheckCircle2, Clock3, X, RefreshCw, Ban, ShieldOff, Trash2, Copy, MessageCircle, Gift } from 'lucide-react';
 import { api } from '../api';
 import { showAlert, showConfirm } from '../telegram';
-
-function formatSom(n) {
-  return `${Number(n || 0).toLocaleString('ru-RU')} сум`;
-}
 
 // 3-band: adashtirib qo'ymaslik uchun — @username bo'lsa shu, bo'lmasa
 // aniq Telegram ID (masalan "6556522") ko'rsatiladi, hech qachon faqat
@@ -343,7 +340,7 @@ function UserCard({ user, onChanged, autoExpand }) {
                 <div key={s.id} className="flex items-center justify-between rounded-md bg-surface px-2.5 py-1.5 text-xs">
                   <div>
                     <p className="text-ink">{s.itemName}</p>
-                    <p className="text-[10px] text-muted">{new Date(s.createdAt).toLocaleDateString('ru-RU')}</p>
+                    <p className="text-[10px] text-muted">{formatDateOnly(s.createdAt)}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono font-bold text-ink">{formatSom(s.agreedAmount)}</span>
@@ -510,7 +507,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-[10px] text-muted">
-          {lastUpdated ? `Обновлено: ${lastUpdated.toLocaleTimeString('ru-RU')}` : ''}
+          {lastUpdated ? `Обновлено: ${formatTimeOnly(lastUpdated)}` : ''}
         </p>
         <button
           onClick={refreshAll}
