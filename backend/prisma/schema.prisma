@@ -463,6 +463,14 @@ model PromoCode {
   // Промокод bo'limida "baraban orqali yutib olingan" deb ko'rsatish uchun
   wonViaWheel         Boolean  @default(false)
 
+  // Referral (affiliate) tizimi: admin promokod yaratishda biriktirilgan
+  // foydalanuvchining Telegram ID'sini va foizini ko'rsatadi. Kimdir shu
+  // kodni ishlatib birinchi to'lovini qilsa — biriktirilgan foydalanuvchi
+  // to'ldirilgan summaning referralPercent % ini bonus sifatida oladi.
+  // Faqat FIRST_DEPOSIT_BONUS uchun ishlaydi (marketing/affiliate maqsadi).
+  referralTelegramId  BigInt?   // bonus oluvchi (masalan Aybek) ning Telegram ID'si
+  referralPercent     Decimal?  @db.Decimal(5, 2) // to'ldirgan summaning necha %
+
   redemptions PromoCodeRedemption[]
 }
 

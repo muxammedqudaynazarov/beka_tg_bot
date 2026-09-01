@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../db/prisma');
 const {requireAuth, requireRole} = require('../middleware/auth');
-const {notifyText, notifyPhoto, notifyChannel} = require('../services/notifier');
+const {notifyText, notifyPhoto} = require('../services/notifier');
 const {env} = require('../config/env');
 
 const router = express.Router();
@@ -168,7 +168,6 @@ router.post('/auctions', async (req, res) => {
     // sozlangan bo'lsa) "Перейти к лоту" tugmasi bilan.
     if (env.announceChannelId) {
         const {notifyChannel} = require('../services/notifier');
-
         const lines = [`⚡️ <b>${skinName}</b>`, ''];
         lines.push(`<i>Редкость: ${RARITY_LABELS[rarity] || rarity}</i>`);
         if (wearCondition) lines.push(`<i>Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}</i>`);
@@ -201,13 +200,11 @@ router.post('/auctions', async (req, res) => {
                 ]],
             };
         }
-
         await notifyChannel(env.announceChannelId, imageUrl, lines.join('\n'), {
             parse_mode: 'HTML',
             ...(replyMarkup ? {reply_markup: replyMarkup} : {}),
         });
     }
-
     res.status(201).json(auction);
 });
 
@@ -720,7 +717,17 @@ router.get('/promo-codes', async (req, res) => {
 });
 
 router.post('/promo-codes', async (req, res) => {
-    const {code, type, discountPercent, discountUses, topupAmount, bonusPercent, maxRedemptions} = req.body || {};
+    const {
+        code,
+        type,
+        discountPercent,
+        discountUses,
+        topupAmount,
+        bonusPercent,
+        maxRedemptions,
+        referralTelegramId,
+        referralPercent
+    } = req.body || {};
     const cleanCode = String(code || '').trim().toUpperCase();
     if (!cleanCode) return res.status(400).json({error: 'Введите код.'});
     if (!['DISCOUNT', 'BALANCE_TOPUP', 'FIRST_DEPOSIT_BONUS'].includes(type)) {
@@ -749,11 +756,30 @@ router.post('/promo-codes', async (req, res) => {
         const b = Number(bonusPercent);
         if (!Number.isFinite(b) || b <= 0 || b > 100) return res.status(400).json({error: 'Укажите корректный процент бонуса.'});
         data.bonusPercent = b;
+
+        // Referral (affiliate): ixtiyoriy — faqat ikkala maydon birgalikda
+        // to'ldirilganda qo'shiladi, biri bo'lmasa ikkalasi ham saqlanmaydi.
+        if (referralTelegramId && referralPercent) {
+            const rId = BigInt(String(referralTelegramId).trim());
+            const rPct = Number(referralPercent);
+            if (!Number.isFinite(rPct) || rPct <= 0 || rPct > 100) {
+                return res.status(400).json({error: 'Укажите корректный реферальный процент (1–100).'});
+            }
+            // Biriktirilgan foydalanuvchi haqiqatan mavjudligini tekshiramiz
+            const referrer = await prisma.user.findUnique({where: {telegramId: rId}});
+            if (!referrer) return res.status(404).json({error: `Пользователь с Telegram ID ${rId} не найден. Убедитесь, что он хотя бы один раз открыл бота.`});
+            data.referralTelegramId = rId;
+            data.referralPercent = rPct;
+        }
     }
 
     try {
         const promo = await prisma.promoCode.create({data});
-        await logAction(req.user.id, 'PROMO_CREATED', 'PromoCode', promo.id, {code: cleanCode, type});
+        await logAction(req.user.id, 'PROMO_CREATED', 'PromoCode', promo.id, {
+            code: cleanCode,
+            type,
+            hasReferral: !!data.referralTelegramId
+        });
         res.status(201).json(promo);
     } catch (err) {
         if (err.code === 'P2002') return res.status(409).json({error: 'Такой код уже существует.'});

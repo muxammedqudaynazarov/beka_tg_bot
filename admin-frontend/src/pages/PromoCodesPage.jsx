@@ -22,6 +22,8 @@ function CreateForm({onCreated}) {
     const [topupAmount, setTopupAmount] = useState('');
     const [bonusPercent, setBonusPercent] = useState('');
     const [maxRedemptions, setMaxRedemptions] = useState('');
+    const [referralTelegramId, setReferralTelegramId] = useState('');
+    const [referralPercent, setReferralPercent] = useState('');
     const [saving, setSaving] = useState(false);
 
     async function submit() {
@@ -36,6 +38,8 @@ function CreateForm({onCreated}) {
                 topupAmount: type === 'BALANCE_TOPUP' ? Number(topupAmount) : undefined,
                 bonusPercent: type === 'FIRST_DEPOSIT_BONUS' ? Number(bonusPercent) : undefined,
                 maxRedemptions: maxRedemptions ? Number(maxRedemptions) : undefined,
+                referralTelegramId: type === 'FIRST_DEPOSIT_BONUS' && referralTelegramId ? referralTelegramId : undefined,
+                referralPercent: type === 'FIRST_DEPOSIT_BONUS' && referralPercent ? Number(referralPercent) : undefined,
             });
             showAlert('✅ Промо-код создан.');
             setCode('');
@@ -43,6 +47,8 @@ function CreateForm({onCreated}) {
             setTopupAmount('');
             setBonusPercent('');
             setMaxRedemptions('');
+            setReferralTelegramId('');
+            setReferralPercent('');
             onCreated();
         } catch (err) {
             showAlert(err.response?.data?.error || 'Произошла ошибка.');
@@ -51,19 +57,17 @@ function CreateForm({onCreated}) {
         }
     }
 
+    const inputCls = 'w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none';
+
     return (
         <div className="space-y-2 rounded-lg border border-accent/30 bg-accent/5 p-3">
             <input
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="КОД (например SUMMER2026)"
-                className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs uppercase text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+                placeholder="КОД (например AYBEK2026)"
+                className={inputCls + ' uppercase'}
             />
-            <select
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
-            >
+            <select value={type} onChange={(e) => setType(e.target.value)} className={inputCls}>
                 <option value="DISCOUNT">Скидка на лот</option>
                 <option value="BALANCE_TOPUP">Пополнение баланса (фикс. сумма)</option>
                 <option value="FIRST_DEPOSIT_BONUS">Бонус +% на первое пополнение</option>
@@ -71,48 +75,38 @@ function CreateForm({onCreated}) {
 
             {type === 'DISCOUNT' && (
                 <div className="flex gap-2">
-                    <input
-                        type="number" min="1" max="100"
-                        value={discountPercent}
-                        onChange={(e) => setDiscountPercent(e.target.value)}
-                        placeholder="Скидка, %"
-                        className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-                    />
-                    <input
-                        type="number" min="1"
-                        value={discountUses}
-                        onChange={(e) => setDiscountUses(e.target.value)}
-                        placeholder="Использований"
-                        className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-                    />
+                    <input type="number" min="1" max="100" value={discountPercent}
+                           onChange={(e) => setDiscountPercent(e.target.value)} placeholder="Скидка, %"
+                           className={inputCls}/>
+                    <input type="number" min="1" value={discountUses} onChange={(e) => setDiscountUses(e.target.value)}
+                           placeholder="Использований" className={inputCls}/>
                 </div>
             )}
             {type === 'BALANCE_TOPUP' && (
-                <input
-                    type="number" min="1"
-                    value={topupAmount}
-                    onChange={(e) => setTopupAmount(e.target.value)}
-                    placeholder="Сумма пополнения (сум)"
-                    className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-                />
+                <input type="number" min="1" value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)}
+                       placeholder="Сумма пополнения (сум)" className={inputCls}/>
             )}
-            {type === 'FIRST_DEPOSIT_BONUS' && (
-                <input
-                    type="number" min="1" max="100"
-                    value={bonusPercent}
-                    onChange={(e) => setBonusPercent(e.target.value)}
-                    placeholder="Бонус, % от суммы первого пополнения"
-                    className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-                />
-            )}
+            {type === 'FIRST_DEPOSIT_BONUS' && (<>
+                <input type="number" min="1" max="100" value={bonusPercent}
+                       onChange={(e) => setBonusPercent(e.target.value)}
+                       placeholder="Бонус пользователю, % от суммы первого пополнения" className={inputCls}/>
+                <div className="rounded-md border border-accent/20 bg-accent/5 p-2 space-y-1.5">
+                    <p className="text-[10px] font-semibold text-accent">💰 Реферал (необязательно)</p>
+                    <p className="text-[10px] text-muted">Укажите Telegram ID рекламщика (Айбека) и его долю. Когда
+                        кто-то активирует этот код и пополнит баланс — рекламщик автоматически получит свой процент.</p>
+                    <div className="flex gap-2">
+                        <input type="number" value={referralTelegramId}
+                               onChange={(e) => setReferralTelegramId(e.target.value)}
+                               placeholder="Telegram ID рекламщика" className={inputCls}/>
+                        <input type="number" min="1" max="100" value={referralPercent}
+                               onChange={(e) => setReferralPercent(e.target.value)} placeholder="Его доля, %"
+                               className="w-32 shrink-0 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"/>
+                    </div>
+                </div>
+            </>)}
 
-            <input
-                type="number" min="1"
-                value={maxRedemptions}
-                onChange={(e) => setMaxRedemptions(e.target.value)}
-                placeholder="Лимит активаций всего (пусто = без лимита)"
-                className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-muted focus:border-accent focus:outline-none"
-            />
+            <input type="number" min="1" value={maxRedemptions} onChange={(e) => setMaxRedemptions(e.target.value)}
+                   placeholder="Лимит активаций (пусто = без лимита)" className={inputCls}/>
 
             <button onClick={submit} disabled={saving}
                     className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent py-1.5 text-xs font-semibold text-white disabled:opacity-50">
@@ -147,10 +141,7 @@ function PromoRow({promo, onChanged}) {
     if (promo.type === 'DISCOUNT') detail = `${Number(promo.discountPercent)}% × ${promo.discountUses} исп.`;
     if (promo.type === 'BALANCE_TOPUP') detail = formatSom(promo.topupAmount);
     if (promo.type === 'FIRST_DEPOSIT_BONUS') detail = `+${Number(promo.bonusPercent)}% на первый депозит`;
-    if (promo.type === 'NEXT_DEPOSIT_BONUS') {
-        detail = `+${Number(promo.bonusPercent)}% на ближайшее пополнение (` +
-            (promo.wonByUser?.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser?.telegramId)) + `)`;
-    }
+    if (promo.type === 'NEXT_DEPOSIT_BONUS') detail = `+${Number(promo.bonusPercent)}% на ближайшее пополнение`;
 
     return (
         <div className="rounded-lg border border-border p-3">
@@ -162,8 +153,21 @@ function PromoRow({promo, onChanged}) {
                         Активаций: {promo.redemptionCount}{promo.maxRedemptions ? ` / ${promo.maxRedemptions}` : ''}
                     </p>
                     {promo.depositStats && (promo.type === 'FIRST_DEPOSIT_BONUS' || promo.type === 'NEXT_DEPOSIT_BONUS') && (
-                        <p className="mt-0.5 text-[10px] text-muted">
-                            Общая сумма: {formatSom(promo.depositStats.totalAmount)}
+                        <p className="text-[10px] text-muted">
+                            Общая сумма: <span
+                            className="font-semibold text-success">{formatSom(promo.depositStats.totalAmount)}</span>
+                        </p>
+                    )}
+                    {promo.wonByUser && (
+                        <p className="mt-0.5 flex items-center gap-1 text-[10px] text-accent">
+                            🎲 Выигрыш барабана
+                            · {promo.wonByUser.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser.telegramId)}
+                        </p>
+                    )}
+                    {promo.referralTelegramId && (
+                        <p className="mt-0.5 text-[10px] text-warning">
+                            💰 Реферал: Telegram ID {String(promo.referralTelegramId)} · {Number(promo.referralPercent)}%
+                            от каждого пополнения
                         </p>
                     )}
                 </div>

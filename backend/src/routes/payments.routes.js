@@ -69,6 +69,51 @@ async function markTransactionPaid(tx) {
       ? `✅ Баланс пополнен на ${Number(tx.amount).toLocaleString('ru-RU')} сум + бонус ${bonusAmount.toLocaleString('ru-RU')} сум (промо-код) = ${(Number(tx.amount) + bonusAmount).toLocaleString('ru-RU')} сум!`
       : `✅ Баланс пополнен на ${Number(tx.amount).toLocaleString('ru-RU')} сум.`
   );
+
+  // Referral (affiliate) tizimi: agar bu FIRST_DEPOSIT_BONUS kodi bo'lsa va
+  // unda biriktirilgan foydalanuvchi (referralTelegramId) ko'rsatilgan bo'lsa —
+  // o'sha foydalanuvchiga to'ldirilgan summaning referralPercent % bonusi
+  // AVTOMATIK qo'shiladi. Bu — marketing uchun: Aybek o'z promo-kodini
+  // tarqatadi, uning orqali kim to'ldirsa, Aybek ham ulushini oladi.
+  if (
+    activeRedemption &&
+    activeRedemption.promoCode.type === 'FIRST_DEPOSIT_BONUS' &&
+    activeRedemption.promoCode.referralTelegramId &&
+    activeRedemption.promoCode.referralPercent
+  ) {
+    try {
+      const referrer = await prisma.user.findUnique({
+        where: { telegramId: activeRedemption.promoCode.referralTelegramId },
+      });
+      if (referrer) {
+        const referralBonus = Math.round(
+          (Number(tx.amount) * Number(activeRedemption.promoCode.referralPercent)) / 100
+        );
+        if (referralBonus > 0) {
+          await prisma.$transaction([
+            prisma.user.update({ where: { id: referrer.id }, data: { balance: { increment: referralBonus } } }),
+            prisma.transaction.create({
+              data: {
+                userId: referrer.id,
+                type: 'PROMO_BONUS',
+                status: 'SUCCESS',
+                amount: referralBonus,
+                note: `Реферальный бонус ${Number(activeRedemption.promoCode.referralPercent)}% по промо-коду ${activeRedemption.promoCode.code}`,
+              },
+            }),
+          ]);
+          await notifyText(
+            referrer.telegramId,
+            `💰 Реферальный бонус! По вашему промо-коду «${activeRedemption.promoCode.code}» было совершено пополнение — вам начислено ${referralBonus.toLocaleString('ru-RU')} сум (${Number(activeRedemption.promoCode.referralPercent)}% от суммы пополнения).`
+          );
+        }
+      }
+    } catch (err) {
+      // Referral bonusi ishlamasa ham, asosiy to'lov muvaffaqiyatli o'tgan —
+      // uni qaytarmaymiz, faqat logga yozamiz.
+      console.error('[referral] Bonus berishda xato:', err.message);
+    }
+  }
 }
 
 // Ikkala to'lov tizimi bir vaqtda — foydalanuvchi tanlagan provayderga qarab
