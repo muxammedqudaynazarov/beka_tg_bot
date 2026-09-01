@@ -60,7 +60,7 @@ function CreateForm({ onCreated }) {
       <input
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
-        placeholder="КОД (например AYBEK2026)"
+        placeholder="КОД (например BEKA26)"
         className={inputCls + ' uppercase'}
       />
       <select value={type} onChange={(e) => setType(e.target.value)} className={inputCls}>
