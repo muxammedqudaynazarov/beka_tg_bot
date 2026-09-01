@@ -147,7 +147,10 @@ function PromoRow({promo, onChanged}) {
     if (promo.type === 'DISCOUNT') detail = `${Number(promo.discountPercent)}% × ${promo.discountUses} исп.`;
     if (promo.type === 'BALANCE_TOPUP') detail = formatSom(promo.topupAmount);
     if (promo.type === 'FIRST_DEPOSIT_BONUS') detail = `+${Number(promo.bonusPercent)}% на первый депозит`;
-    if (promo.type === 'NEXT_DEPOSIT_BONUS') detail = `+${Number(promo.bonusPercent)}% на ближайшее пополнение`;
+    if (promo.type === 'NEXT_DEPOSIT_BONUS') {
+        detail = `+${Number(promo.bonusPercent)}% на ближайшее пополнение (` +
+            (promo.wonByUser?.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser?.telegramId)) + `)`;
+    }
 
     return (
         <div className="rounded-lg border border-border p-3">
@@ -164,10 +167,9 @@ function PromoRow({promo, onChanged}) {
                         </p>
                     )}
                     {promo.wonByUser && (
-                        <p className="mt-0.5 text-[10px] text-muted">
-                            🎲 Выигрыш барабана
-                            · {promo.wonByUser.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser.telegramId)}
-                        </p>
+                        <i>
+                            ({promo.wonByUser.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser.telegramId)})
+                        </i>
                     )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
