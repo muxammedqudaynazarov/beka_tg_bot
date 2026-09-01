@@ -166,11 +166,6 @@ function PromoRow({promo, onChanged}) {
                             Общая сумма: {formatSom(promo.depositStats.totalAmount)}
                         </p>
                     )}
-                    {promo.wonByUser && (
-                        <i>
-                            ({promo.wonByUser.username ? `@${promo.wonByUser.username}` : String(promo.wonByUser.telegramId)})
-                        </i>
-                    )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     <button onClick={toggleActive} className={promo.isActive ? 'text-success' : 'text-muted'}>
