@@ -1,14 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
+// Har build'da index.html'dagi __BUILD_TS__ ni haqiqiy vaqt bilan almashtiradi.
+// Bu — Telegram Mini App WebView'ning ichki keshiga qarshi asosiy mexanizm:
+// JavaScript localStorage'dagi saqlangan versiyani yangi bilan solishtiradi va
+// farq topsa, majburan reload qiladi (foydalanuvchi hech narsa qilmasin).
+function buildTimestampPlugin() {
+  const ts = Date.now().toString();
+  return {
+    name: 'build-timestamp',
+    transformIndexHtml(html) {
+      // /g flagi — barcha uchrashlar almashtiriladi (faqat birinchisi emas)
+      return html.replace(/__BUILD_TS__/g, ts);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), buildTimestampPlugin()],
   server: {
     port: 5173,
-    // Vite 5+ xavfsizlik uchun faqat ma'lum hostlardan kelgan so'rovlarni
-    // qabul qiladi. ngrok/tunnel orqali test qilganda bu hostni ruxsat
-    // etilganlar ro'yxatiga (yoki umuman tekshiruvni o'chirishga) qo'shish kerak.
-    allowedHosts: true, // DIQQAT: bu FAQAT lokal rivojlantirish uchun; production'da kerak emas (build qilingan statik fayllar bilan ishlaydi, bu tekshiruv umuman ishlamaydi)
+    allowedHosts: true,
   },
 });
