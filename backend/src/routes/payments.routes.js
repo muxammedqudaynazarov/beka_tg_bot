@@ -62,6 +62,27 @@ async function markTransactionPaid(tx) {
   }
   await prisma.$transaction(ops);
 
+  // MUHIM TUZATISH: to'lov tasdiqlangandan keyin, shu foydalanuvchining
+  // qolgan barcha ACTIVE deposit-bonus redemption'larini EXPIRED qilamiz.
+  // Bu — "eng oxirgisi ishlaydi" shartining TO'LIQ kafolati:
+  // bitta to'lovda bitta kod ishlaydi, qolganlar keyingi to'lovda ham ishlamasin.
+  const remainingActive = await prisma.promoCodeRedemption.findMany({
+    where: {
+      userId: tx.userId,
+      status: 'ACTIVE',
+      promoCode: { type: { in: ['FIRST_DEPOSIT_BONUS', 'NEXT_DEPOSIT_BONUS'] } },
+      // Hozirgini (agar CONSUMED bo'lgan bo'lsa) ham qo'shib yuboramiz — u
+      // allaqachon CONSUMED bo'lgani uchun updateMany xavfsiz ishlaydi.
+    },
+    select: { id: true },
+  });
+  if (remainingActive.length > 0) {
+    await prisma.promoCodeRedemption.updateMany({
+      where: { id: { in: remainingActive.map((r) => r.id) } },
+      data: { status: 'EXPIRED' },
+    });
+  }
+
   const user = await prisma.user.findUnique({ where: { id: tx.userId } });
   await notifyText(
     user?.telegramId,

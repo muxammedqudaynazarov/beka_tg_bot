@@ -160,7 +160,9 @@ router.post('/auctions', async (req, res) => {
                 : undefined,
         },
     });
+
     await logAction(req.user.id, 'AUCTION_CREATED', 'Auction', auction.id, {skinName, startPrice});
+
     // 7-band: yangi auksion haqida kanalga rasmli e'lon — Float/Redkost/
     // Iznos/Paint Seed bilan, va (agar bot username + Mini App qisqa nomi
     // sozlangan bo'lsa) "Перейти к лоту" tugmasi bilan.
