@@ -84,6 +84,24 @@ router.post('/redeem', requireAuth, async (req, res) => {
     });
     await tx.promoCode.update({ where: { id: promo.id }, data: { redemptionCount: { increment: 1 } } });
 
+    // 2-band: yangi FIRST/NEXT_DEPOSIT_BONUS aktivlashtirilganda —
+    // oldingi ACTIVE promokodlar EXPIRED qilinadi (faqat eng oxirgisi ishlaydi).
+    // Bu @@unique([promoCodeId, userId]) cheklovi tufayli aynan "hozir
+    // yaratilgan" redemption'dan boshqalarini topib, ularni o'chiramiz.
+    if (needsActivationTracking) {
+      const allActive = await tx.promoCodeRedemption.findMany({
+        where: { userId: req.user.id, status: 'ACTIVE' },
+        include: { promoCode: true },
+      });
+      for (const r of allActive) {
+        if (r.promoCodeId === promo.id) continue; // hozirgini qo'yib ketamiz
+        const rType = r.promoCode.type;
+        if (rType === 'FIRST_DEPOSIT_BONUS' || rType === 'NEXT_DEPOSIT_BONUS') {
+          await tx.promoCodeRedemption.update({ where: { id: r.id }, data: { status: 'EXPIRED' } });
+        }
+      }
+    }
+
     return message;
   });
 
@@ -95,9 +113,9 @@ router.post('/redeem', requireAuth, async (req, res) => {
 // banner ko'rsatish uchun).
 router.get('/active-first-deposit-bonus', requireAuth, async (req, res) => {
   const redemption = await prisma.promoCodeRedemption.findFirst({
-    where: { userId: req.user.id, status: 'ACTIVE' },
+    where: { userId: req.user.id, status: 'ACTIVE' }, // EXPIRED va CONSUMED ko'rsatilmaydi
     include: { promoCode: true },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: 'desc' }, // eng oxirgisi
   });
   if (!redemption) return res.json({ bonus: null });
   const type = redemption.promoCode.type;

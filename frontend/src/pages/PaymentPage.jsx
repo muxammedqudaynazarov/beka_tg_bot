@@ -1,20 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Clock3, RefreshCw, Check, Trash2 } from 'lucide-react';
+import { Clock3, RefreshCw, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, showConfirm, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
 import paymeLogo from '../assets/payme-logo.png';
-import clickLogo from '../assets/click-logo.png';
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
-
-// 5-band: ikkala to'lov tizimi bir vaqtda — Payme asosiy (standart tanlov).
-const PROVIDERS = [
-  { key: 'PAYME', label: 'Payme', logo: paymeLogo },
-  { key: 'CLICK', label: 'Click', logo: clickLogo },
-];
 
 function PendingPaymentRow({ tx, onResolved, onDeleted }) {
   const [checking, setChecking] = useState(false);
@@ -87,7 +80,6 @@ function PendingPaymentRow({ tx, onResolved, onDeleted }) {
 export default function PaymentPage() {
   const { refreshProfile } = useAuth();
   const [amount, setAmount] = useState('');
-  const [provider, setProvider] = useState('PAYME');
   const [submitting, setSubmitting] = useState(false);
   const [pending, setPending] = useState(null);
   const [bonus, setBonus] = useState(null);
@@ -96,9 +88,6 @@ export default function PaymentPage() {
     api.get('/payments/pending').then(({ data }) => setPending(data.items || []));
   }
   useEffect(loadPending, []);
-  // 4-band: agar foydalanuvchi FIRST_DEPOSIT_BONUS promo-kodini
-  // faollashtirgan bo'lsa va hali birinchi to'lovini qilmagan bo'lsa —
-  // shu haqda eslatma bannerini ko'rsatamiz.
   useEffect(() => {
     api.get('/promo/active-first-deposit-bonus').then(({ data }) => setBonus(data.bonus));
   }, []);
@@ -111,7 +100,8 @@ export default function PaymentPage() {
     }
     setSubmitting(true);
     try {
-      const { data } = await api.post('/payments/topup', { amount: numericAmount, provider });
+      // 3-band: faqat Payme — provider har doim PAYME
+      const { data } = await api.post('/payments/topup', { amount: numericAmount, provider: 'PAYME' });
       hapticNotification('success');
       openLink(data.checkoutUrl);
       loadPending();
@@ -160,29 +150,11 @@ export default function PaymentPage() {
         </div>
       )}
 
-      <label className="mb-2 block font-display text-xs font-semibold text-ink-secondary">Способ оплаты</label>
-      <div className="mb-5 grid grid-cols-2 gap-2.5">
-        {PROVIDERS.map((p) => {
-          const active = provider === p.key;
-          return (
-            <button
-              key={p.key}
-              onClick={() => setProvider(p.key)}
-              className={`relative flex items-center justify-center rounded-xl border-2 bg-base-surface p-2.5 transition-colors ${
-                active ? 'border-rarity-covert' : 'border-base-border'
-              }`}
-            >
-              {active && (
-                <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rarity-covert">
-                  <Check size={13} className="text-white" strokeWidth={3} />
-                </span>
-              )}
-              <span className="flex h-12 w-full items-center justify-center rounded-lg bg-white px-3">
-                <img src={p.logo} alt={p.label} className="h-8 object-contain" />
-              </span>
-            </button>
-          );
-        })}
+      {/* 3-band: Payme logotipi — tanlov tugmasi emas, shunchaki ko'rsatish */}
+      <div className="mb-5 flex items-center justify-center rounded-xl bg-base-surface py-3">
+        <span className="flex h-10 items-center justify-center px-6">
+          <img src={paymeLogo} alt="Payme" className="h-8 object-contain" />
+        </span>
       </div>
 
       <label className="mb-2 block font-display text-xs font-semibold text-ink-secondary">Сумма пополнения</label>
@@ -211,10 +183,10 @@ export default function PaymentPage() {
         disabled={submitting}
         className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white shadow-glow transition-opacity disabled:opacity-50"
       >
-        {submitting ? 'Загрузка…' : 'Пополнить'}
+        {submitting ? 'Загрузка…' : 'Пополнить через Payme'}
       </button>
       <p className="mt-3 text-center text-[10px] text-ink-muted">
-        Вы будете перенаправлены на официальную защищённую страницу оплаты {PROVIDERS.find((p) => p.key === provider)?.label}.
+        Вы будете перенаправлены на официальную защищённую страницу оплаты Payme.
       </p>
     </div>
   );

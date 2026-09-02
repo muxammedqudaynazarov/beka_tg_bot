@@ -18,6 +18,28 @@ const RARITY_LABELS = {
  * kabi navbat tizimiga ko'chirish tavsiya etiladi.
  */
 function startAuctionScheduler(io) {
+  // 1-band: har soatda ACTIVE (lekin 24 soatdan ortiq ishlatilmagan)
+  // FIRST/NEXT_DEPOSIT_BONUS redemption'larini EXPIRED qiladi.
+  // Moliyaviy promokodlar faqat 24 soat ichida ishlatilmasa bekor bo'ladi.
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const expired = await prisma.promoCodeRedemption.findMany({
+        where: { status: 'ACTIVE', createdAt: { lt: cutoff } },
+        include: { promoCode: true },
+      });
+      for (const r of expired) {
+        const t = r.promoCode.type;
+        if (t === 'FIRST_DEPOSIT_BONUS' || t === 'NEXT_DEPOSIT_BONUS') {
+          await prisma.promoCodeRedemption.update({ where: { id: r.id }, data: { status: 'EXPIRED' } });
+          console.log(`[promoExpiry] ${r.promoCode.code} → EXPIRED (userId: ${r.userId})`);
+        }
+      }
+    } catch (err) {
+      console.error('[promoExpiry] xatolik:', err.message);
+    }
+  });
+
   cron.schedule('*/15 * * * * *', async () => {
     try {
       const justClosed = await closeExpiredAuctions();

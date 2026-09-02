@@ -26,7 +26,7 @@ async function markTransactionPaid(tx) {
   let activeRedemption = await prisma.promoCodeRedemption.findFirst({
     where: { userId: tx.userId, status: 'ACTIVE' },
     include: { promoCode: true },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' }, // 4-band: ENG OXIRGI aktivlashtirilgan ishlaydi
   });
   if (activeRedemption) {
     const type = activeRedemption.promoCode.type;
