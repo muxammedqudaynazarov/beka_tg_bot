@@ -1,5 +1,24 @@
 const express = require('express');
 const crypto = require('crypto');
+
+// UUID o'rniga qisqa, o'qilishi oson, invoice-uslubidagi ID.
+// Format: YYMMDD-XXXXXX (masalan 240901-A3K9M2)
+// Timestamp asosida bo'lgani uchun har doim noyob va tartiblangan.
+function generateTransId() {
+  const now = new Date();
+  const date = [
+    String(now.getFullYear()).slice(2),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('');
+  // Vaqt (ms) + tasodifiy 2 bayt → 6 ta base36 belgi → noyoblik kafolatlanadi
+  const suffix = (Date.now() % 16777216 + crypto.randomInt(16777216))
+    .toString(36)
+    .toUpperCase()
+    .padStart(6, '0')
+    .slice(-6);
+  return `${date}-${suffix}`;
+}
 const prisma = require('../db/prisma');
 const { requireAuth } = require('../middleware/auth');
 const { buildCheckoutUrl: buildPaymeCheckoutUrl } = require('../services/paymeService');
@@ -147,7 +166,7 @@ router.post('/topup', requireAuth, async (req, res) => {
   }
   const selectedProvider = provider === 'CLICK' ? 'CLICK' : 'PAYME';
 
-  const merchantTransId = crypto.randomUUID();
+  const merchantTransId = generateTransId();
   await prisma.transaction.create({
     data: {
       userId: req.user.id,
