@@ -25,8 +25,13 @@ const NO_FLOAT_TYPE_NAMES = ['Ключи', 'Стикеры', 'Брелки', 'А
 // bilan bir xil, lekin backend'da alohida (frontend kodini import qilib
 // bo'lmaydi).
 const RARITY_LABELS = {
-    CONSUMER: 'Ширпотреб', INDUSTRIAL: 'Промышленное', MILSPEC: 'Армейское',
-    RESTRICTED: 'Запрещённое', CLASSIFIED: 'Засекреченное', COVERT: 'Тайное', GOLD: 'Редкое ★',
+    CONSUMER: 'Ширпотреб',
+    INDUSTRIAL: 'Промышленное',
+    MILSPEC: 'Армейское',
+    RESTRICTED: 'Запрещённое',
+    CLASSIFIED: 'Засекреченное',
+    COVERT: 'Тайное',
+    GOLD: 'Редкое ★',
 };
 const WEAR_LABELS = {FN: 'Factory New', MW: 'Minimal Wear', FT: 'Field-Tested', WW: 'Well-Worn', BS: 'Battle-Scarred'};
 // Backend'ga QANDAY qiymat kelishidan qat'iy nazar (bo'sh qator, noto'g'ri
@@ -50,8 +55,7 @@ async function subcategoryNeedsFloat(subcategoryId) {
 
 router.get('/broadcasts', async (req, res) => {
     const items = await prisma.broadcast.findMany({
-        orderBy: {createdAt: 'desc'},
-        take: 5, // 6-band: faqat oxirgi 5tasi ko'rsatiladi — bazada HAMMASI saqlanadi
+        orderBy: {createdAt: 'desc'}, take: 5, // 6-band: faqat oxirgi 5tasi ko'rsatiladi — bazada HAMMASI saqlanadi
         include: {admin: {select: {firstName: true, username: true}}},
     });
     res.json({items});
@@ -87,9 +91,7 @@ router.post('/broadcasts', async (req, res) => {
         let sent = 0;
         let failed = 0;
         for (const u of users) {
-            const ok = broadcast.imageUrl
-                ? await notifyPhoto(u.telegramId, broadcast.imageUrl, trimmed, {parse_mode: 'HTML'})
-                : await notifyText(u.telegramId, trimmed, {parse_mode: 'HTML'});
+            const ok = broadcast.imageUrl ? await notifyPhoto(u.telegramId, broadcast.imageUrl, trimmed, {parse_mode: 'HTML'}) : await notifyText(u.telegramId, trimmed, {parse_mode: 'HTML'});
             if (ok) sent++; else failed++;
             // Telegram bot API'ning umumiy chegarasi ~30 xabar/soniya — xavfsiz
             // bo'lish uchun tanaffus qilamiz.
@@ -149,15 +151,11 @@ router.post('/auctions', async (req, res) => {
             endsAt,
             originalEndsAt: endsAt,
             createdById: req.user.id,
-            stickers: Array.isArray(stickers) && stickers.length
-                ? {
-                    create: stickers.filter((s) => s?.name && s?.imageUrl).map((s, i) => ({
-                        name: s.name,
-                        imageUrl: s.imageUrl,
-                        slot: i
-                    }))
-                }
-                : undefined,
+            stickers: Array.isArray(stickers) && stickers.length ? {
+                create: stickers.filter((s) => s?.name && s?.imageUrl).map((s, i) => ({
+                    name: s.name, imageUrl: s.imageUrl, slot: i
+                }))
+            } : undefined,
         },
     });
 
@@ -166,9 +164,54 @@ router.post('/auctions', async (req, res) => {
     // 7-band: yangi auksion haqida kanalga rasmli e'lon — Float/Redkost/
     // Iznos/Paint Seed bilan, va (agar bot username + Mini App qisqa nomi
     // sozlangan bo'lsa) "Перейти к лоту" tugmasi bilan.
+    // Hashtag generatsiyasi: nom'dan - va probel olib tashlanib, kichik
+    // harflarga aylantiriladi. Kategoriyaga qarab rus tilidagi hashtag qo'shiladi.
+    // Agar StatTrak bo'lsa — #stattrack ham qo'shiladi.
+    const CATEGORY_HASHTAGS = {
+        'Ножи': '#ножи',
+        'Снаряжение': '#снаряжение',
+        'Перчатки': '#перчатки',
+        'Пистолеты': '#пистолеты',
+        'Винтовки': '#винтовки',
+        'ПП': '#пп',
+        'Тяжелое': '#тяжелое',
+        'Брелки': '#брелки',
+        'Агенты': '#агенты',
+        'Стикеры': '#стикеры',
+        'Кейсы и Капсулы': '#кейсы',
+        'Ключи': '#ключи',
+        'Наборы музыки': '#наборымузыки',
+        'Значки': '#значки',
+        'Нашивки': '#нашивки',
+        'Граффити': '#граффити',
+    };
+
+    // "StatTrak™ AK-47 | Redline" → "AK-47" → "#ak47" + "#stattrack"
+    // ™ unicode belgisi regex'da ishonchsiz bo'lgani uchun [^\w\s] bilan olamiz
+    const skinCleaned = skinName.replace(/^\s*stattrak[^\w\s]*\s*/i, '').trim();
+    const skinBaseName = skinCleaned.includes('|') ? skinCleaned.split('|')[0].trim() : skinCleaned.split('(')[0].trim();
+    const skinTag = '#' + skinBaseName.replace(/[^a-z0-9а-яёА-ЯЁ]/gi, '').toLowerCase();
+
+    let categoryTag = '';
+    try {
+        const sub = await prisma.weaponSubcategory.findUnique({
+            where: {id: subcategoryId}, include: {category: true},
+        });
+        if (sub?.category?.name) {
+            categoryTag = CATEGORY_HASHTAGS[sub.category.name] || ('#' + sub.category.name.toLowerCase().replace(/\s+/g, ''));
+        }
+    } catch (_) {
+    }
+
+    const hashtagLine = [skinTag, categoryTag, isStatTrak ? '#stattrack' : '']
+        .filter(Boolean)
+        .join(' ');
+
     if (env.announceChannelId) {
         const {notifyChannel} = require('../services/notifier');
         const lines = [`⚡️ <b>${skinName}</b>`, ''];
+        lines.push(`<i>${hashtagLine}</i>`);
+        lines.push('');
         lines.push(`<i>Редкость: ${RARITY_LABELS[rarity] || rarity}</i>`);
         if (wearCondition) lines.push(`<i>Класс износа: ${WEAR_LABELS[wearCondition] || wearCondition}</i>`);
         if (floatValue !== undefined && floatValue !== null && floatValue !== '') {
@@ -192,17 +235,14 @@ router.post('/auctions', async (req, res) => {
         let replyMarkup;
         if (env.userBotUsername && env.miniAppShortName) {
             replyMarkup = {
-                inline_keyboard: [[
-                    {
-                        text: 'Перейти к лоту 👉',
-                        url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
-                    },
-                ]],
+                inline_keyboard: [[{
+                    text: 'Перейти к лоту 👉',
+                    url: `https://t.me/${env.userBotUsername}/${env.miniAppShortName}?startapp=auction_${auction.id}`,
+                },]],
             };
         }
         await notifyChannel(env.announceChannelId, imageUrl, lines.join('\n'), {
-            parse_mode: 'HTML',
-            ...(replyMarkup ? {reply_markup: replyMarkup} : {}),
+            parse_mode: 'HTML', ...(replyMarkup ? {reply_markup: replyMarkup} : {}),
         });
     }
 
@@ -219,15 +259,12 @@ router.post('/auctions', async (req, res) => {
 // qilish mumkin (pastdagi /time va /cancel endpointlari).
 router.patch('/auctions/:id', async (req, res) => {
     const existing = await prisma.auction.findUnique({
-        where: {id: req.params.id},
-        include: {_count: {select: {bids: true}}},
+        where: {id: req.params.id}, include: {_count: {select: {bids: true}}},
     });
     if (!existing) return res.status(404).json({error: 'Auksion topilmadi.'});
     if (existing._count.bids > 0) {
         return res.status(400).json({
-            error:
-                'Bu auksionga allaqachon taklif(lar) kelgan — endi asosiy ma\'lumotlarini o\'zgartirib bo\'lmaydi ' +
-                '(adolatsizlikning oldini olish uchun). Faqat vaqtini o\'zgartirish yoki bekor qilish mumkin.',
+            error: 'Bu auksionga allaqachon taklif(lar) kelgan — endi asosiy ma\'lumotlarini o\'zgartirib bo\'lmaydi ' + '(adolatsizlikning oldini olish uchun). Faqat vaqtini o\'zgartirish yoki bekor qilish mumkin.',
         });
     }
 
@@ -244,8 +281,7 @@ router.patch('/auctions/:id', async (req, res) => {
         startPrice,
         buyNowPrice,
         stickers
-    } =
-    req.body || {};
+    } = req.body || {};
 
     const effectiveSubcategoryId = subcategoryId !== undefined ? subcategoryId : existing.subcategoryId;
     const needsFloat = await subcategoryNeedsFloat(effectiveSubcategoryId);
@@ -275,15 +311,11 @@ router.patch('/auctions/:id', async (req, res) => {
         // Sodda va xavfsiz yondashuv: eskilarini o'chirib, yangilarini qayta yaratamiz
         // (hali taklif kelmagan auksion bo'lgani uchun bu xavfsiz).
         await prisma.auctionSticker.deleteMany({where: {auctionId: req.params.id}});
-        data.stickers = stickers.length
-            ? {
-                create: stickers.filter((s) => s?.name && s?.imageUrl).map((s, i) => ({
-                    name: s.name,
-                    imageUrl: s.imageUrl,
-                    slot: i
-                }))
-            }
-            : undefined;
+        data.stickers = stickers.length ? {
+            create: stickers.filter((s) => s?.name && s?.imageUrl).map((s, i) => ({
+                name: s.name, imageUrl: s.imageUrl, slot: i
+            }))
+        } : undefined;
     }
 
     const auction = await prisma.auction.update({where: {id: req.params.id}, data});
@@ -297,8 +329,7 @@ router.patch('/auctions/:id/time', async (req, res) => {
     if (!newEndsAt) return res.status(400).json({error: 'newEndsAt majburiy.'});
 
     const auction = await prisma.auction.update({
-        where: {id: req.params.id},
-        data: {endsAt: new Date(newEndsAt)},
+        where: {id: req.params.id}, data: {endsAt: new Date(newEndsAt)},
     });
     await logAction(req.user.id, 'AUCTION_TIME_CHANGED', 'Auction', auction.id, {newEndsAt});
     res.json(auction);
@@ -307,8 +338,7 @@ router.patch('/auctions/:id/time', async (req, res) => {
 router.post('/auctions/:id/cancel', async (req, res) => {
     const result = await prisma.$transaction(async (tx) => {
         const auction = await tx.auction.update({
-            where: {id: req.params.id},
-            data: {status: 'CANCELLED'},
+            where: {id: req.params.id}, data: {status: 'CANCELLED'},
         });
 
         // MUHIM TUZATISH: avval bu yerda faqat auksion holati o'zgartirilar,
@@ -324,10 +354,8 @@ router.post('/auctions/:id/cancel', async (req, res) => {
             });
             if (winningBid && Number(winningBid.holdAmount) > 0) {
                 await tx.user.update({
-                    where: {id: auction.currentLeaderId},
-                    data: {
-                        balance: {increment: winningBid.holdAmount},
-                        holdBalance: {decrement: winningBid.holdAmount},
+                    where: {id: auction.currentLeaderId}, data: {
+                        balance: {increment: winningBid.holdAmount}, holdBalance: {decrement: winningBid.holdAmount},
                     },
                 });
                 await tx.transaction.create({
@@ -349,11 +377,7 @@ router.post('/auctions/:id/cancel', async (req, res) => {
 
     if (result.refunded) {
         const user = await prisma.user.findUnique({where: {id: result.refunded.userId}});
-        await notifyText(
-            user?.telegramId,
-            `↩️ Аукцион "${result.auction.skinName}" был отменён администратором. ` +
-            `Ваш залог ${Number(result.refunded.amount).toLocaleString('ru-RU')} сум возвращён на баланс.`
-        );
+        await notifyText(user?.telegramId, `↩️ Аукцион "${result.auction.skinName}" был отменён администратором. ` + `Ваш залог ${Number(result.refunded.amount).toLocaleString('ru-RU')} сум возвращён на баланс.`);
     }
 
     await logAction(req.user.id, 'AUCTION_CANCELLED', 'Auction', result.auction.id, {refundedUserId: result.refunded?.userId || null});
@@ -365,9 +389,7 @@ router.post('/auctions/:id/cancel', async (req, res) => {
 // (Steam bilan avtomatik integratsiya hozircha yo'q — pastdagi izohga qarang.)
 router.get('/auctions/awaiting-delivery', async (req, res) => {
     const items = await prisma.auction.findMany({
-        where: {status: 'PAID'},
-        orderBy: {paidAt: 'asc'},
-        include: {
+        where: {status: 'PAID'}, orderBy: {paidAt: 'asc'}, include: {
             subcategory: {include: {category: true}},
             currentLeader: {select: {id: true, username: true, firstName: true, tradeUrl: true}}
         },
@@ -377,8 +399,7 @@ router.get('/auctions/awaiting-delivery', async (req, res) => {
 
 router.post('/auctions/:id/deliver', async (req, res) => {
     const auction = await prisma.auction.findUnique({
-        where: {id: req.params.id},
-        include: {currentLeader: {select: {telegramId: true, tradeUrl: true}}},
+        where: {id: req.params.id}, include: {currentLeader: {select: {telegramId: true, tradeUrl: true}}},
     });
     if (!auction) return res.status(404).json({error: 'Auksion topilmadi.'});
     if (auction.status !== 'PAID') {
@@ -394,24 +415,19 @@ router.post('/auctions/:id/deliver', async (req, res) => {
     if (auction.steamAssetId && auction.currentLeader?.tradeUrl) {
         const {sendItemAutomatically} = require('../services/steamBotService');
         autoSendResult = await sendItemAutomatically({
-            tradeUrl: auction.currentLeader.tradeUrl,
-            steamAssetId: auction.steamAssetId,
+            tradeUrl: auction.currentLeader.tradeUrl, steamAssetId: auction.steamAssetId,
         });
     }
 
     const updated = await prisma.auction.update({
-        where: {id: req.params.id},
-        data: {status: 'DELIVERED', deliveredAt: new Date(), deliveredById: req.user.id},
+        where: {id: req.params.id}, data: {status: 'DELIVERED', deliveredAt: new Date(), deliveredById: req.user.id},
     });
     await logAction(req.user.id, 'AUCTION_DELIVERED', 'Auction', auction.id, {autoSendResult});
 
     // 6/13-band: skin Steam'ga yuborilgani haqida g'olibga xabar
     if (auction.currentLeaderId) {
         const winner = await prisma.user.findUnique({where: {id: auction.currentLeaderId}});
-        await notifyText(
-            winner?.telegramId,
-            `📦 Скин "${auction.skinName}" отправлен на ваш Steam-аккаунт. Проверьте предложения обмена в Steam.`
-        );
+        await notifyText(winner?.telegramId, `📦 Скин "${auction.skinName}" отправлен на ваш Steam-аккаунт. Проверьте предложения обмена в Steam.`);
     }
 
     res.json({...updated, autoSendResult});
@@ -426,21 +442,16 @@ router.post('/auctions/:id/deliver', async (req, res) => {
 router.post('/users/:id/ban', async (req, res) => {
     const {reason} = req.body || {};
     const user = await prisma.user.update({
-        where: {id: req.params.id},
-        data: {isBanned: true, bannedReason: reason || null, bannedAt: new Date()},
+        where: {id: req.params.id}, data: {isBanned: true, bannedReason: reason || null, bannedAt: new Date()},
     });
     await logAction(req.user.id, 'USER_BANNED', 'User', user.id, {reason});
-    await notifyText(
-        user.telegramId,
-        `⛔ Ваш аккаунт заблокирован администратором.${reason ? `\nПричина: ${reason}` : ''}`
-    );
+    await notifyText(user.telegramId, `⛔ Ваш аккаунт заблокирован администратором.${reason ? `\nПричина: ${reason}` : ''}`);
     res.json({ok: true});
 });
 
 router.post('/users/:id/unban', async (req, res) => {
     await prisma.user.update({
-        where: {id: req.params.id},
-        data: {isBanned: false, bannedReason: null, bannedAt: null},
+        where: {id: req.params.id}, data: {isBanned: false, bannedReason: null, bannedAt: null},
     });
     await logAction(req.user.id, 'USER_UNBANNED', 'User', req.params.id, {});
     res.json({ok: true});
@@ -490,43 +501,25 @@ router.get('/analytics', async (req, res) => {
     const prevStart = prevMonthDate;
     const prevEnd = start;
 
-    const [deposited, spent, pendingAgg, failedAgg, prevDeposited, balanceAgg] = await Promise.all([
-        prisma.transaction.aggregate({
-            where: {type: 'TOPUP', status: 'SUCCESS', createdAt: {gte: start, lt: end}},
-            _sum: {amount: true}
-        }),
-        prisma.transaction.aggregate({
-            where: {type: 'PURCHASE', status: 'SUCCESS', createdAt: {gte: start, lt: end}},
-            _sum: {amount: true}
-        }),
-        prisma.transaction.aggregate({
-            where: {type: 'TOPUP', status: 'PENDING', createdAt: {gte: start, lt: end}},
-            _sum: {amount: true},
-            _count: true
-        }),
-        prisma.transaction.aggregate({
-            where: {
-                type: 'TOPUP',
-                status: {in: ['FAILED', 'CANCELLED']},
-                createdAt: {gte: start, lt: end}
-            }, _sum: {amount: true}, _count: true
-        }),
-        prisma.transaction.aggregate({
-            where: {
-                type: 'TOPUP',
-                status: 'SUCCESS',
-                createdAt: {gte: prevStart, lt: prevEnd}
-            }, _sum: {amount: true}
-        }),
-        prisma.user.aggregate({_sum: {balance: true}}),
-    ]);
+    const [deposited, spent, pendingAgg, failedAgg, prevDeposited, balanceAgg] = await Promise.all([prisma.transaction.aggregate({
+        where: {type: 'TOPUP', status: 'SUCCESS', createdAt: {gte: start, lt: end}}, _sum: {amount: true}
+    }), prisma.transaction.aggregate({
+        where: {type: 'PURCHASE', status: 'SUCCESS', createdAt: {gte: start, lt: end}}, _sum: {amount: true}
+    }), prisma.transaction.aggregate({
+        where: {type: 'TOPUP', status: 'PENDING', createdAt: {gte: start, lt: end}}, _sum: {amount: true}, _count: true
+    }), prisma.transaction.aggregate({
+        where: {
+            type: 'TOPUP', status: {in: ['FAILED', 'CANCELLED']}, createdAt: {gte: start, lt: end}
+        }, _sum: {amount: true}, _count: true
+    }), prisma.transaction.aggregate({
+        where: {
+            type: 'TOPUP', status: 'SUCCESS', createdAt: {gte: prevStart, lt: prevEnd}
+        }, _sum: {amount: true}
+    }), prisma.user.aggregate({_sum: {balance: true}}),]);
 
     const totalDeposited = Number(deposited._sum.amount || 0);
     const prevTotalDeposited = Number(prevDeposited._sum.amount || 0);
-    const percentChange =
-        prevTotalDeposited > 0
-            ? Math.round(((totalDeposited - prevTotalDeposited) / prevTotalDeposited) * 1000) / 10
-            : totalDeposited > 0 ? 100 : 0;
+    const percentChange = prevTotalDeposited > 0 ? Math.round(((totalDeposited - prevTotalDeposited) / prevTotalDeposited) * 1000) / 10 : totalDeposited > 0 ? 100 : 0;
 
     const currentMonthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
     const startMonthStart = new Date(Date.UTC(ANALYTICS_START_YEAR, ANALYTICS_START_MONTH - 1, 1));
@@ -535,11 +528,9 @@ router.get('/analytics', async (req, res) => {
         year,
         month,
         totalDeposited,
-        totalSpent: Number(spent._sum.amount || 0),
-        // 9-band: soni bilan birga summasi ham — front "2 (5 000 сум)" shaklida ko'rsatadi
+        totalSpent: Number(spent._sum.amount || 0), // 9-band: soni bilan birga summasi ham — front "2 (5 000 сум)" shaklida ko'rsatadi
         unsuccessfulPaymentsCount: pendingAgg._count + failedAgg._count,
-        unsuccessfulPaymentsAmount: Number(pendingAgg._sum.amount || 0) + Number(failedAgg._sum.amount || 0),
-        // "hozirda" — tizimdagi barcha foydalanuvchilar balansining JORIY yig'indisi
+        unsuccessfulPaymentsAmount: Number(pendingAgg._sum.amount || 0) + Number(failedAgg._sum.amount || 0), // "hozirda" — tizimdagi barcha foydalanuvchilar balansining JORIY yig'indisi
         // (tanlangan oyga bog'liq emas, doim real vaqtdagi qiymat)
         currentTotalUserBalance: Number(balanceAgg._sum.balance || 0),
         percentChangeVsPrevMonth: percentChange,
@@ -559,27 +550,25 @@ const SALE_HOLD_MS = 8 * 24 * 60 * 60 * 1000; // 8 kun (Steam'ning 7 kunlik Trad
 router.get('/users', async (req, res) => {
     const {search} = req.query;
     const searchStr = String(search || '').trim();
-    const where = searchStr
-        ? {
-            OR: [
-                {username: {contains: searchStr}},
-                {firstName: {contains: searchStr}},
-                {lastName: {contains: searchStr}},
-                ...(/^\d+$/.test(searchStr) ? [{telegramId: BigInt(searchStr)}] : []),
-            ],
-        }
-        : {};
+    const where = searchStr ? {
+        OR: [{username: {contains: searchStr}}, {firstName: {contains: searchStr}}, {lastName: {contains: searchStr}}, ...(/^\d+$/.test(searchStr) ? [{telegramId: BigInt(searchStr)}] : []),],
+    } : {};
     const users = await prisma.user.findMany({
-        where,
-        // 2-band: "real" (haqiqatan faol) foydalanuvchilarni aniqlash uchun —
+        where, // 2-band: "real" (haqiqatan faol) foydalanuvchilarni aniqlash uchun —
         // eng oxirgi ochganlar birinchi, hech qachon ochmaganlar (lastActiveAt
         // = NULL) esa MySQL'ning standart xatti-harakati bo'yicha ro'yxat
         // oxirida qoladi.
-        orderBy: {lastActiveAt: 'desc'},
-        take: 30,
-        select: {
-            id: true, telegramId: true, username: true, firstName: true, lastName: true, role: true,
-            balance: true, isBanned: true, createdAt: true, lastActiveAt: true,
+        orderBy: {lastActiveAt: 'desc'}, take: 30, select: {
+            id: true,
+            telegramId: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            balance: true,
+            isBanned: true,
+            createdAt: true,
+            lastActiveAt: true,
             _count: {select: {soldItems: true}},
         },
     });
@@ -588,8 +577,7 @@ router.get('/users', async (req, res) => {
 
 router.get('/users/:id', async (req, res) => {
     const user = await prisma.user.findUnique({
-        where: {id: req.params.id},
-        include: {
+        where: {id: req.params.id}, include: {
             soldItems: {orderBy: {createdAt: 'desc'}},
             discounts: {where: {remainingUses: {gt: 0}}, orderBy: {createdAt: 'desc'}},
         },
@@ -617,10 +605,7 @@ router.post('/users/:id/discounts', async (req, res) => {
         data: {userId: seller.id, percent: p, remainingUses: u, totalUses: u, createdById: req.user.id},
     });
     await logAction(req.user.id, 'DISCOUNT_GRANTED', 'UserDiscount', discount.id, {percent: p, uses: u});
-    await notifyText(
-        seller.telegramId,
-        `🎁 Вам начислена скидка ${p}% (можно использовать ${u} раз) при выигрыше на аукционе!`
-    );
+    await notifyText(seller.telegramId, `🎁 Вам начислена скидка ${p}% (можно использовать ${u} раз) при выигрыше на аукционе!`);
     res.status(201).json(discount);
 });
 
@@ -640,12 +625,9 @@ router.delete('/discounts/:id', async (req, res) => {
 router.get('/promo-codes', async (req, res) => {
     const now = Date.now();
     const all = await prisma.promoCode.findMany({
-        orderBy: {createdAt: 'desc'},
-        take: 200,
-        include: {
+        orderBy: {createdAt: 'desc'}, take: 200, include: {
             redemptions: {
-                where: {status: 'CONSUMED'},
-                select: {userId: true, consumedAt: true, createdAt: true},
+                where: {status: 'CONSUMED'}, select: {userId: true, consumedAt: true, createdAt: true},
             },
         },
     });
@@ -658,12 +640,9 @@ router.get('/promo-codes', async (req, res) => {
 
     // Барабан yutilgan kodlar egasini aniqlash uchun
     const userIds = [...new Set(visible.filter((p) => p.restrictedToUserId).map((p) => p.restrictedToUserId))];
-    const users = userIds.length
-        ? await prisma.user.findMany({
-            where: {id: {in: userIds}},
-            select: {id: true, username: true, telegramId: true, firstName: true},
-        })
-        : [];
+    const users = userIds.length ? await prisma.user.findMany({
+        where: {id: {in: userIds}}, select: {id: true, username: true, telegramId: true, firstName: true},
+    }) : [];
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
     // 1-band: FIRST_DEPOSIT_BONUS / NEXT_DEPOSIT_BONUS uchun — shu promo-kod
@@ -688,15 +667,10 @@ router.get('/promo-codes', async (req, res) => {
                 // vaqt oralig'idagi birinchi muvaffaqiyatli TOPUP tranzaksiyasini topamiz
                 const tx = await prisma.transaction.findFirst({
                     where: {
-                        userId: r.userId,
-                        type: 'TOPUP',
-                        status: 'SUCCESS',
-                        createdAt: {
-                            gte: r.createdAt,
-                            ...(r.consumedAt ? {lte: r.consumedAt} : {}),
+                        userId: r.userId, type: 'TOPUP', status: 'SUCCESS', createdAt: {
+                            gte: r.createdAt, ...(r.consumedAt ? {lte: r.consumedAt} : {}),
                         },
-                    },
-                    orderBy: {createdAt: 'asc'},
+                    }, orderBy: {createdAt: 'asc'},
                 });
                 if (tx) {
                     totalAmount += Number(tx.amount);
@@ -738,10 +712,7 @@ router.post('/promo-codes', async (req, res) => {
     }
 
     const data = {
-        code: cleanCode,
-        type,
-        maxRedemptions: maxRedemptions ? Number(maxRedemptions) : null,
-        createdById: req.user.id,
+        code: cleanCode, type, maxRedemptions: maxRedemptions ? Number(maxRedemptions) : null, createdById: req.user.id,
     };
 
     if (type === 'DISCOUNT') {
@@ -779,9 +750,7 @@ router.post('/promo-codes', async (req, res) => {
     try {
         const promo = await prisma.promoCode.create({data});
         await logAction(req.user.id, 'PROMO_CREATED', 'PromoCode', promo.id, {
-            code: cleanCode,
-            type,
-            hasReferral: !!data.referralTelegramId
+            code: cleanCode, type, hasReferral: !!data.referralTelegramId
         });
         res.status(201).json(promo);
     } catch (err) {
@@ -816,19 +785,12 @@ router.post('/users/:id/sales', async (req, res) => {
 
     const {recordSale} = require('../services/userSaleService');
     const sale = await recordSale({
-        sellerId: seller.id,
-        recordedById: req.user.id,
-        itemName,
-        agreedAmount: Number(agreedAmount)
+        sellerId: seller.id, recordedById: req.user.id, itemName, agreedAmount: Number(agreedAmount)
     });
     if (note) await prisma.userSale.update({where: {id: sale.id}, data: {note}});
     await logAction(req.user.id, 'USER_SALE_RECORDED', 'UserSale', sale.id, {itemName, agreedAmount});
 
-    await notifyText(
-        seller.telegramId,
-        `📥 Администратор зафиксировал получение вашего предмета "${itemName}" на сумму ${Number(agreedAmount).toLocaleString('ru-RU')} сум. ` +
-        `Выплата будет произведена через 8 дней (после периода защиты сделки в Steam).`
-    );
+    await notifyText(seller.telegramId, `📥 Администратор зафиксировал получение вашего предмета "${itemName}" на сумму ${Number(agreedAmount).toLocaleString('ru-RU')} сум. ` + `Выплата будет произведена через 8 дней (после периода защиты сделки в Steam).`);
 
     res.status(201).json(sale);
 });
@@ -847,9 +809,7 @@ router.delete('/sales/:id', async (req, res) => {
 router.get('/sales/ready-to-pay', async (req, res) => {
     const cutoff = new Date(Date.now() - SALE_HOLD_MS);
     const items = await prisma.userSale.findMany({
-        where: {paidAt: null, createdAt: {lte: cutoff}},
-        orderBy: {createdAt: 'asc'},
-        take: 5, // 1-band: eng eskisidan boshlab, ko'pi bilan 5ta
+        where: {paidAt: null, createdAt: {lte: cutoff}}, orderBy: {createdAt: 'asc'}, take: 5, // 1-band: eng eskisidan boshlab, ko'pi bilan 5ta
         include: {seller: {select: {id: true, username: true, firstName: true, telegramId: true}}},
     });
     res.json({items});
@@ -884,10 +844,7 @@ router.post('/sales/:id/mark-paid', async (req, res) => {
 
     const updated = await prisma.userSale.update({where: {id: sale.id}, data: {paidAt: new Date()}});
     await logAction(req.user.id, 'USER_SALE_PAID', 'UserSale', sale.id, {});
-    await notifyText(
-        sale.seller.telegramId,
-        `💸 Оплата за "${sale.itemName}" (${Number(sale.agreedAmount).toLocaleString('ru-RU')} сум) произведена на указанную карту. Спасибо за сделку!`
-    );
+    await notifyText(sale.seller.telegramId, `💸 Оплата за "${sale.itemName}" (${Number(sale.agreedAmount).toLocaleString('ru-RU')} сум) произведена на указанную карту. Спасибо за сделку!`);
     res.json(updated);
 });
 
@@ -923,22 +880,18 @@ router.put('/ads/:slot', async (req, res) => {
     const freq = popupFrequency ? Math.min(Math.max(Number(popupFrequency), 1), 5) : 1;
 
     const ad = await prisma.advertisement.upsert({
-        where: {slot},
-        update: {
+        where: {slot}, update: {
             imageUrl,
             linkUrl: linkUrl || null,
             isActive: isActive !== undefined ? Boolean(isActive) : true,
             durationDays: days,
-            expiresAt,
-            ...(slot === 'POPUP' ? {popupFrequency: freq} : {}),
-        },
-        create: {
+            expiresAt, ...(slot === 'POPUP' ? {popupFrequency: freq} : {}),
+        }, create: {
             slot,
             imageUrl,
             linkUrl: linkUrl || null,
             durationDays: days,
-            expiresAt,
-            ...(slot === 'POPUP' ? {popupFrequency: freq} : {}),
+            expiresAt, ...(slot === 'POPUP' ? {popupFrequency: freq} : {}),
         },
     });
     await logAction(req.user.id, 'AD_UPDATED', 'Advertisement', ad.id, {slot});
@@ -969,10 +922,10 @@ router.get('/wheel-items', async (req, res) => {
     // 3-band: so'nggi 24 soatda barabanni aylantirganlar statistikasi —
     // "real" foydalanuvchi faolligini ko'rsatish uchun.
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const [totalUsers, spins24h] = await Promise.all([
-        prisma.user.count(),
-        prisma.wheelSpin.findMany({where: {createdAt: {gte: since24h}}, select: {userId: true}}),
-    ]);
+    const [totalUsers, spins24h] = await Promise.all([prisma.user.count(), prisma.wheelSpin.findMany({
+        where: {createdAt: {gte: since24h}},
+        select: {userId: true}
+    }),]);
     const uniqueSpinners24h = new Set(spins24h.map((s) => s.userId)).size;
     const spinPercent = totalUsers > 0 ? Math.round((uniqueSpinners24h / totalUsers) * 100) : 0;
 
