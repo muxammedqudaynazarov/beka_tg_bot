@@ -209,7 +209,7 @@ router.post('/auctions', async (req, res) => {
 
     if (env.announceChannelId) {
         const {notifyChannel} = require('../services/notifier');
-        const lines = [`⚡️ <b>${skinName}</b>`, ''];
+        const lines = [`⚡️ <b>${skinName}</b>`];
         lines.push(`<i>${hashtagLine}</i>`);
         lines.push('');
         lines.push(`<i>Редкость: ${RARITY_LABELS[rarity] || rarity}</i>`);
