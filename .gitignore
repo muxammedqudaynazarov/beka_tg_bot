@@ -1,7 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
 build/
+
+# Environment variables — HECH QACHON commit qilinmasin
 .env
+.env.local
+.env.production
+.env.*.local
+
+# Logs
 *.log
+logs/
+npm-debug.log*
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Database
 backend/prisma/dev.db
+backend/prisma/*.db-journal
+
+# Uploads (server'da saqlanadi, git'da kerak emas)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
