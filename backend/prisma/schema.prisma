@@ -1,0 +1,572 @@
+// ============================================================================
+// CS2 SKINS AUKSION TIZIMI — Ma'lumotlar bazasi sxemasi (PostgreSQL + Prisma)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// FOYDALANUVCHILAR
+// ------------------------------------------------------------------
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+model User {
+  id            String   @id @default(uuid())
+  telegramId    BigInt   @unique // Telegram foydalanuvchi ID (user bot orqali) — 6-band: endi asosiy identifikator sifatida ham ishlatiladi
+  username      String? // @username (bo'lishi shart emas)
+  firstName     String?
+  lastName      String?
+  role          UserRole @default(USER)
+
+  balance       Decimal  @default(0) @db.Decimal(14, 2) // asosiy hisob (erkin mablag')
+  holdBalance   Decimal  @default(0) @db.Decimal(14, 2) // auksion uchun "zaklad" sifatida bloklangan mablag'
+
+  // Steam Trade URL — g'olib bo'lgan skin shu havola orqali foydalanuvchi
+  // inventariga yuboriladi (8-band). Format: https://steamcommunity.com/tradeoffer/new/?partner=...&token=...
+  tradeUrl      String?  @db.VarChar(255)
+  // 10/11-band: "ilovani ochganda chiqadigan" reklama har 3 ochishda bir
+  // marta ko'rsatilishi uchun hisoblagich (auth/profil so'rovida oshiriladi)
+  appOpenCount  Int      @default(0)
+  // 2-band: foydalanuvchi haqiqatan botni oxirgi marta qachon ochgani —
+  // "real" (faol) foydalanuvchilarni aniqlash uchun. Yangi, ixtiyoriy
+  // (nullable) maydon — mavjud ma'lumotlarga hech qanday ta'sir qilmaydi.
+  lastActiveAt  DateTime?
+  // 4-band: FIRST_DEPOSIT_BONUS promo-kodi faqat shu bayroq false bo'lgan
+  // foydalanuvchilar uchun ishlaydi. Birinchi muvaffaqiyatli TOPUP'da true bo'ladi.
+  hasEverDeposited Boolean @default(false)
+
+  ratingScore   Int      @default(0) // avtomatik reyting (faollik + xaridlar asosida)
+  discountPct   Int      @default(0) // adminning tasdig'i bilan beriladigan skidka foizi (0-100)
+
+  isBanned      Boolean  @default(false)
+  bannedReason  String?  @db.VarChar(500)
+  bannedAt      DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bids          Bid[]
+  wonAuctions   Auction[]        @relation("AuctionWinner")
+  transactions  Transaction[]
+  createdAuctions Auction[]      @relation("AuctionCreatedBy")
+  ratingEvents  RatingEvent[]
+  auditLogs     AdminAuditLog[]  @relation("AuditActor")
+  favorites     Favorite[]
+  broadcasts    Broadcast[]      @relation("BroadcastSender")
+  soldItems     UserSale[]       @relation("SoldItems")
+  recordedSales UserSale[]       @relation("RecordedSales")
+  discounts     UserDiscount[]
+  promoRedemptions PromoCodeRedemption[]
+  wheelSpins    WheelSpin[]
+  // 3-band: har 24 soatda bir marta aylantirish cheklovi uchun
+  lastWheelSpinAt DateTime?
+
+  @@index([role])
+  @@index([isBanned])
+}
+
+// Foydalanuvchi reytingini oshiradigan har bir hodisa (shaffoflik va audit uchun)
+enum RatingEventType {
+  BID_PLACED     // taklif berdi (auksionni yutmasa ham ozgina ball beradi)
+  AUCTION_WON    // auksionni yutib oldi (ko'proq ball)
+  MANUAL_ADJUST  // admin tomonidan qo'lda o'zgartirilgan
+  SALE_RECORDED  // 2-band: o'z inventarini sotgani qayd etildi
+  SALE_CANCELLED // 2-band: yuqoridagi savdo muddatidan oldin bekor qilindi (ball qaytarib olinadi)
+}
+
+model RatingEvent {
+  id        String          @id @default(uuid())
+  user      User            @relation(fields: [userId], references: [id])
+  userId    String
+  type      RatingEventType
+  points    Int
+  note      String?         @db.VarChar(500)
+  createdAt DateTime        @default(now())
+}
+
+// ------------------------------------------------------------------
+// KATEGORIYALAR VA SUB-KATEGORIYALAR
+// (masalan: "Винтовки" kategoriyasi ichida "AK-47", "AWP" sub-kategoriyalari)
+// ------------------------------------------------------------------
+
+model WeaponCategory {
+  id            String              @id @default(uuid())
+  name          String              @unique // masalan: "Винтовки", "Ножи"
+  slug          String              @unique
+  iconUrl       String?             @db.VarChar(500)
+  sortOrder     Int                 @default(0) // ro'yxatda qanday tartibda chiqishi
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  subcategories WeaponSubcategory[]
+}
+
+model WeaponSubcategory {
+  id          String         @id @default(uuid())
+  category    WeaponCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId  String
+  name        String // masalan: "AK-47", "Karambit"
+  slug        String
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  auctions    Auction[]
+
+  @@unique([categoryId, name]) // bitta kategoriya ichida bir xil nom takrorlanmasin
+  @@index([categoryId])
+}
+
+// ------------------------------------------------------------------
+// AUKSION / SKIN E'LONI
+// ------------------------------------------------------------------
+
+enum SkinRarity {
+  CONSUMER    // oq / "Consumer Grade"
+  INDUSTRIAL  // ochiq ko'k
+  MILSPEC     // ko'k ("qizil, fiolet, ko'k, oq" ro'yxatidagi ko'k)
+  RESTRICTED  // fiolet
+  CLASSIFIED  // pushti
+  COVERT      // qizil
+  GOLD        // pichoq / qo'lqop (noyob, oltin)
+}
+
+enum WearCondition {
+  FN // Factory New
+  MW // Minimal Wear
+  FT // Field-Tested
+  WW // Well-Worn
+  BS // Battle-Scarred
+}
+
+enum AuctionStatus {
+  DRAFT             // admin tayyorlamoqda, hali chiqarilmagan
+  ACTIVE            // hozir savdoda
+  AWAITING_PAYMENT  // savdo tugadi, g'olib bor — qolgan 75% uchun 5 soatlik muddat ketmoqda (3-band)
+  PAID              // qolgan 75% to'liq to'landi, lekin Steam orqali hali yuborilmagan
+  DELIVERED         // admin skinni g'olibning Steam inventariga (Trade URL orqali) yuborganini tasdiqladi
+  PAYMENT_EXPIRED   // 5 soat ichida to'lanmadi — zakladning 50% qaytarildi, 50% jarima sifatida ushlab qolindi
+  CANCELLED         // admin tomonidan bekor qilingan
+  UNSOLD            // muddati tugadi, hech kim taklif bermagan
+}
+
+model Auction {
+  id              String         @id @default(uuid())
+
+  skinName        String         // masalan: "AK-47 | Redline"
+  imageUrl        String         @db.VarChar(1000) // ba'zi CDN havolalari uzun bo'ladi — 191 (standart) yetarli emas edi
+  subcategory     WeaponSubcategory @relation(fields: [subcategoryId], references: [id])
+  subcategoryId   String
+
+  rarity          SkinRarity
+  floatValue      Decimal?       @db.Decimal(19, 17) // masalan 0.12488003100 — ba'zi turlarda (kalitlar, stikerlar va h.k.) YO'Q (9-band)
+  wearCondition   WearCondition? // xuddi shu sababli ixtiyoriy
+  isStatTrak      Boolean        @default(false)
+  paintSeed       Int?           // "Шаблон раскраски" — Case Hardened, Fade, Doppler kabi skinlarda naqsh raqami (9-band)
+  // 13-band: agar admin botning haqiqiy Steam inventaridagi shu itemning
+  // asset ID'sini kiritsa, tizim yetkazishni TO'LIQ AVTOMATLASHTIRISHI mumkin
+  // (steamBotService.js). Bo'sh qoldirilsa, yetkazish avvalgidek qo'lda amalga oshadi.
+  steamAssetId    String?        @db.VarChar(64)
+
+  startPrice      Decimal        @db.Decimal(14, 2)
+  currentPrice    Decimal        @db.Decimal(14, 2)
+  buyNowPrice     Decimal?       @db.Decimal(14, 2) // ixtiyoriy: "hoziroq sotib olish" narxi
+
+  status          AuctionStatus  @default(DRAFT)
+
+  startsAt        DateTime       @default(now())
+  endsAt          DateTime       // dinamik ravishda 5-daqiqalik qoidaga ko'ra uzayishi mumkin
+  originalEndsAt  DateTime       // boshlang'ich (admin belgilagan) tugash vaqti, tarixiy ma'lumot uchun
+
+  // 3-band: savdo tugab, g'olib aniqlangach, qolgan 75%ni to'lash uchun muddat
+  // (odatda endsAt + 5 soat). Faqat status=AWAITING_PAYMENT bo'lganda ahamiyatli.
+  paymentDueAt    DateTime?
+  paidAt          DateTime?  // qolgan 75% to'liq to'langan payt
+  deliveredAt     DateTime?  // admin Steam orqali yuborganini tasdiqlagan payt
+  deliveredById   String?    // qaysi admin "yuborildi" deb belgiladi (audit uchun)
+
+  // Auksion versiyasi — optimistik lokировка (parallel takliflarda poyga holatini oldini olish uchun)
+  version         Int            @default(0)
+
+  currentLeader     User?        @relation("AuctionWinner", fields: [currentLeaderId], references: [id])
+  currentLeaderId   String?
+  consecutiveRaises  Int         @default(0) // joriy yetakchining ketma-ket oshirishlar soni (max 10)
+
+  createdBy       User           @relation("AuctionCreatedBy", fields: [createdById], references: [id])
+  createdById     String
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  bids            Bid[]
+  transactions    Transaction[]
+  stickers        AuctionSticker[]
+  favoritedBy     Favorite[]
+
+  @@index([status])
+  @@index([endsAt])
+  @@index([subcategoryId])
+  @@index([rarity])
+}
+
+// 9-band: skinga yopishtirilgan stikerlar — soni oldindan noma'lum (0 dan 5
+// tagacha bo'lishi mumkin), shuning uchun alohida jadval sifatida, admin
+// auksion yaratishda kerakicha qo'shib-o'chirib turadi.
+model AuctionSticker {
+  id         String  @id @default(uuid())
+  auction    Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  auctionId  String
+  name       String  @db.VarChar(255)
+  imageUrl   String  @db.VarChar(1000)
+  slot       Int     @default(0) // qurolning qaysi joyida turishi (tartib uchun, 0-4)
+
+  @@index([auctionId])
+}
+
+// 3-band: "Избранное" — foydalanuvchi keyinroq qaytib ko'rish uchun belgilab
+// qo'yadigan auksionlar. Auksion sotilganda (PAID/DELIVERED) tegishli
+// yozuvlar avtomatik o'chiriladi (auctionService.js'ga qarang).
+model Favorite {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  auction    Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  auctionId  String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, auctionId])
+  @@index([userId])
+  @@index([auctionId])
+}
+
+// Har bir taklif tarixi (audit va "kim qachon qancha taklif berdi" uchun)
+model Bid {
+  id          String   @id @default(uuid())
+  auction     Auction  @relation(fields: [auctionId], references: [id])
+  auctionId   String
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  amount      Decimal  @db.Decimal(14, 2)
+  holdAmount  Decimal  @db.Decimal(14, 2) // ushbu taklif uchun ushlab qolingan zaklad (25%)
+  isWinning   Boolean  @default(false) // hozirda eng yuqori taklifmi
+  createdAt   DateTime @default(now())
+
+  @@index([auctionId])
+  @@index([userId])
+}
+
+// ------------------------------------------------------------------
+// TRANZAKSIYALAR (hisob to'ldirish, zaklad ushlab qolish/qaytarish, xarid)
+// ------------------------------------------------------------------
+
+enum TransactionType {
+  TOPUP              // Click.uz orqali hisobni to'ldirish
+  BID_HOLD           // auksionda taklif uchun 25% ushlab qolish
+  BID_HOLD_RELEASE   // boshqa foydalanuvchi oshirganda (yoki 5soat/50% qaytarishda) avvalgi zakladni qaytarish
+  PURCHASE           // auksionni yutib, qolgan 75% to'langanda
+  DEPOSIT_FORFEITED  // 5 soat ichida to'lanmasa, zakladning 50% jarima sifatida ushlab qolinishi (3-band)
+  ADMIN_ADJUST       // admin tomonidan qo'lda balans tuzatish
+  PAYOUT             // 11/12-band: kelajakda — foydalanuvchi sotgan skin puli kartaga chiqarilganda (hali ishlatilmaydi)
+  PROMO_TOPUP        // 4-band: BALANCE_TOPUP turidagi promo-kod orqali hisobga qo'shilgan summa
+  PROMO_BONUS        // 4-band: FIRST_DEPOSIT_BONUS promo-kodi bo'yicha birinchi to'lovga qo'shilgan bonus
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+// Ikkala to'lov tizimi bir vaqtda ishlashi uchun — TOPUP tranzaksiyasi
+// qaysi provayder orqali yaratilganini bilishimiz kerak (checkout havolasini
+// to'g'ri qurish va webhook'larni to'g'ri yo'naltirish uchun).
+enum PaymentProvider {
+  CLICK
+  PAYME
+}
+
+model Transaction {
+  id              String             @id @default(uuid())
+  user            User               @relation(fields: [userId], references: [id])
+  userId          String
+  auction         Auction?           @relation(fields: [auctionId], references: [id])
+  auctionId       String?
+  provider        PaymentProvider?   // faqat TOPUP turi uchun to'ldiriladi
+
+  type            TransactionType
+  status          TransactionStatus  @default(PENDING)
+  amount          Decimal            @db.Decimal(14, 2)
+
+  // Click.uz bilan bog'liq maydonlar (ESKI, endi faol ishlatilmaydi — tarixiy
+  // tranzaksiyalar uchun saqlab qolingan)
+  clickTransId    String?            @unique
+  clickPaydocId   String?
+  merchantTransId String?            @unique // bizning tizimdagi noyob buyurtma raqami (Payme uchun ham ishlatiladi)
+
+  // 1-band: Payme bilan bog'liq maydonlar — ularning o'z protokoli talab
+  // qiladigan holat (state) va vaqt belgilarini saqlaymiz.
+  paymeTransId      String?  @unique // Payme'ning o'z tranzaksiya ID'si
+  paymeState        Int? // 1=yaratilgan, 2=amalga oshirilgan, -1/-2=bekor qilingan
+  paymeCreateTime   BigInt? // millisekundlarda (Payme protokoli talabi)
+  paymePerformTime  BigInt?
+  paymeCancelTime   BigInt?
+  paymeCancelReason Int?
+
+  note            String?            @db.VarChar(500)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------
+// ADMIN AMALLARI JURNALI (shaffoflik uchun — kim, qachon, nima qildi)
+// ------------------------------------------------------------------
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id])
+  actorId    String
+  action     String   // masalan: "USER_BANNED", "AUCTION_TIME_CHANGED", "CATEGORY_CREATED"
+  targetType String?  // "User" | "Auction" | "WeaponCategory" ...
+  targetId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+}
+
+// 7-band: admin barcha foydalanuvchilarga bir vaqtda xabar yuboradigan
+// funksiya — yuborilgan xabarlar tarixi shu yerda saqlanadi.
+model Broadcast {
+  id          String   @id @default(uuid())
+  admin       User     @relation("BroadcastSender", fields: [adminId], references: [id])
+  adminId     String
+  message     String   @db.Text
+  imageUrl    String?  @db.VarChar(1000)
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+// 10/11-band: Reklama — ikkita mustaqil "joy" (slot): BANNER (har bir
+// sahifa yuqorisida doimiy) va POPUP (ilova ochilganda, 3 martada 1 marta).
+// Har bir slot'da BIR VAQTNING O'ZIDA faqat bitta faol reklama bo'ladi.
+model Advertisement {
+  id          String   @id @default(uuid())
+  slot        AdSlot   @unique
+  imageUrl    String   @db.VarChar(1000)
+  linkUrl     String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  impressions Int      @default(0) // nechta marta ko'rsatilgani
+  clicks      Int      @default(0) // nechta marta bosilgani
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // 1/2-band: necha kundan keyin avtomatik o'chishi (ikkalasi uchun ham)
+  expiresAt      DateTime? // shu vaqt o'tgach avtomatik isActive=false qilinadi
+  durationDays   Int?      // admin necha kun kiritgani (ko'rsatish uchun saqlanadi)
+  // 2-band: FAQAT POPUP uchun — har N-marta ochilishda 1 marta ko'rsatish
+  // (1 = har safar, 2 = har ikkinchisida, ... 5 = har beshinchisida)
+  popupFrequency Int       @default(1)
+}
+
+enum AdSlot {
+  BANNER
+  POPUP
+}
+
+// Rasm yuklash bo'limi: admin to'g'ridan-to'g'ri rasm yuklaydi, tizim uni
+// avtomatik optimallashtiradi (width<=1500px, sifat 60%) va o'zining
+// serverida saqlab, foydalanish uchun URL beradi — tashqi rasm xosting
+// xizmatiga muhtoj bo'lmaslik uchun.
+model UploadedMedia {
+  id          String   @id @default(uuid())
+  filename    String   @db.VarChar(255)
+  url         String   @db.VarChar(1000)
+  sizeBytes   Int?
+  width       Int?
+  height      Int?
+  createdById String?
+  createdAt   DateTime @default(now())
+}
+
+// ===========================================================================
+// 3-band: SKIDKALAR — bitta foydalanuvchida BIR NECHTA turli skidka
+// bo'lishi mumkin (masalan 3%, 5%, 4%), har birining o'z "necha marta
+// ishlatish mumkin" chegarasi bor. Ishlatilganda remainingUses kamayadi.
+// ===========================================================================
+model UserDiscount {
+  id                String    @id @default(uuid())
+  user              User      @relation(fields: [userId], references: [id])
+  userId            String
+  percent           Decimal   @db.Decimal(5, 2) // masalan 3.00 = 3%
+  remainingUses     Int
+  totalUses         Int // boshlang'ich miqdor (tarix/ko'rsatish uchun)
+  sourcePromoCodeId String? // 4-band: agar promo-kod orqali berilgan bo'lsa
+  createdById       String? // qaysi admin qo'lda bergani (promo bo'lsa null)
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ===========================================================================
+// 4-band: PROMO-KODLAR — uchta tur: skidka berish, hisobni belgilangan
+// summaga to'ldirish, yoki birinchi to'lovga +% bonus.
+// ===========================================================================
+enum PromoCodeType {
+  DISCOUNT              // ishlatilganda UserDiscount yaratadi (3-band bilan bir xil mexanizm)
+  BALANCE_TOPUP         // hisobga to'g'ridan-to'g'ri belgilangan summa qo'shadi
+  FIRST_DEPOSIT_BONUS   // foydalanuvchining BIRINCHI to'lovida +% bonus beradi
+  // Барабан (3/4-band): FIRST_DEPOSIT_BONUS'dan farqli — bu foydalanuvchi
+  // ILGARI to'lov qilgan-qilmaganidan qat'iy nazar, ENG YAQIN keyingi
+  // to'lovga +% bonus beradi (chunki baraban aylantirgan HAR QANDAY
+  // foydalanuvchiga tegishli bo'lishi kerak, faqat yangilariga emas).
+  NEXT_DEPOSIT_BONUS
+}
+
+model PromoCode {
+  id              String   @id @default(uuid())
+  code            String   @unique @db.VarChar(64)
+  type            PromoCodeType
+  // DISCOUNT turi uchun:
+  discountPercent Decimal? @db.Decimal(5, 2)
+  discountUses    Int? // shu skidkani necha marta ishlatish mumkin
+  // BALANCE_TOPUP turi uchun:
+  topupAmount     Decimal? @db.Decimal(14, 2)
+  // FIRST_DEPOSIT_BONUS / NEXT_DEPOSIT_BONUS turi uchun:
+  bonusPercent    Decimal? @db.Decimal(5, 2)
+  isActive        Boolean  @default(true)
+  maxRedemptions  Int? // umumiy nechta marta ishlatilishi mumkin (null = cheksiz)
+  redemptionCount Int      @default(0)
+  createdById     String?  // Барабан orqali avtomatik yaratilgan bo'lsa — null
+  createdAt       DateTime @default(now())
+
+  // Барабан (4.e-band): agar shu qiymat o'rnatilgan bo'lsa, kod FAQAT shu
+  // BITTA foydalanuvchi tomonidan ishlatilishi mumkin (boshqa hech kim,
+  // hatto kodni bilsa ham, ishlata olmaydi).
+  restrictedToUserId String?
+  // Барабан (4.d-band): shu vaqtgacha ishlatilmasa, kod avtomatik
+  // "muddati tugagan" deb hisoblanadi (redeem so'ralganda tekshiriladi).
+  expiresAt          DateTime?
+  // Промокод bo'limida "baraban orqali yutib olingan" deb ko'rsatish uchun
+  wonViaWheel         Boolean  @default(false)
+
+  // Referral (affiliate) tizimi: admin promokod yaratishda biriktirilgan
+  // foydalanuvchining Telegram ID'sini va foizini ko'rsatadi. Kimdir shu
+  // kodni ishlatib birinchi to'lovini qilsa — biriktirilgan foydalanuvchi
+  // to'ldirilgan summaning referralPercent % ini bonus sifatida oladi.
+  // Faqat FIRST_DEPOSIT_BONUS uchun ishlaydi (marketing/affiliate maqsadi).
+  referralTelegramId  BigInt?   // bonus oluvchi (masalan Aybek) ning Telegram ID'si
+  referralPercent     Decimal?  @db.Decimal(5, 2) // to'ldirgan summaning necha %
+
+  redemptions PromoCodeRedemption[]
+}
+
+model PromoCodeRedemption {
+  id          String    @id @default(uuid())
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  promoCodeId String
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  // FIRST_DEPOSIT_BONUS uchun: ACTIVE (hali to'lov kutilmoqda) -> CONSUMED
+  // (birinchi to'lovda bonus berildi). Boshqa turlarda darhol CONSUMED.
+  status      String    @default("CONSUMED")
+  createdAt   DateTime  @default(now())
+  consumedAt  DateTime?
+
+  @@unique([promoCodeId, userId]) // bitta foydalanuvchi bitta kodni faqat bir marta ishlata oladi
+}
+
+// ===========================================================================
+// 3/4-band: БАРАБАН — foydalanuvchi har 24 soatda bir marta aylantirib,
+// og'irlikka (weight) asoslangan tasodifiy yutuq oladi.
+// ===========================================================================
+enum WheelItemType {
+  TOPUP_BONUS_PROMO // "Hisobni to'ldirish uchun promokod" — keyingi to'lovga +% bonus
+  PAID_PROMO        // "Pulli promokod" — belgilangan summa
+  BOMB              // "Bomba" — hech qanday yutuqsiz
+  SKIN              // haqiqiy skin yutish
+  DISCOUNT_PROMO    // "Savdo uchun skidka promokodi" — auksionda ishlatiladigan %
+}
+
+model WheelItem {
+  id       String        @id @default(uuid())
+  type     WheelItemType
+  label    String        @db.VarChar(255) // Admin App'da ko'rsatish uchun qisqa nom, masalan "15% qo'shimcha"
+  // Nisbiy og'irlik — "100/20" formatidagi 20-raqam. Umumiy 100ga
+  // yig'ilishi SHART emas (nisbiy ishlatiladi), lekin admin panelida
+  // "X/umumiy" ko'rinishida ko'rsatiladi, qulay bo'lishi uchun.
+  weight   Int
+  isActive Boolean       @default(true)
+
+  // TOPUP_BONUS_PROMO / DISCOUNT_PROMO uchun:
+  percent Decimal? @db.Decimal(5, 2)
+  // PAID_PROMO uchun:
+  amount  Decimal? @db.Decimal(14, 2)
+  // DISCOUNT_PROMO uchun — skidkani necha marta ishlatish mumkin
+  discountUses Int?
+
+  // SKIN uchun:
+  skinName          String?         @db.VarChar(255)
+  skinImageUrl      String?         @db.VarChar(1000)
+  skinRarity        SkinRarity?
+  skinWearCondition WearCondition?
+  skinFloatValue    Decimal?        @db.Decimal(19, 17)
+  skinPaintSeed     Int?
+  skinSteamAssetId  String?         @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  spins     WheelSpin[]
+}
+
+model WheelSpin {
+  id          String        @id @default(uuid())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      String
+  wheelItem   WheelItem     @relation(fields: [wheelItemId], references: [id])
+  wheelItemId String
+  resultType  WheelItemType
+  resultLabel String        @db.VarChar(255) // o'sha paytdagi label — WheelItem keyin o'zgarsa ham tarix to'g'ri qolishi uchun
+  promoCodeId String? // TOPUP_BONUS_PROMO/PAID_PROMO/DISCOUNT_PROMO uchun
+  auctionId   String? // SKIN uchun (auksion mexanizmi qayta ishlatiladi)
+  createdAt   DateTime      @default(now())
+}
+
+// 1-band: admin biror foydalanuvchidan (shaxsiy Steam savdosi orqali)
+// inventar sotib olganda shuni qayd etadi. 7 kunlik "Trade Protection"
+// muddati tugagach (createdAt + 7 kun), tizim buni "to'lovga tayyor" deb
+// belgilaydi — shundan keyingina admin haqiqiy pulni o'tkazishi kerak
+// (avvalgi suhbatda muhokama qilingan xavfsizlik qoidasi).
+model UserSale {
+  id              String    @id @default(uuid())
+  seller          User      @relation("SoldItems", fields: [sellerId], references: [id])
+  sellerId        String
+  recordedBy      User      @relation("RecordedSales", fields: [recordedById], references: [id])
+  recordedById    String
+  itemName        String    @db.VarChar(255)
+  agreedAmount    Decimal   @db.Decimal(14, 2)
+  paidAt          DateTime? // to'lov qachon amalga oshirilgani (qo'lda belgilanadi)
+  note            String?   @db.VarChar(500)
+  createdAt       DateTime  @default(now())
+  // 1-band: 8 kunlik muddat tugaganda adminlarga xabar YUBORILGANMI (bir
+  // marta yuborilishi uchun — takroriy xabar bo'lmasin)
+  readyNotifiedAt DateTime?
+  // 2-band: sotuvchiga reyting ball berilganmi (bekor qilinganda shu
+  // ballni qaytarib olish uchun bilib turish kerak)
+  ratingAwarded   Boolean   @default(false)
+
+  @@index([sellerId])
+  @@index([createdAt])
+}
