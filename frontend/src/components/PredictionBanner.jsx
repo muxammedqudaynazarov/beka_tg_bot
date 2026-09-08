@@ -129,7 +129,7 @@ export default function PredictionBanner() {
           </p>
 
           {/* Meta */}
-          <div className="mt-2 flex items-center gap-3">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className="rounded-md px-2 py-0.5 font-mono text-[10px] font-bold"
               style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)' }}>
               {p.format}
@@ -140,9 +140,14 @@ export default function PredictionBanner() {
             <span className="text-[10px]" style={{ color: remaining > 10 ? 'rgba(255,255,255,0.4)' : '#f5a623' }}>
               ⏱ {remaining > 0 ? `${remaining} мин.` : 'Скоро закрывается'}
             </span>
-            <span className="ml-auto text-[10px] font-semibold" style={{ color: '#eb4b4b' }}>
-              Участвовать →
-            </span>
+            {p.promoAmount > 0 && (
+              <span
+                className="ml-auto flex items-center gap-1 rounded-full px-2.5 py-0.5 font-display text-[10px] font-bold"
+                style={{ background: 'rgba(235,75,75,0.18)', color: '#ef8383', border: '1px solid rgba(235,75,75,0.25)' }}
+              >
+                🏆 {Number(p.promoAmount).toLocaleString('ru-RU')} сум
+              </span>
+            )}
           </div>
         </div>
 
