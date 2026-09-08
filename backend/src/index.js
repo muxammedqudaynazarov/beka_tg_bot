@@ -29,6 +29,7 @@ const profileRoutes = require('./routes/profile.routes');
 const favoritesRoutes = require('./routes/favorites.routes');
 const adsRoutes = require('./routes/ads.routes');
 const promoRoutes = require('./routes/promo.routes');
+const predictionRoutes = require('./routes/prediction.routes');
 const mediaRoutes = require('./routes/media.routes');
 const adminRoutes = require('./routes/admin.routes');
 
@@ -112,6 +113,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/promo', promoRoutes);
+app.use('/api/predictions', predictionRoutes);
 app.use('/api/admin/media', mediaRoutes);
 app.use('/api/admin', adminRoutes);
 

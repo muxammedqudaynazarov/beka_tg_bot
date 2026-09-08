@@ -493,6 +493,16 @@ router.post('/users/:id/unban', async (req, res) => {
     res.json({ok: true});
 });
 
+// Streamer roli berish/olib tashlash — prediction yaratish huquqi
+router.post('/users/:id/toggle-streamer', async (req, res) => {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден.' });
+    const newValue = !user.isStreamer;
+    await prisma.user.update({ where: { id: req.params.id }, data: { isStreamer: newValue } });
+    await logAction(req.user.id, 'USER_STREAMER_TOGGLED', 'User', req.params.id, { isStreamer: newValue });
+    res.json({ ok: true, isStreamer: newValue });
+});
+
 // Faqat SUPERADMIN boshqa foydalanuvchini admin qila oladi / admindan tushira oladi
 router.post('/users/:id/set-role', requireRole('SUPERADMIN'), async (req, res) => {
     const {role} = req.body || {};

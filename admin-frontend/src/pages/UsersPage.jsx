@@ -220,6 +220,19 @@ function UserCard({ user, onChanged, autoExpand }) {
     }
   }
 
+  async function toggleStreamer() {
+    const action = user.isStreamer ? 'убрать роль стримера' : 'назначить стримером';
+    const ok = await showConfirm(`${user.isStreamer ? 'Убрать роль стримера у' : 'Назначить стримером'} ${userLabel(user)}?`);
+    if (!ok) return;
+    try {
+      await api.post(`/admin/users/${user.id}/toggle-streamer`);
+      showAlert(user.isStreamer ? '✅ Роль стримера снята.' : '✅ Роль стримера выдана.');
+      onChanged();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    }
+  }
+
   async function copyId(e) {
     e.stopPropagation();
     try {
@@ -236,6 +249,7 @@ function UserCard({ user, onChanged, autoExpand }) {
         <div role="button" tabIndex={0} onClick={toggle} onKeyDown={(e) => e.key === 'Enter' && toggle()} className="min-w-0 flex-1 text-left">
           <p className="truncate text-sm font-medium text-ink">
             {userLabel(user)} {user.firstName && <span className="font-normal text-muted">· {user.firstName}</span>}
+            {user.isStreamer && <span className="ml-1.5 rounded px-1 py-0.5 text-[9px] font-semibold" style={{background:'var(--bg-accent)',color:'var(--text-accent)'}}>СТРИМЕР</span>}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
           <p className={`text-[10px] font-medium ${lastActive.tone}`}>🕐 {lastActive.text}</p>
@@ -269,6 +283,16 @@ function UserCard({ user, onChanged, autoExpand }) {
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-success/40 px-3 py-1.5 text-xs text-success"
               >
                 <Gift size={13} /> Скидка
+              </button>
+            )}
+            {/* Streamer toggle */}
+            {!showBanForm && (
+              <button
+                onClick={toggleStreamer}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs ${user.isStreamer ? 'border-accent/40 text-accent' : 'border-dashed border-border text-muted'}`}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                {user.isStreamer ? 'Стример' : 'Стример'}
               </button>
             )}
             {!showBanForm && (

@@ -72,6 +72,12 @@ model User {
   // 3-band: har 24 soatda bir marta aylantirish cheklovi uchun
   lastWheelSpinAt DateTime?
 
+  // Prediction (strim) tizimi uchun
+  isStreamer      Boolean  @default(false)
+  createdPredictions Prediction[] @relation("PredictionCreator")
+  predictionEntries  PredictionEntry[]
+  predictionWins     PredictionWinner[]
+
   @@index([role])
   @@index([isBanned])
 }
@@ -569,4 +575,71 @@ model UserSale {
 
   @@index([sellerId])
   @@index([createdAt])
+}
+
+// ===========================================================================
+// PREDICTION (STRIM) TIZIMI
+// Streamer o'yinda taxminiy hisob elon qiladi, foydalanuvchilar taxmin yozadi,
+// to'g'ri topgan birinchi 3 kishi promo-kod yutib oladi.
+// Mavjud hech qanday jadval/model O'ZGARTIRILMADI — faqat yangi qo'shildi.
+// ===========================================================================
+enum PredictionFormat {
+  BO1
+  BO3
+  BO5
+}
+
+enum PredictionStatus {
+  ACTIVE    // tahmin yozish ochiq
+  CLOSED    // vaqt tugadi, natija kiritilishi kutilmoqda
+  COMPLETED // natija kiritildi, g'oliblar aniqlandi
+  CANCELLED // bekor qilindi
+}
+
+model Prediction {
+  id            String           @id @default(uuid())
+  title         String           @db.VarChar(255) // "NaVi vs Astralis"
+  format        PredictionFormat
+  status        PredictionStatus @default(ACTIVE)
+  streamUrl     String?          @db.VarChar(500) // ixtiyoriy stream havolasi
+  promoCode     String           @db.VarChar(64)  // avtogeneratsiya, tahrirlanadi
+  correctResult String?          @db.VarChar(10)  // "2-1" — natija kiritilganda
+  endsAt        DateTime         // tahmin yozish tugash vaqti
+  createdBy     User             @relation("PredictionCreator", fields: [createdById], references: [id])
+  createdById   String
+  entries       PredictionEntry[]
+  winners       PredictionWinner[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model PredictionEntry {
+  id           String     @id @default(uuid())
+  prediction   Prediction @relation(fields: [predictionId], references: [id])
+  predictionId String
+  user         User       @relation(fields: [userId], references: [id])
+  userId       String
+  guess        String     @db.VarChar(10) // "2-1"
+  isCorrect    Boolean?   // natija kiritilganda hisoblanadi
+  createdAt    DateTime   @default(now())
+
+  @@unique([predictionId, userId]) // bir foydalanuvchi — bir taxmin
+  @@index([predictionId, isCorrect, createdAt])
+}
+
+model PredictionWinner {
+  id           String     @id @default(uuid())
+  prediction   Prediction @relation(fields: [predictionId], references: [id])
+  predictionId String
+  user         User       @relation(fields: [userId], references: [id])
+  userId       String
+  position     Int        // 1, 2 yoki 3
+  promoCodeId  String?    // biriktirilib berilgan PromoCode ID'si
+  createdAt    DateTime   @default(now())
+
+  @@unique([predictionId, position])
+  @@unique([predictionId, userId])
 }

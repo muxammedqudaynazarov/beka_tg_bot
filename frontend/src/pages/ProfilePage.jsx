@@ -337,6 +337,16 @@ export default function ProfilePage() {
 
       <h2 className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-ink-secondary">Другое</h2>
       <div className="divide-y divide-base-border overflow-hidden rounded-xl bg-base-surface">
+        {user?.isStreamer && (
+          <button
+            onClick={() => navigate('/streamer')}
+            className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-signal-danger text-[8px] font-bold text-white animate-pulse">●</span>
+            Стрим-панель
+            <ChevronRight size={14} className="ml-auto text-ink-muted" />
+          </button>
+        )}
         <button
           onClick={() => navigate('/purchased-skins')}
           className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-xs text-ink-primary"
