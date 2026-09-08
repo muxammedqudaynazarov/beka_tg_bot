@@ -1,12 +1,11 @@
 const express = require('express');
 const crypto = require('crypto');
 const prisma = require('../db/prisma');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { notifyText } = require('../services/notifier');
 
 const router = express.Router();
 
-// Qisqa, o'qish oson promo-kod generatsiyasi (YY + 4 belgili tasodifiy)
 function genPredictionCode() {
   const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -14,11 +13,24 @@ function genPredictionCode() {
   return 'PRD' + code;
 }
 
+function requireStreamer(req, res, next) {
+  if (!req.user.isStreamer && req.user.role !== 'ADMIN' && req.user.role !== 'SUPERADMIN') {
+    return res.status(403).json({ error: 'Доступ только для стримеров.' });
+  }
+  // 2-band: rol muddati tugaganmi?
+  if (req.user.isStreamer && req.user.streamerExpiresAt) {
+    if (new Date() > new Date(req.user.streamerExpiresAt)) {
+      return res.status(403).json({ error: 'Срок действия роли стримера истёк.' });
+    }
+  }
+  next();
+}
+
 // ============================================================
-// UMUMIY — barcha autentifikatsiyalangan foydalanuvchilar
+// MUHIM: aniq marshrutlar (:id) dan OLDIN kelishi shart
 // ============================================================
 
-// Faol prediction'lar ro'yxati (Главная'dagi banner uchun)
+// Faol prediction'lar (Главная banner uchun)
 router.get('/active', requireAuth, async (req, res) => {
   const now = new Date();
   const predictions = await prisma.prediction.findMany({
@@ -32,7 +44,29 @@ router.get('/active', requireAuth, async (req, res) => {
   res.json({ items: predictions });
 });
 
-// Bitta prediction batafsil
+// Arxiv — COMPLETED + CANCELLED (/:id dan OLDIN bo'lishi shart!)
+router.get('/archive', requireAuth, requireStreamer, async (req, res) => {
+  const items = await prisma.prediction.findMany({
+    where: { createdById: req.user.id, status: { in: ['COMPLETED', 'CANCELLED'] } },
+    include: { _count: { select: { entries: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+  res.json({ items });
+});
+
+// Streamer'ning faol prediction'lari
+router.get('/', requireAuth, requireStreamer, async (req, res) => {
+  const items = await prisma.prediction.findMany({
+    where: { createdById: req.user.id, status: { in: ['ACTIVE', 'CLOSED'] } },
+    include: { _count: { select: { entries: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  res.json({ items });
+});
+
+// Bitta prediction batafsil (/:id — eng oxirida)
 router.get('/:id', requireAuth, async (req, res) => {
   const p = await prisma.prediction.findUnique({
     where: { id: req.params.id },
@@ -42,13 +76,9 @@ router.get('/:id', requireAuth, async (req, res) => {
     },
   });
   if (!p) return res.status(404).json({ error: 'Прогноз не найден.' });
-
-  // Foydalanuvchi allaqachon taxmin yozganmi?
   const myEntry = await prisma.predictionEntry.findUnique({
     where: { predictionId_userId: { predictionId: p.id, userId: req.user.id } },
   });
-
-  // Natija kiritilgan bo'lsa — g'oliblarni ham ko'rsatamiz
   let winners = [];
   if (p.status === 'COMPLETED') {
     winners = await prisma.predictionWinner.findMany({
@@ -57,19 +87,26 @@ router.get('/:id', requireAuth, async (req, res) => {
       orderBy: { position: 'asc' },
     });
   }
-
   res.json({ prediction: p, myEntry, winners });
 });
 
-// Taxmin yozish
+// Tahmin yozish
 router.post('/:id/entries', requireAuth, async (req, res) => {
   const { guess } = req.body || {};
-  if (!guess || !String(guess).trim()) return res.status(400).json({ error: 'Введите прогноз.' });
+  if (!guess?.trim()) return res.status(400).json({ error: 'Введите прогноз.' });
 
   const p = await prisma.prediction.findUnique({ where: { id: req.params.id } });
   if (!p) return res.status(404).json({ error: 'Прогноз не найден.' });
   if (p.status !== 'ACTIVE') return res.status(400).json({ error: 'Прём прогнозов завершён.' });
   if (new Date() > p.endsAt) return res.status(400).json({ error: 'Время для прогнозов истекло.' });
+
+  // 3-band: yaratuvchi o'zi tahmin bera olmaydi; adminlar ham bera olmaydi
+  if (p.createdById === req.user.id) {
+    return res.status(403).json({ error: 'Вы не можете участвовать в собственном прогнозе.' });
+  }
+  if (req.user.role === 'ADMIN' || req.user.role === 'SUPERADMIN') {
+    return res.status(403).json({ error: 'Администраторы не могут участвовать в прогнозах.' });
+  }
 
   const already = await prisma.predictionEntry.findUnique({
     where: { predictionId_userId: { predictionId: p.id, userId: req.user.id } },
@@ -82,39 +119,6 @@ router.post('/:id/entries', requireAuth, async (req, res) => {
   res.status(201).json(entry);
 });
 
-// ============================================================
-// STREAMER — faqat isStreamer=true bo'lgan foydalanuvchilar
-// ============================================================
-
-function requireStreamer(req, res, next) {
-  if (!req.user.isStreamer && req.user.role !== 'ADMIN' && req.user.role !== 'SUPERADMIN') {
-    return res.status(403).json({ error: 'Доступ только для стримеров.' });
-  }
-  next();
-}
-
-// Streamer'ning o'z arxivi (COMPLETED + CANCELLED)
-router.get('/archive', requireAuth, requireStreamer, async (req, res) => {
-  const items = await prisma.prediction.findMany({
-    where: { createdById: req.user.id, status: { in: ['COMPLETED', 'CANCELLED'] } },
-    include: { _count: { select: { entries: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
-  res.json({ items });
-});
-
-// Streamer'ning faol prediction'lari ro'yxati
-router.get('/', requireAuth, requireStreamer, async (req, res) => {
-  const items = await prisma.prediction.findMany({
-    where: { createdById: req.user.id },
-    include: { _count: { select: { entries: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-  });
-  res.json({ items });
-});
-
 // Yangi prediction yaratish
 router.post('/', requireAuth, requireStreamer, async (req, res) => {
   const { title, format, streamUrl, promoCode, endsAt, promoAmount, teamAImage, teamBImage } = req.body || {};
@@ -125,15 +129,25 @@ router.post('/', requireAuth, requireStreamer, async (req, res) => {
   const amount = Number(promoAmount) || 20000;
   if (amount < 1000 || amount > 40000) return res.status(400).json({ error: 'Сумма промокода: от 1 000 до 40 000 сум.' });
 
-  const code = promoCode?.trim().toUpperCase() || genPredictionCode();
+  // 2-band: kunlik limit tekshiruvi
+  if (req.user.isStreamer && req.user.streamerDailyLimit) {
+    const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+    const todayCount = await prisma.prediction.count({
+      where: { createdById: req.user.id, createdAt: { gte: startOfDay } },
+    });
+    if (todayCount >= req.user.streamerDailyLimit) {
+      return res.status(429).json({
+        error: `Дневной лимит прогнозов (${req.user.streamerDailyLimit}) исчерпан. Попробуйте завтра.`,
+      });
+    }
+  }
 
+  const code = promoCode?.trim().toUpperCase() || genPredictionCode();
   const p = await prisma.prediction.create({
     data: {
-      title: title.trim(),
-      format,
+      title: title.trim(), format,
       streamUrl: streamUrl?.trim() || null,
-      promoCode: code,
-      promoAmount: amount,
+      promoCode: code, promoAmount: amount,
       teamAImage: teamAImage?.trim() || null,
       teamBImage: teamBImage?.trim() || null,
       endsAt: new Date(endsAt),
@@ -143,7 +157,7 @@ router.post('/', requireAuth, requireStreamer, async (req, res) => {
   res.status(201).json(p);
 });
 
-// Prediction o'chirish — faqat yaratuvchi, faqat ACTIVE yoki CANCELLED holat
+// Prediction o'chirish
 router.delete('/:id', requireAuth, requireStreamer, async (req, res) => {
   const p = await prisma.prediction.findUnique({ where: { id: req.params.id } });
   if (!p || p.createdById !== req.user.id) return res.status(404).json({ error: 'Не найдено.' });
@@ -154,12 +168,11 @@ router.delete('/:id', requireAuth, requireStreamer, async (req, res) => {
   res.json({ ok: true });
 });
 
-// Prediction holatini yangilash (bekor qilish, yopish)
+// Holatni yangilash
 router.patch('/:id/status', requireAuth, requireStreamer, async (req, res) => {
   const { status } = req.body || {};
   const p = await prisma.prediction.findUnique({ where: { id: req.params.id } });
   if (!p || p.createdById !== req.user.id) return res.status(404).json({ error: 'Не найдено.' });
-
   await prisma.prediction.update({ where: { id: p.id }, data: { status } });
   res.json({ ok: true });
 });
@@ -168,49 +181,30 @@ router.patch('/:id/status', requireAuth, requireStreamer, async (req, res) => {
 router.post('/:id/result', requireAuth, requireStreamer, async (req, res) => {
   const { result } = req.body || {};
   if (!result?.trim()) return res.status(400).json({ error: 'Введите результат матча.' });
-
   const p = await prisma.prediction.findUnique({ where: { id: req.params.id } });
   if (!p || p.createdById !== req.user.id) return res.status(404).json({ error: 'Не найдено.' });
   if (p.status === 'COMPLETED') return res.status(400).json({ error: 'Результат уже введён.' });
 
   const correctResult = result.trim();
-
-  // MySQL 'mode: insensitive' ni qo'llab-quvvatlamaydi (bu PostgreSQL uchun).
-  // Barcha entry'larni olib, JavaScript'da kichik harfga o'tkazib solishtirамиз.
   const allEntries = await prisma.predictionEntry.findMany({
     where: { predictionId: p.id },
     orderBy: { createdAt: 'asc' },
   });
-
   const correctEntries = allEntries
-    .filter((e) => e.guess.trim().toLowerCase() === correctResult.toLowerCase())
+    .filter(e => e.guess.trim().toLowerCase() === correctResult.toLowerCase())
     .slice(0, 3);
-
   const incorrectIds = allEntries
-    .filter((e) => e.guess.trim().toLowerCase() !== correctResult.toLowerCase())
-    .map((e) => e.id);
+    .filter(e => e.guess.trim().toLowerCase() !== correctResult.toLowerCase())
+    .map(e => e.id);
 
   await prisma.$transaction([
-    // To'g'ri taxminlarni belgilaymiz
     ...(correctEntries.length > 0
-      ? [prisma.predictionEntry.updateMany({
-          where: { id: { in: correctEntries.map((e) => e.id) } },
-          data: { isCorrect: true },
-        })]
+      ? [prisma.predictionEntry.updateMany({ where: { id: { in: correctEntries.map(e => e.id) } }, data: { isCorrect: true } })]
       : []),
-    // Noto'g'ri taxminlarni belgilaymiz
     ...(incorrectIds.length > 0
-      ? [prisma.predictionEntry.updateMany({
-          where: { id: { in: incorrectIds } },
-          data: { isCorrect: false },
-        })]
+      ? [prisma.predictionEntry.updateMany({ where: { id: { in: incorrectIds } }, data: { isCorrect: false } })]
       : []),
-    // Prediction'ni yakunlaymiz
-    prisma.prediction.update({
-      where: { id: p.id },
-      data: { correctResult, status: 'COMPLETED' },
-    }),
-    // G'oliblarni yozamiz (birinchi 3 ta)
+    prisma.prediction.update({ where: { id: p.id }, data: { correctResult, status: 'COMPLETED' } }),
     ...correctEntries.map((e, i) =>
       prisma.predictionWinner.upsert({
         where: { predictionId_userId: { predictionId: p.id, userId: e.userId } },
@@ -220,7 +214,6 @@ router.post('/:id/result', requireAuth, requireStreamer, async (req, res) => {
     ),
   ]);
 
-  // G'oliblarga xabar yuboramiz
   for (const [i, entry] of correctEntries.entries()) {
     const user = await prisma.user.findUnique({ where: { id: entry.userId } });
     await notifyText(
@@ -234,30 +227,25 @@ router.post('/:id/result', requireAuth, requireStreamer, async (req, res) => {
     include: { user: { select: { id: true, username: true, firstName: true, telegramId: true } } },
     orderBy: { position: 'asc' },
   });
-
   res.json({ correctResult, winners });
 });
 
-// G'olibga promo-kod biriktirish (Прикрепить)
+// G'olibga promo-kod biriktirish
 router.post('/:id/winners/:userId/attach-promo', requireAuth, requireStreamer, async (req, res) => {
   const winner = await prisma.predictionWinner.findUnique({
     where: { predictionId_userId: { predictionId: req.params.id, userId: req.params.userId } },
     include: { user: true, prediction: true },
   });
   if (!winner) return res.status(404).json({ error: 'Победитель не найден.' });
-
   const p = winner.prediction;
   if (p.createdById !== req.user.id) return res.status(403).json({ error: 'Нет доступа.' });
 
-  // PromoCode yaratamiz — balansni to'ldirish uchun (BALANCE_TOPUP)
   const existingPromo = await prisma.promoCode.findUnique({ where: { code: p.promoCode } });
   let promoCode = existingPromo;
-
   if (!promoCode) {
     promoCode = await prisma.promoCode.create({
       data: {
-        code: p.promoCode,
-        type: 'BALANCE_TOPUP',
+        code: p.promoCode, type: 'BALANCE_TOPUP',
         topupAmount: p.promoAmount || 20000,
         maxRedemptions: 1,
         restrictedToUserId: winner.userId,
@@ -266,13 +254,11 @@ router.post('/:id/winners/:userId/attach-promo', requireAuth, requireStreamer, a
     });
   }
 
-  // G'olibga promo-kodini biriktirish
   await prisma.predictionWinner.update({
     where: { predictionId_userId: { predictionId: req.params.id, userId: req.params.userId } },
     data: { promoCodeId: promoCode.id },
   });
 
-  // G'olibga xabar
   await notifyText(
     winner.user.telegramId,
     `🎁 Поздравляем! За верный прогноз счёта «${p.correctResult}» матча «${p.title}» вам присвоен промо-код:\n\n<b>${p.promoCode}</b>\n\nАктивируйте его в разделе «Профиль → Промокод» в приложении!`,

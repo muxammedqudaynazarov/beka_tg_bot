@@ -73,7 +73,9 @@ model User {
   lastWheelSpinAt DateTime?
 
   // Prediction (strim) tizimi uchun
-  isStreamer      Boolean  @default(false)
+  isStreamer         Boolean   @default(false)
+  streamerDailyLimit Int?      // kunlik prediction yaratish limiti (NULL = cheksiz)
+  streamerExpiresAt  DateTime? // rol tugash sanasi (NULL = muddatsiz)
   createdPredictions Prediction[] @relation("PredictionCreator")
   predictionEntries  PredictionEntry[]
   predictionWins     PredictionWinner[]

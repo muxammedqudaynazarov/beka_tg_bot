@@ -498,8 +498,25 @@ router.post('/users/:id/toggle-streamer', async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден.' });
     const newValue = !user.isStreamer;
-    await prisma.user.update({ where: { id: req.params.id }, data: { isStreamer: newValue } });
-    await logAction(req.user.id, 'USER_STREAMER_TOGGLED', 'User', req.params.id, { isStreamer: newValue });
+
+    let data = { isStreamer: newValue };
+    if (newValue) {
+        // Rol berilganda: kunlik limit va muddat
+        const { dailyLimit, durationDays } = req.body || {};
+        data.streamerDailyLimit = dailyLimit ? Number(dailyLimit) : null;
+        data.streamerExpiresAt = durationDays
+            ? new Date(Date.now() + Number(durationDays) * 24 * 60 * 60 * 1000)
+            : null;
+    } else {
+        // Rol olib tashlananda: cheklovlarni tozalaymiz
+        data.streamerDailyLimit = null;
+        data.streamerExpiresAt = null;
+    }
+
+    await prisma.user.update({ where: { id: req.params.id }, data });
+    await logAction(req.user.id, 'USER_STREAMER_TOGGLED', 'User', req.params.id, {
+        isStreamer: newValue, dailyLimit: data.streamerDailyLimit, durationDays: req.body?.durationDays,
+    });
     res.json({ ok: true, isStreamer: newValue });
 });
 
