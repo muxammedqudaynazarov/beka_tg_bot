@@ -162,8 +162,7 @@ export default function PredictionPage() {
               src={p.teamAImage || teamAPlaceholder}
               alt="А"
               onError={e => { e.target.src = teamAPlaceholder; }}
-              className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-rarity-covert/30"
-              style={{ boxShadow: '0 0 12px rgba(235,75,75,0.2)' }}
+              className="h-12 w-12 shrink-0 object-contain"
             />
 
             {/* Score A */}
@@ -207,8 +206,7 @@ export default function PredictionPage() {
               src={p.teamBImage || teamBPlaceholder}
               alt="Б"
               onError={e => { e.target.src = teamBPlaceholder; }}
-              className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-rarity-classified/30"
-              style={{ boxShadow: '0 0 12px rgba(138,43,226,0.18)' }}
+              className="h-12 w-12 shrink-0 object-contain"
             />
 
           </div>
