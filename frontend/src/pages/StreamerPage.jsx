@@ -102,7 +102,7 @@ export default function StreamerPage() {
   const [archived, setArchived] = useState(null);
   const [showArchive, setShowArchive] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000' });
+  const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000', teamAImage: '', teamBImage: '' });
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState(null);
 
@@ -123,7 +123,7 @@ export default function StreamerPage() {
       await api.post('/predictions', { ...form, promoAmount: Number(form.promoAmount) });
       hapticNotification('success');
       setCreating(false);
-      setForm({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000' });
+      setForm({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000', teamAImage: '', teamBImage: '' });
       load();
     } catch (err) {
       showAlert(err.response?.data?.error || 'Ошибка.');
@@ -223,6 +223,20 @@ export default function StreamerPage() {
             <input value={form.streamUrl}
               onChange={e => setForm({ ...form, streamUrl: e.target.value })}
               placeholder="https://t.me/..." className={inputCls} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-[11px] text-ink-secondary">Логотип команды А (URL)</label>
+              <input value={form.teamAImage}
+                onChange={e => setForm({ ...form, teamAImage: e.target.value })}
+                placeholder="https://..." className={inputCls} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] text-ink-secondary">Логотип команды Б (URL)</label>
+              <input value={form.teamBImage}
+                onChange={e => setForm({ ...form, teamBImage: e.target.value })}
+                placeholder="https://..." className={inputCls} />
+            </div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setCreating(false)}

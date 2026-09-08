@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ExternalLink, Users, Clock } from 'lucide-react';
 import { api } from '../api';
 import { showAlert, hapticNotification, openLink } from '../telegram';
+import teamAPlaceholder from '../assets/team-a-placeholder.png';
+import teamBPlaceholder from '../assets/team-b-placeholder.png';
 
 const FORMAT_MAX = { BO1: 1, BO3: 2, BO5: 3 };
 
@@ -144,67 +146,67 @@ export default function PredictionPage() {
       {isActive && !myEntry && (
         <div className="rounded-xl bg-base-surface px-3.5 py-4">
           <h2 className="mb-4 font-display text-sm font-bold text-ink-primary">Ваш прогноз ({p.format})</h2>
-          <div className="mb-5 flex items-center justify-center gap-4">
-            {p.format === 'BO1' ? (
-              /* BO1: qo'lda yozish — CS2 xaritada hisoblar 16-14 singari bo'ladi */
-              <>
-                <div className="text-center">
-                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда А</p>
-                  <input
-                    type="number" inputMode="numeric" min="0" max="99"
-                    value={scoreA}
-                    onChange={(e) => setScoreA(e.target.value)}
-                    placeholder="0"
-                    className="h-14 w-16 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none"
-                  />
-                </div>
-                <span className="mt-4 font-mono text-2xl font-bold text-ink-muted">:</span>
-                <div className="text-center">
-                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда Б</p>
-                  <input
-                    type="number" inputMode="numeric" min="0" max="99"
-                    value={scoreB}
-                    onChange={(e) => setScoreB(e.target.value)}
-                    placeholder="0"
-                    className="h-14 w-16 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none"
-                  />
-                </div>
-              </>
-            ) : (
-              /* BO3/BO5: dinamik select — bir jamoa MAX tanglasa, ikkinchisi MAX tanlay olmaydi */
-              <>
-                <div className="text-center">
-                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда А</p>
-                  <select value={scoreA} onChange={(e) => {
-                    const v = e.target.value;
-                    setScoreA(v);
-                    // A max bo'lsa va B ham max bo'lsa — B ni max-1 ga tushiramiz
-                    if (Number(v) === max && Number(scoreB) === max) setScoreB(String(max - 1));
-                  }}
-                    className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
-                    {(Number(scoreB) === max
-                      ? Array.from({ length: max }, (_, i) => i)
-                      : options
-                    ).map((v) => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                <span className="mt-4 font-mono text-2xl font-bold text-ink-muted">:</span>
-                <div className="text-center">
-                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда Б</p>
-                  <select value={scoreB} onChange={(e) => {
-                    const v = e.target.value;
-                    setScoreB(v);
-                    if (Number(v) === max && Number(scoreA) === max) setScoreA(String(max - 1));
-                  }}
-                    className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
-                    {(Number(scoreA) === max
-                      ? Array.from({ length: max }, (_, i) => i)
-                      : options
-                    ).map((v) => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              </>
-            )}
+
+          {/* Jamoa rasmlari + hisob kiritish */}
+          <div className="mb-5 flex items-center justify-between gap-2">
+
+            {/* Jamoa A — chap */}
+            <div className="flex flex-col items-center gap-1.5">
+              <img
+                src={p.teamAImage || teamAPlaceholder}
+                alt="Команда А"
+                onError={e => { e.target.src = teamAPlaceholder; }}
+                className="h-16 w-16 rounded-full object-cover"
+                style={{ boxShadow: '0 0 16px rgba(235,75,75,0.25)' }}
+              />
+              <span className="max-w-[60px] truncate text-center text-[9px] text-ink-muted">Команда А</span>
+              {p.format === 'BO1' ? (
+                <input type="number" inputMode="numeric" min="0" max="99"
+                  value={scoreA} onChange={e => setScoreA(e.target.value)} placeholder="0"
+                  className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none" />
+              ) : (
+                <select value={scoreA} onChange={e => {
+                  const v = e.target.value; setScoreA(v);
+                  if (Number(v) === max && Number(scoreB) === max) setScoreB(String(max - 1));
+                }} className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+                  {(Number(scoreB) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
+                    <option key={v} value={v}>{v}</option>)}
+                </select>
+              )}
+            </div>
+
+            {/* Markaz */}
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-display text-[10px] font-semibold uppercase tracking-wider text-ink-muted">vs</span>
+              <span className="font-mono text-3xl font-bold text-ink-muted">:</span>
+              <span className="rounded bg-base-surface2 px-2 py-0.5 font-mono text-[10px] font-bold text-ink-secondary">{p.format}</span>
+            </div>
+
+            {/* Jamoa B — o'ng */}
+            <div className="flex flex-col items-center gap-1.5">
+              <img
+                src={p.teamBImage || teamBPlaceholder}
+                alt="Команда Б"
+                onError={e => { e.target.src = teamBPlaceholder; }}
+                className="h-16 w-16 rounded-full object-cover"
+                style={{ boxShadow: '0 0 16px rgba(138,43,226,0.2)' }}
+              />
+              <span className="max-w-[60px] truncate text-center text-[9px] text-ink-muted">Команда Б</span>
+              {p.format === 'BO1' ? (
+                <input type="number" inputMode="numeric" min="0" max="99"
+                  value={scoreB} onChange={e => setScoreB(e.target.value)} placeholder="0"
+                  className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none" />
+              ) : (
+                <select value={scoreB} onChange={e => {
+                  const v = e.target.value; setScoreB(v);
+                  if (Number(v) === max && Number(scoreA) === max) setScoreA(String(max - 1));
+                }} className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+                  {(Number(scoreA) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
+                    <option key={v} value={v}>{v}</option>)}
+                </select>
+              )}
+            </div>
+
           </div>
           <button onClick={submit} disabled={submitting}
             className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white disabled:opacity-50">
