@@ -268,7 +268,27 @@ function UserCard({ user, onChanged, autoExpand }) {
         <div role="button" tabIndex={0} onClick={toggle} onKeyDown={(e) => e.key === 'Enter' && toggle()} className="min-w-0 flex-1 text-left">
           <p className="truncate text-sm font-medium text-ink">
             {userLabel(user)} {user.firstName && <span className="font-normal text-muted">· {user.firstName}</span>}
-            {user.isStreamer && <span className="ml-1.5 rounded px-1 py-0.5 text-[9px] font-semibold" style={{background:'var(--bg-accent)',color:'var(--text-accent)'}}>СТРИМЕР</span>}
+            {user.isStreamer && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const ok = await showConfirm(`Снять роль стримера у ${userLabel(user)}?`);
+                  if (!ok) return;
+                  try {
+                    await api.post(`/admin/users/${user.id}/toggle-streamer`);
+                    showAlert('✅ Роль стримера снята.');
+                    onChanged();
+                  } catch (err) {
+                    showAlert(err.response?.data?.error || 'Произошла ошибка.');
+                  }
+                }}
+                className="ml-1.5 rounded px-1 py-0.5 text-[9px] font-semibold hover:opacity-70"
+                style={{ background: 'var(--bg-accent)', color: 'var(--text-accent)' }}
+                title="Нажмите чтобы снять роль стримера"
+              >
+                СТРИМЕР ✕
+              </button>
+            )}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
           <p className={`text-[10px] font-medium ${lastActive.tone}`}>🕐 {lastActive.text}</p>
