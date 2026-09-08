@@ -298,13 +298,23 @@ function UserCard({ user, onChanged, autoExpand }) {
             )}
             {/* Streamer toggle */}
             {!showBanForm && !showStreamerForm && (
-              <button
-                onClick={toggleStreamer}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs ${user.isStreamer ? 'border-accent/40 text-accent' : 'border-dashed border-border text-muted'}`}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-                {user.isStreamer ? 'Стример ✓' : 'Стример'}
-              </button>
+              user.isStreamer ? (
+                <button
+                  onClick={toggleStreamer}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-accent/50 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                  Снять стримера
+                </button>
+              ) : (
+                <button
+                  onClick={toggleStreamer}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                  Стример
+                </button>
+              )
             )}
             {!showBanForm && (
               detail.isBanned ? (
