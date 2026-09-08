@@ -106,10 +106,13 @@ router.get('/', requireAuth, requireStreamer, async (req, res) => {
 
 // Yangi prediction yaratish
 router.post('/', requireAuth, requireStreamer, async (req, res) => {
-  const { title, format, streamUrl, promoCode, endsAt } = req.body || {};
+  const { title, format, streamUrl, promoCode, endsAt, promoAmount } = req.body || {};
   if (!title?.trim()) return res.status(400).json({ error: 'Введите название матча.' });
   if (!['BO1', 'BO3', 'BO5'].includes(format)) return res.status(400).json({ error: 'Формат: BO1, BO3 или BO5.' });
   if (!endsAt) return res.status(400).json({ error: 'Укажите время окончания приёма прогнозов.' });
+
+  const amount = Number(promoAmount) || 20000;
+  if (amount < 1000 || amount > 40000) return res.status(400).json({ error: 'Сумма промокода: от 1 000 до 40 000 сум.' });
 
   const code = promoCode?.trim().toUpperCase() || genPredictionCode();
 
@@ -119,6 +122,7 @@ router.post('/', requireAuth, requireStreamer, async (req, res) => {
       format,
       streamUrl: streamUrl?.trim() || null,
       promoCode: code,
+      promoAmount: amount,
       endsAt: new Date(endsAt),
       createdById: req.user.id,
     },
@@ -231,10 +235,10 @@ router.post('/:id/winners/:userId/attach-promo', requireAuth, requireStreamer, a
       data: {
         code: p.promoCode,
         type: 'BALANCE_TOPUP',
-        topupAmount: req.body.amount || 50000,
+        topupAmount: p.promoAmount || 20000,
         maxRedemptions: 1,
         restrictedToUserId: winner.userId,
-        createdById: req.user.id,
+        createdById: p.createdById,
       },
     });
   }

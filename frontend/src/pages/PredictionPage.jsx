@@ -204,9 +204,6 @@ export default function PredictionPage() {
               </>
             )}
           </div>
-          <div className="mb-4 rounded-lg bg-base-surface2 px-3 py-2 text-center">
-            <p className="text-[10px] text-ink-muted">Промокод победителям: <span className="font-mono font-semibold text-rarity-covert">{p.promoCode}</span></p>
-          </div>
           <button onClick={submit} disabled={submitting}
             className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white disabled:opacity-50">
             {submitting ? 'Отправка…' : 'Отправить прогноз'}

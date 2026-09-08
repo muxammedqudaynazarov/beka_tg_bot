@@ -17,7 +17,7 @@ export default function StreamerPage() {
   const navigate = useNavigate();
   const [predictions, setPredictions] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '' });
+  const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000' });
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState(null); // { prediction, winners }
   const [resultA, setResultA] = useState('0');
@@ -34,10 +34,10 @@ export default function StreamerPage() {
     if (!form.endsAt) return showAlert('Укажите время окончания приёма прогнозов.');
     setSaving(true);
     try {
-      await api.post('/predictions', form);
+      await api.post('/predictions', { ...form, promoAmount: Number(form.promoAmount) });
       hapticNotification('success');
       setCreating(false);
-      setForm({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '' });
+      setForm({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000' });
       load();
     } catch (err) {
       showAlert(err.response?.data?.error || 'Ошибка.');
@@ -120,6 +120,13 @@ export default function StreamerPage() {
           <div>
             <label className="mb-1 block text-[11px] text-ink-secondary">Приём прогнозов до</label>
             <input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({...form, endsAt:e.target.value})} className={inputCls} />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-ink-secondary">Сумма призового промо-кода (макс. 40 000 сум)</label>
+            <input type="number" min="1000" max="40000" value={form.promoAmount}
+              onChange={(e) => setForm({...form, promoAmount: e.target.value})}
+              placeholder="20000" className={inputCls} />
+            <p className="mt-1 text-[10px] text-ink-muted">Победитель получит эту сумму на баланс через промо-код</p>
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-ink-secondary">Промо-код победителю</label>

@@ -603,6 +603,7 @@ model Prediction {
   status        PredictionStatus @default(ACTIVE)
   streamUrl     String?          @db.VarChar(500) // ixtiyoriy stream havolasi
   promoCode     String           @db.VarChar(64)  // avtogeneratsiya, tahrirlanadi
+  promoAmount   Int              @default(20000)  // g'olibga beriladigan summa (max 40000 uzs)
   correctResult String?          @db.VarChar(10)  // "2-1" — natija kiritilganda
   endsAt        DateTime         // tahmin yozish tugash vaqti
   createdBy     User             @relation("PredictionCreator", fields: [createdById], references: [id])
