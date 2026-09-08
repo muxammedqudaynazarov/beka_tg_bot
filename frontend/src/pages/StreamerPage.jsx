@@ -95,6 +95,8 @@ function ResultForm({ p, onDone }) {
 export default function StreamerPage() {
   const navigate = useNavigate();
   const [predictions, setPredictions] = useState(null);
+  const [archived, setArchived] = useState(null);
+  const [showArchive, setShowArchive] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000' });
   const [saving, setSaving] = useState(false);
@@ -104,6 +106,10 @@ export default function StreamerPage() {
     api.get('/predictions').then(({ data }) => setPredictions(data.items || [])).catch(() => setPredictions([]));
   }
   useEffect(load, []);
+
+  function loadArchive() {
+    api.get('/predictions/archive').then(({ data }) => setArchived(data.items || [])).catch(() => setArchived([]));
+  }
 
   async function create() {
     if (!form.title.trim()) return showAlert('Введите название матча.');
@@ -156,10 +162,18 @@ export default function StreamerPage() {
           <ChevronLeft size={20} />
         </button>
         <h1 className="font-display text-base font-bold text-ink-primary">Стрим-панель</h1>
-        <button onClick={() => { setCreating(true); setDetail(null); }}
-          className="ml-auto flex items-center gap-1.5 rounded-full bg-rarity-covert px-3.5 py-1.5 font-display text-xs font-bold text-white">
-          <Plus size={13} /> Новый
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={() => { setShowArchive(v => { if (!v) loadArchive(); return !v; }); setCreating(false); }}
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${showArchive ? 'border-rarity-covert text-rarity-covert' : 'border-base-border text-ink-secondary'}`}>
+            Архив
+          </button>
+          {!showArchive && (
+            <button onClick={() => { setCreating(true); setDetail(null); }}
+              className="flex items-center gap-1.5 rounded-full bg-rarity-covert px-3.5 py-1.5 font-display text-xs font-bold text-white">
+              <Plus size={13} /> Новый
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Создание */}
@@ -262,7 +276,47 @@ export default function StreamerPage() {
         </div>
       )}
 
-      {/* Список прогнозов */}
+      {/* Архив */}
+      {showArchive ? (
+        archived === null ? (
+          <div className="space-y-2">{[0,1,2].map(i => <div key={i} className="h-14 animate-pulse rounded-xl bg-base-surface"/>)}</div>
+        ) : archived.length === 0 ? (
+          <p className="text-center text-xs text-ink-muted">Архив пуст.</p>
+        ) : (
+          <div className="space-y-2">
+            {archived.map(p => (
+              <div key={p.id} className="rounded-xl bg-base-surface px-4 py-3 opacity-80">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-sm font-semibold text-ink-primary">{p.title}</p>
+                    <p className="text-[10px] text-ink-muted">{p.format} · {p._count?.entries ?? 0} участников</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className={`rounded px-2 py-0.5 text-[9px] font-bold ${STATUS_COLORS[p.status]}`}>
+                      {STATUS_LABELS[p.status]}
+                    </span>
+                    {p.correctResult && (
+                      <span className="font-mono text-[11px] font-bold text-rarity-covert">{p.correctResult}</span>
+                    )}
+                  </div>
+                </div>
+                {p.status === 'COMPLETED' && (
+                  <button onClick={async () => {
+                    const { data } = await api.get(`/predictions/${p.id}`);
+                    setDetail({ prediction: data.prediction, winners: data.winners || [] });
+                    setShowArchive(false);
+                  }} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-rarity-covert/30 py-1.5 text-[11px] text-rarity-covert">
+                    <Trophy size={12} /> Победители
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+
+      /* Список прогнозов */
+      <>
       {predictions === null ? (
         <div className="space-y-2">
           {[0, 1].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-base-surface" />)}
@@ -313,6 +367,8 @@ export default function StreamerPage() {
             );
           })}
         </div>
+      )}
+      </>
       )}
     </div>
   );

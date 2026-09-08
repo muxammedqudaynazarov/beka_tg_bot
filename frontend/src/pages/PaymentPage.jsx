@@ -5,7 +5,6 @@ import AdBanner from '../components/AdBanner';
 import { useAuth } from '../AuthContext';
 import { openLink, showAlert, showConfirm, hapticNotification } from '../telegram';
 import { formatSom } from '../constants';
-import paymeLogo from '../assets/payme-logo.png';
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
@@ -149,13 +148,6 @@ export default function PaymentPage() {
           </p>
         </div>
       )}
-
-      {/* 3-band: Payme logotipi — tanlov tugmasi emas, shunchaki ko'rsatish */}
-      <div className="mb-5 flex items-center justify-center rounded-xl bg-base-surface py-3">
-        <span className="flex h-10 items-center justify-center px-6">
-          <img src={paymeLogo} alt="Payme" className="h-8 object-contain" />
-        </span>
-      </div>
 
       <label className="mb-2 block font-display text-xs font-semibold text-ink-secondary">Сумма пополнения</label>
       <input

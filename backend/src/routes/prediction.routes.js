@@ -93,7 +93,18 @@ function requireStreamer(req, res, next) {
   next();
 }
 
-// Streamer'ning o'z prediction'lari ro'yxati
+// Streamer'ning o'z arxivi (COMPLETED + CANCELLED)
+router.get('/archive', requireAuth, requireStreamer, async (req, res) => {
+  const items = await prisma.prediction.findMany({
+    where: { createdById: req.user.id, status: { in: ['COMPLETED', 'CANCELLED'] } },
+    include: { _count: { select: { entries: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+  res.json({ items });
+});
+
+// Streamer'ning faol prediction'lari ro'yxati
 router.get('/', requireAuth, requireStreamer, async (req, res) => {
   const items = await prisma.prediction.findMany({
     where: { createdById: req.user.id },
@@ -262,9 +273,8 @@ router.post('/:id/winners/:userId/attach-promo', requireAuth, requireStreamer, a
   // G'olibga xabar
   await notifyText(
     winner.user.telegramId,
-    `🎁 Поздравляем! За верный прогноз счёта «${p.correctResult}» матча «${p.title}» вам присвоен промо-код:\n\n` +
-    `<b>${p.promoCode}</b>\n\n` +
-    `Активируйте его в разделе «Профиль → Промокод» в приложении!`
+    `🎁 Поздравляем! За верный прогноз счёта «${p.correctResult}» матча «${p.title}» вам присвоен промо-код:\n\n<b>${p.promoCode}</b>\n\nАктивируйте его в разделе «Профиль → Промокод» в приложении!`,
+    { parse_mode: 'HTML' }
   );
 
   res.json({ ok: true, promoCode: p.promoCode });
