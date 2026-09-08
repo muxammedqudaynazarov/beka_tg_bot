@@ -162,26 +162,36 @@ router.post('/:id/result', requireAuth, requireStreamer, async (req, res) => {
 
   const correctResult = result.trim();
 
-  // Barcha to'g'ri taxminlarni aniqlaymiz (to'g'ri taxmin = case-insensitive moslik)
-  const correctEntries = await prisma.predictionEntry.findMany({
-    where: {
-      predictionId: p.id,
-      guess: { equals: correctResult, mode: 'insensitive' },
-    },
-    orderBy: { createdAt: 'asc' }, // birinchi yozganlar g'olib
-    take: 3,
+  // MySQL 'mode: insensitive' ni qo'llab-quvvatlamaydi (bu PostgreSQL uchun).
+  // Barcha entry'larni olib, JavaScript'da kichik harfga o'tkazib solishtirамиз.
+  const allEntries = await prisma.predictionEntry.findMany({
+    where: { predictionId: p.id },
+    orderBy: { createdAt: 'asc' },
   });
 
+  const correctEntries = allEntries
+    .filter((e) => e.guess.trim().toLowerCase() === correctResult.toLowerCase())
+    .slice(0, 3);
+
+  const incorrectIds = allEntries
+    .filter((e) => e.guess.trim().toLowerCase() !== correctResult.toLowerCase())
+    .map((e) => e.id);
+
   await prisma.$transaction([
-    // Barcha entry'larni isCorrect bilan belgilaymiz
-    prisma.predictionEntry.updateMany({
-      where: { predictionId: p.id, guess: { equals: correctResult, mode: 'insensitive' } },
-      data: { isCorrect: true },
-    }),
-    prisma.predictionEntry.updateMany({
-      where: { predictionId: p.id, guess: { not: { equals: correctResult, mode: 'insensitive' } } },
-      data: { isCorrect: false },
-    }),
+    // To'g'ri taxminlarni belgilaymiz
+    ...(correctEntries.length > 0
+      ? [prisma.predictionEntry.updateMany({
+          where: { id: { in: correctEntries.map((e) => e.id) } },
+          data: { isCorrect: true },
+        })]
+      : []),
+    // Noto'g'ri taxminlarni belgilaymiz
+    ...(incorrectIds.length > 0
+      ? [prisma.predictionEntry.updateMany({
+          where: { id: { in: incorrectIds } },
+          data: { isCorrect: false },
+        })]
+      : []),
     // Prediction'ni yakunlaymiz
     prisma.prediction.update({
       where: { id: p.id },

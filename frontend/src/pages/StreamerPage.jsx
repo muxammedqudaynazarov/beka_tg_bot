@@ -6,11 +6,90 @@ import { showAlert, showConfirm, hapticNotification } from '../telegram';
 
 const FORMAT_MAX = { BO1: 1, BO3: 2, BO5: 3 };
 const STATUS_LABELS = { ACTIVE: 'Активен', CLOSED: 'Закрыт', COMPLETED: 'Завершён', CANCELLED: 'Отменён' };
-const STATUS_COLORS = { ACTIVE: 'text-signal-success bg-signal-success/10', CLOSED: 'text-signal-warning bg-signal-warning/10', COMPLETED: 'text-rarity-covert bg-rarity-covert/10', CANCELLED: 'text-ink-muted bg-base-surface2' };
+const STATUS_COLORS = {
+  ACTIVE: 'text-signal-success bg-signal-success/10',
+  CLOSED: 'text-signal-warning bg-signal-warning/10',
+  COMPLETED: 'text-rarity-covert bg-rarity-covert/10',
+  CANCELLED: 'text-ink-muted bg-base-surface2',
+};
 
 function genCode() {
   const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return 'PRD' + Array.from({length:4}, () => a[Math.floor(Math.random()*a.length)]).join('');
+  return 'PRD' + Array.from({ length: 4 }, () => a[Math.floor(Math.random() * a.length)]).join('');
+}
+
+// Har bir prediction kartasi uchun ALOHIDA lokal state.
+// Sahifa darajasidagi umumiy state ulashilmaydi — bir karta
+// boshqa kartaning maydonini o'zgartirmaydi.
+function ResultForm({ p, onDone }) {
+  const [resA, setResA] = useState('0');
+  const [resB, setResB] = useState('0');
+  const [saving, setSaving] = useState(false);
+  const max = FORMAT_MAX[p.format];
+  const opts = Array.from({ length: max + 1 }, (_, i) => i);
+
+  async function submit() {
+    const a = Number(resA), b = Number(resB);
+    if (a === b) return showAlert('Ничья невозможна.');
+    if (a !== max && b !== max) return showAlert(`Один из счётов должен быть ${max}.`);
+    const ok = await showConfirm(`Завершить прогноз? Правильный счёт: ${resA}-${resB}`);
+    if (!ok) return;
+    setSaving(true);
+    try {
+      const { data } = await api.post(`/predictions/${p.id}/result`, { result: `${resA}-${resB}` });
+      hapticNotification('success');
+      onDone({ prediction: { ...p, status: 'COMPLETED', correctResult: `${resA}-${resB}` }, winners: data.winners || [] });
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Ошибка при сохранении.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] text-ink-secondary">Введите правильный счёт:</p>
+      <div className="flex items-center gap-2">
+        {p.format === 'BO1' ? (
+          <>
+            <input type="number" inputMode="numeric" min="0" max="99"
+              value={resA} onChange={e => setResA(e.target.value)} placeholder="13"
+              className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold focus:outline-none" />
+            <span className="font-mono text-ink-muted">:</span>
+            <input type="number" inputMode="numeric" min="0" max="99"
+              value={resB} onChange={e => setResB(e.target.value)} placeholder="8"
+              className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold focus:outline-none" />
+          </>
+        ) : (
+          <>
+            <select value={resA} onChange={e => {
+              const v = e.target.value; setResA(v);
+              if (Number(v) === max && Number(resB) === max) setResB(String(max - 1));
+            }} className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
+              {(Number(resB) === max
+                ? Array.from({ length: max }, (_, i) => i)
+                : opts
+              ).map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <span className="font-mono text-ink-muted">:</span>
+            <select value={resB} onChange={e => {
+              const v = e.target.value; setResB(v);
+              if (Number(v) === max && Number(resA) === max) setResA(String(max - 1));
+            }} className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
+              {(Number(resA) === max
+                ? Array.from({ length: max }, (_, i) => i)
+                : opts
+              ).map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </>
+        )}
+        <button onClick={submit} disabled={saving}
+          className="flex-1 rounded-lg bg-rarity-covert py-2 font-display text-xs font-bold text-white disabled:opacity-50">
+          {saving ? '…' : 'Завершить'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function StreamerPage() {
@@ -19,10 +98,7 @@ export default function StreamerPage() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000' });
   const [saving, setSaving] = useState(false);
-  const [detail, setDetail] = useState(null); // { prediction, winners }
-  const [resultA, setResultA] = useState('0');
-  const [resultB, setResultB] = useState('0');
-  const [submittingResult, setSubmittingResult] = useState(false);
+  const [detail, setDetail] = useState(null);
 
   function load() {
     api.get('/predictions').then(({ data }) => setPredictions(data.items || [])).catch(() => setPredictions([]));
@@ -46,36 +122,13 @@ export default function StreamerPage() {
     }
   }
 
-  async function submitResult(p) {
-    if (resultA === '' || resultB === '') return showAlert('Введите счёт.');
-    const max = FORMAT_MAX[p.format];
-    const a = Number(resultA), b = Number(resultB);
-    if (a === b) return showAlert('Ничья невозможна.');
-    if (a !== max && b !== max) return showAlert(`Один из счётов должен быть ${max}.`);
-    const ok = await showConfirm(`Завершить прогноз? Правильный счёт: ${resultA}-${resultB}`);
-    if (!ok) return;
-    setSubmittingResult(true);
-    try {
-      const { data } = await api.post(`/predictions/${p.id}/result`, { result: `${resultA}-${resultB}` });
-      hapticNotification('success');
-      setDetail({ prediction: { ...p, status: 'COMPLETED', correctResult: `${resultA}-${resultB}` }, winners: data.winners || [] });
-      setResultA(''); setResultB('');
-      load();
-    } catch (err) {
-      showAlert(err.response?.data?.error || 'Ошибка.');
-    } finally {
-      setSubmittingResult(false);
-    }
-  }
-
   async function attachPromo(predId, userId) {
     try {
       await api.post(`/predictions/${predId}/winners/${userId}/attach-promo`);
       hapticNotification('success');
       showAlert('✅ Промокод прикреплён и отправлен победителю!');
-      // Обновляем detail
       const { data } = await api.get(`/predictions/${predId}`);
-      setDetail((d) => d ? { ...d, winners: data.winners || [] } : d);
+      setDetail(d => d ? { ...d, winners: data.winners || [] } : d);
     } catch (err) {
       showAlert(err.response?.data?.error || 'Ошибка.');
     }
@@ -99,76 +152,98 @@ export default function StreamerPage() {
   return (
     <div className="min-h-screen px-4 pb-28 pt-6">
       <header className="mb-5 flex items-center gap-2">
-        <button onClick={() => navigate('/profile')} className="text-ink-secondary"><ChevronLeft size={20} /></button>
+        <button onClick={() => navigate('/profile')} className="text-ink-secondary">
+          <ChevronLeft size={20} />
+        </button>
         <h1 className="font-display text-base font-bold text-ink-primary">Стрим-панель</h1>
-        <button onClick={() => { setCreating(true); setDetail(null); }} className="ml-auto flex items-center gap-1.5 rounded-full bg-rarity-covert px-3.5 py-1.5 font-display text-xs font-bold text-white">
+        <button onClick={() => { setCreating(true); setDetail(null); }}
+          className="ml-auto flex items-center gap-1.5 rounded-full bg-rarity-covert px-3.5 py-1.5 font-display text-xs font-bold text-white">
           <Plus size={13} /> Новый
         </button>
       </header>
 
-      {/* Create form */}
+      {/* Создание */}
       {creating && (
         <div className="mb-5 space-y-3 rounded-xl bg-base-surface p-4">
           <h2 className="font-display text-sm font-bold text-ink-primary">Новый прогноз</h2>
-          <input value={form.title} onChange={(e) => setForm({...form, title:e.target.value})} placeholder="Название матча (напр. NaVi vs Astralis)" className={inputCls} />
+          <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+            placeholder="Название матча (напр. NaVi vs Astralis)" className={inputCls} />
           <div className="grid grid-cols-3 gap-2">
-            {['BO1','BO3','BO5'].map((f) => (
-              <button key={f} onClick={() => setForm({...form, format:f})}
-                className={`rounded-lg border py-2 font-mono text-sm font-bold ${form.format === f ? 'border-rarity-covert bg-rarity-covert/10 text-rarity-covert' : 'border-base-border text-ink-secondary'}`}>{f}</button>
+            {['BO1', 'BO3', 'BO5'].map(f => (
+              <button key={f} onClick={() => setForm({ ...form, format: f })}
+                className={`rounded-lg border py-2 font-mono text-sm font-bold ${form.format === f ? 'border-rarity-covert bg-rarity-covert/10 text-rarity-covert' : 'border-base-border text-ink-secondary'}`}>
+                {f}
+              </button>
             ))}
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-ink-secondary">Приём прогнозов до</label>
-            <input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({...form, endsAt:e.target.value})} className={inputCls} />
+            <input type="datetime-local" value={form.endsAt}
+              onChange={e => setForm({ ...form, endsAt: e.target.value })} className={inputCls} />
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-ink-secondary">Сумма призового промо-кода (макс. 40 000 сум)</label>
             <input type="number" min="1000" max="40000" value={form.promoAmount}
-              onChange={(e) => setForm({...form, promoAmount: e.target.value})}
+              onChange={e => setForm({ ...form, promoAmount: e.target.value })}
               placeholder="20000" className={inputCls} />
             <p className="mt-1 text-[10px] text-ink-muted">Победитель получит эту сумму на баланс через промо-код</p>
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-ink-secondary">Промо-код победителю</label>
             <div className="flex gap-2">
-              <input value={form.promoCode} onChange={(e) => setForm({...form, promoCode:e.target.value.toUpperCase()})} className={inputCls + ' font-mono uppercase'} />
-              <button onClick={() => setForm({...form, promoCode:genCode()})} className="shrink-0 rounded-xl border border-base-border px-3 text-xs text-ink-secondary">Новый</button>
+              <input value={form.promoCode}
+                onChange={e => setForm({ ...form, promoCode: e.target.value.toUpperCase() })}
+                className={inputCls + ' font-mono uppercase'} />
+              <button onClick={() => setForm({ ...form, promoCode: genCode() })}
+                className="shrink-0 rounded-xl border border-base-border px-3 text-xs text-ink-secondary">
+                Новый
+              </button>
             </div>
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-ink-secondary">Ссылка на стрим (необязательно)</label>
-            <input value={form.streamUrl} onChange={(e) => setForm({...form, streamUrl:e.target.value})} placeholder="https://t.me/..." className={inputCls} />
+            <input value={form.streamUrl}
+              onChange={e => setForm({ ...form, streamUrl: e.target.value })}
+              placeholder="https://t.me/..." className={inputCls} />
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setCreating(false)} className="flex-1 rounded-xl border border-base-border py-2.5 text-sm text-ink-secondary">Отмена</button>
-            <button onClick={create} disabled={saving} className="flex-1 rounded-xl bg-rarity-covert py-2.5 font-display text-sm font-bold text-white disabled:opacity-50">
+            <button onClick={() => setCreating(false)}
+              className="flex-1 rounded-xl border border-base-border py-2.5 text-sm text-ink-secondary">
+              Отмена
+            </button>
+            <button onClick={create} disabled={saving}
+              className="flex-1 rounded-xl bg-rarity-covert py-2.5 font-display text-sm font-bold text-white disabled:opacity-50">
               {saving ? 'Создание…' : 'Создать'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Winner detail */}
+      {/* Победители */}
       {detail && (
         <div className="mb-5 rounded-xl bg-base-surface p-4">
           <div className="mb-3 flex items-center gap-2">
             <Trophy size={16} className="text-signal-warning" />
             <h2 className="font-display text-sm font-bold text-ink-primary">Победители</h2>
-            <span className="ml-auto font-mono text-base font-bold text-rarity-covert">{detail.prediction.correctResult}</span>
+            <span className="ml-auto font-mono text-base font-bold text-rarity-covert">
+              {detail.prediction.correctResult}
+            </span>
           </div>
           {detail.winners.length === 0 ? (
             <p className="text-xs text-ink-muted">Никто не угадал правильный счёт.</p>
           ) : (
             <div className="space-y-2">
-              {detail.winners.map((w) => {
+              {detail.winners.map(w => {
                 const medals = ['🥇', '🥈', '🥉'];
                 const name = w.user?.username ? `@${w.user.username}` : w.user?.firstName || 'Участник';
                 return (
                   <div key={w.id} className="flex items-center gap-2.5 rounded-lg bg-base-surface2 px-3 py-2">
-                    <span>{medals[w.position-1]}</span>
+                    <span>{medals[w.position - 1]}</span>
                     <span className="flex-1 text-sm font-semibold text-ink-primary">{name}</span>
                     {w.promoCodeId ? (
-                      <span className="rounded bg-signal-success/15 px-2 py-0.5 text-[10px] font-semibold text-signal-success">Отправлен</span>
+                      <span className="rounded bg-signal-success/15 px-2 py-0.5 text-[10px] font-semibold text-signal-success">
+                        Отправлен
+                      </span>
                     ) : (
                       <button onClick={() => attachPromo(detail.prediction.id, w.user.id)}
                         className="rounded bg-rarity-covert px-2 py-0.5 text-[10px] font-bold text-white">
@@ -180,20 +255,23 @@ export default function StreamerPage() {
               })}
             </div>
           )}
-          <button onClick={() => setDetail(null)} className="mt-3 w-full rounded-lg border border-base-border py-2 text-xs text-ink-secondary">Закрыть</button>
+          <button onClick={() => setDetail(null)}
+            className="mt-3 w-full rounded-lg border border-base-border py-2 text-xs text-ink-secondary">
+            Закрыть
+          </button>
         </div>
       )}
 
-      {/* Predictions list */}
+      {/* Список прогнозов */}
       {predictions === null ? (
-        <div className="space-y-2">{[0,1].map(i=><div key={i} className="h-16 animate-pulse rounded-xl bg-base-surface"/>)}</div>
+        <div className="space-y-2">
+          {[0, 1].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-base-surface" />)}
+        </div>
       ) : predictions.length === 0 ? (
         <p className="text-center text-xs text-ink-muted">Прогнозов пока нет. Создайте первый!</p>
       ) : (
         <div className="space-y-3">
-          {predictions.map((p) => {
-            const max = FORMAT_MAX[p.format];
-            const opts = Array.from({length:max+1},(_,i)=>i);
+          {predictions.map(p => {
             const isActive = p.status === 'ACTIVE';
             const canFinish = isActive || p.status === 'CLOSED';
             return (
@@ -204,7 +282,9 @@ export default function StreamerPage() {
                     <p className="text-[10px] text-ink-muted">{p.format} · {p._count?.entries ?? 0} участников</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <span className={`rounded px-2 py-0.5 text-[9px] font-bold ${STATUS_COLORS[p.status]}`}>{STATUS_LABELS[p.status]}</span>
+                    <span className={`rounded px-2 py-0.5 text-[9px] font-bold ${STATUS_COLORS[p.status]}`}>
+                      {STATUS_LABELS[p.status]}
+                    </span>
                     {p.status !== 'COMPLETED' && (
                       <button onClick={() => deletePrediction(p)} className="text-ink-muted hover:text-signal-danger">
                         <Trash2 size={13} />
@@ -212,57 +292,13 @@ export default function StreamerPage() {
                     )}
                   </div>
                 </div>
-                <p className="mb-3 font-mono text-[10px] text-ink-secondary">Промо: <span className="font-bold text-ink-primary">{p.promoCode}</span></p>
+                <p className="mb-3 font-mono text-[10px] text-ink-secondary">
+                  Промо: <span className="font-bold text-ink-primary">{p.promoCode}</span>
+                  {p.promoAmount ? <span className="ml-2 text-ink-muted">· {Number(p.promoAmount).toLocaleString('ru-RU')} сум</span> : null}
+                </p>
 
                 {canFinish && (
-                  <div>
-                    <p className="mb-1.5 text-[11px] text-ink-secondary">Введите правильный счёт:</p>
-                    <div className="flex items-center gap-2">
-                      {p.format === 'BO1' ? (
-                        <>
-                          <input type="number" inputMode="numeric" min="0" max="99"
-                            value={resultA} onChange={e=>setResultA(e.target.value)} placeholder="13"
-                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold focus:outline-none" />
-                          <span className="font-mono text-ink-muted">:</span>
-                          <input type="number" inputMode="numeric" min="0" max="99"
-                            value={resultB} onChange={e=>setResultB(e.target.value)} placeholder="8"
-                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold focus:outline-none" />
-                        </>
-                      ) : (
-                        <>
-                          <select value={resultA} onChange={e => {
-                            const v = e.target.value;
-                            setResultA(v);
-                            const mx = FORMAT_MAX[p.format];
-                            if (Number(v) === mx && Number(resultB) === mx) setResultB(String(mx - 1));
-                          }}
-                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
-                            {(Number(resultB) === FORMAT_MAX[p.format]
-                              ? Array.from({ length: FORMAT_MAX[p.format] }, (_, i) => i)
-                              : opts
-                            ).map(v => <option key={v} value={v}>{v}</option>)}
-                          </select>
-                          <span className="font-mono text-ink-muted">:</span>
-                          <select value={resultB} onChange={e => {
-                            const v = e.target.value;
-                            setResultB(v);
-                            const mx = FORMAT_MAX[p.format];
-                            if (Number(v) === mx && Number(resultA) === mx) setResultA(String(mx - 1));
-                          }}
-                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
-                            {(Number(resultA) === FORMAT_MAX[p.format]
-                              ? Array.from({ length: FORMAT_MAX[p.format] }, (_, i) => i)
-                              : opts
-                            ).map(v => <option key={v} value={v}>{v}</option>)}
-                          </select>
-                        </>
-                      )}
-                      <button onClick={() => submitResult(p)} disabled={submittingResult}
-                        className="flex-1 rounded-lg bg-rarity-covert py-2 font-display text-xs font-bold text-white disabled:opacity-50">
-                        {submittingResult ? '…' : 'Завершить'}
-                      </button>
-                    </div>
-                  </div>
+                  <ResultForm p={p} onDone={d => { setDetail(d); load(); }} />
                 )}
 
                 {p.status === 'COMPLETED' && (
