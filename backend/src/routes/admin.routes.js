@@ -654,6 +654,7 @@ router.get('/users', async (req, res) => {
         select: {
             id: true, telegramId: true, username: true, firstName: true, lastName: true, role: true,
             balance: true, isBanned: true, createdAt: true, lastActiveAt: true,
+            isStreamer: true, streamerDailyLimit: true, streamerExpiresAt: true,
             _count: {select: {soldItems: true}},
         },
     });
