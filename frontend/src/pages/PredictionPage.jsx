@@ -28,8 +28,10 @@ export default function PredictionPage() {
   async function submit() {
     const max = FORMAT_MAX[prediction?.format];
     const a = Number(scoreA), b = Number(scoreB);
-    if (a === b) return showAlert('Ничья невозможна — один из счётов должен быть максимальным.');
-    if (a !== max && b !== max) return showAlert(`Один из счётов должен быть ${max} (победитель серии).`);
+    if (a === b) return showAlert('Ничья невозможна — счёт не может быть равным.');
+    if (prediction?.format !== 'BO1' && a !== max && b !== max) {
+      return showAlert(`Один из счётов должен быть ${max} (победитель серии).`);
+    }
     setSubmitting(true);
     try {
       await api.post(`/predictions/${id}/entries`, { guess: `${scoreA}-${scoreB}` });

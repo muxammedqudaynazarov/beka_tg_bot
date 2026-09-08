@@ -30,8 +30,12 @@ function ResultForm({ p, onDone }) {
 
   async function submit() {
     const a = Number(resA), b = Number(resB);
-    if (a === b) return showAlert('Ничья невозможна.');
-    if (a !== max && b !== max) return showAlert(`Один из счётов должен быть ${max}.`);
+    if (a === b) return showAlert('Ничья невозможна — счёт не может быть равным.');
+    // BO3 va BO5 da g'olib tomonning maksimal yutiqqa ega bo'lishi shart.
+    // BO1 da esa xaritadagi hisob (13-8 kabi) erkin bo'ladi — faqat teng emas.
+    if (p.format !== 'BO1' && a !== max && b !== max) {
+      return showAlert(`Один из счётов должен быть ${max} (победитель серии).`);
+    }
     const ok = await showConfirm(`Завершить прогноз? Правильный счёт: ${resA}-${resB}`);
     if (!ok) return;
     setSaving(true);
