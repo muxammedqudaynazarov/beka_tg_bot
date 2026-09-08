@@ -147,65 +147,69 @@ export default function PredictionPage() {
         <div className="rounded-xl bg-base-surface px-3.5 py-4">
           <h2 className="mb-4 font-display text-sm font-bold text-ink-primary">Ваш прогноз ({p.format})</h2>
 
-          {/* Jamoa rasmlari + hisob kiritish */}
+          {/* Labels */}
+          <div className="mb-1.5 flex items-center px-1">
+            <span className="w-[72px] text-center text-[10px] text-ink-muted">Команда А</span>
+            <div className="flex-1" />
+            <span className="w-[72px] text-center text-[10px] text-ink-muted">Команда Б</span>
+          </div>
+
+          {/* Logo | Score : Score | Logo — bitta qatorda */}
           <div className="mb-5 flex items-center justify-between gap-2">
 
-            {/* Jamoa A — chap */}
-            <div className="flex flex-col items-center gap-1.5">
-              <img
-                src={p.teamAImage || teamAPlaceholder}
-                alt="Команда А"
-                onError={e => { e.target.src = teamAPlaceholder; }}
-                className="h-16 w-16 rounded-full object-cover"
-                style={{ boxShadow: '0 0 16px rgba(235,75,75,0.25)' }}
-              />
-              <span className="max-w-[60px] truncate text-center text-[9px] text-ink-muted">Команда А</span>
-              {p.format === 'BO1' ? (
-                <input type="number" inputMode="numeric" min="0" max="99"
-                  value={scoreA} onChange={e => setScoreA(e.target.value)} placeholder="0"
-                  className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none" />
-              ) : (
-                <select value={scoreA} onChange={e => {
-                  const v = e.target.value; setScoreA(v);
-                  if (Number(v) === max && Number(scoreB) === max) setScoreB(String(max - 1));
-                }} className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
-                  {(Number(scoreB) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
-                    <option key={v} value={v}>{v}</option>)}
-                </select>
-              )}
+            {/* Logo A */}
+            <img
+              src={p.teamAImage || teamAPlaceholder}
+              alt="А"
+              onError={e => { e.target.src = teamAPlaceholder; }}
+              className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-rarity-covert/30"
+              style={{ boxShadow: '0 0 12px rgba(235,75,75,0.2)' }}
+            />
+
+            {/* Score A */}
+            {p.format === 'BO1' ? (
+              <input type="number" inputMode="numeric" min="0" max="99"
+                value={scoreA} onChange={e => setScoreA(e.target.value)} placeholder="0"
+                className="h-14 w-14 shrink-0 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none" />
+            ) : (
+              <select value={scoreA} onChange={e => {
+                const v = e.target.value; setScoreA(v);
+                if (Number(v) === max && Number(scoreB) === max) setScoreB(String(max - 1));
+              }} className="h-14 w-14 shrink-0 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+                {(Number(scoreB) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
+                  <option key={v} value={v}>{v}</option>)}
+              </select>
+            )}
+
+            {/* Markaz ajratuvchi */}
+            <div className="flex shrink-0 flex-col items-center gap-0.5">
+              <span className="font-mono text-2xl font-bold leading-none text-ink-muted">:</span>
+              <span className="rounded bg-base-surface2 px-1.5 py-0.5 font-mono text-[9px] font-bold text-ink-muted">{p.format}</span>
             </div>
 
-            {/* Markaz */}
-            <div className="flex flex-col items-center gap-1">
-              <span className="font-display text-[10px] font-semibold uppercase tracking-wider text-ink-muted">vs</span>
-              <span className="font-mono text-3xl font-bold text-ink-muted">:</span>
-              <span className="rounded bg-base-surface2 px-2 py-0.5 font-mono text-[10px] font-bold text-ink-secondary">{p.format}</span>
-            </div>
+            {/* Score B */}
+            {p.format === 'BO1' ? (
+              <input type="number" inputMode="numeric" min="0" max="99"
+                value={scoreB} onChange={e => setScoreB(e.target.value)} placeholder="0"
+                className="h-14 w-14 shrink-0 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none" />
+            ) : (
+              <select value={scoreB} onChange={e => {
+                const v = e.target.value; setScoreB(v);
+                if (Number(v) === max && Number(scoreA) === max) setScoreA(String(max - 1));
+              }} className="h-14 w-14 shrink-0 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+                {(Number(scoreA) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
+                  <option key={v} value={v}>{v}</option>)}
+              </select>
+            )}
 
-            {/* Jamoa B — o'ng */}
-            <div className="flex flex-col items-center gap-1.5">
-              <img
-                src={p.teamBImage || teamBPlaceholder}
-                alt="Команда Б"
-                onError={e => { e.target.src = teamBPlaceholder; }}
-                className="h-16 w-16 rounded-full object-cover"
-                style={{ boxShadow: '0 0 16px rgba(138,43,226,0.2)' }}
-              />
-              <span className="max-w-[60px] truncate text-center text-[9px] text-ink-muted">Команда Б</span>
-              {p.format === 'BO1' ? (
-                <input type="number" inputMode="numeric" min="0" max="99"
-                  value={scoreB} onChange={e => setScoreB(e.target.value)} placeholder="0"
-                  className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none" />
-              ) : (
-                <select value={scoreB} onChange={e => {
-                  const v = e.target.value; setScoreB(v);
-                  if (Number(v) === max && Number(scoreA) === max) setScoreA(String(max - 1));
-                }} className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
-                  {(Number(scoreA) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
-                    <option key={v} value={v}>{v}</option>)}
-                </select>
-              )}
-            </div>
+            {/* Logo B */}
+            <img
+              src={p.teamBImage || teamBPlaceholder}
+              alt="Б"
+              onError={e => { e.target.src = teamBPlaceholder; }}
+              className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-rarity-classified/30"
+              style={{ boxShadow: '0 0 12px rgba(138,43,226,0.18)' }}
+            />
 
           </div>
           <button onClick={submit} disabled={submitting}
