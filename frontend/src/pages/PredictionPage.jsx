@@ -12,8 +12,8 @@ export default function PredictionPage() {
   const [prediction, setPrediction] = useState(null);
   const [myEntry, setMyEntry] = useState(null);
   const [winners, setWinners] = useState([]);
-  const [scoreA, setScoreA] = useState('');
-  const [scoreB, setScoreB] = useState('');
+  const [scoreA, setScoreA] = useState('0');
+  const [scoreB, setScoreB] = useState('0');
   const [submitting, setSubmitting] = useState(false);
 
   function load() {
@@ -26,9 +26,10 @@ export default function PredictionPage() {
   useEffect(load, [id]);
 
   async function submit() {
-    if (scoreA === '' || scoreB === '') return showAlert('Введите счёт обеих команд.');
-    const max = FORMAT_MAX[prediction.format];
-    if (Number(scoreA) > max || Number(scoreB) > max) return showAlert(`Максимальный счёт для ${prediction.format}: ${max}.`);
+    const max = FORMAT_MAX[prediction?.format];
+    const a = Number(scoreA), b = Number(scoreB);
+    if (a === b) return showAlert('Ничья невозможна — один из счётов должен быть максимальным.');
+    if (a !== max && b !== max) return showAlert(`Один из счётов должен быть ${max} (победитель серии).`);
     setSubmitting(true);
     try {
       await api.post(`/predictions/${id}/entries`, { guess: `${scoreA}-${scoreB}` });
@@ -168,23 +169,36 @@ export default function PredictionPage() {
                 </div>
               </>
             ) : (
-              /* BO3/BO5: select dropdown */
+              /* BO3/BO5: dinamik select — bir jamoa MAX tanglasa, ikkinchisi MAX tanlay olmaydi */
               <>
                 <div className="text-center">
                   <p className="mb-1.5 text-[10px] text-ink-secondary">Команда А</p>
-                  <select value={scoreA} onChange={(e) => setScoreA(e.target.value)}
+                  <select value={scoreA} onChange={(e) => {
+                    const v = e.target.value;
+                    setScoreA(v);
+                    // A max bo'lsa va B ham max bo'lsa — B ni max-1 ga tushiramiz
+                    if (Number(v) === max && Number(scoreB) === max) setScoreB(String(max - 1));
+                  }}
                     className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
-                    <option value="">—</option>
-                    {options.map((v) => <option key={v} value={v}>{v}</option>)}
+                    {(Number(scoreB) === max
+                      ? Array.from({ length: max }, (_, i) => i)
+                      : options
+                    ).map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
                 <span className="mt-4 font-mono text-2xl font-bold text-ink-muted">:</span>
                 <div className="text-center">
                   <p className="mb-1.5 text-[10px] text-ink-secondary">Команда Б</p>
-                  <select value={scoreB} onChange={(e) => setScoreB(e.target.value)}
+                  <select value={scoreB} onChange={(e) => {
+                    const v = e.target.value;
+                    setScoreB(v);
+                    if (Number(v) === max && Number(scoreA) === max) setScoreA(String(max - 1));
+                  }}
                     className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
-                    <option value="">—</option>
-                    {options.map((v) => <option key={v} value={v}>{v}</option>)}
+                    {(Number(scoreA) === max
+                      ? Array.from({ length: max }, (_, i) => i)
+                      : options
+                    ).map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
               </>
@@ -193,7 +207,7 @@ export default function PredictionPage() {
           <div className="mb-4 rounded-lg bg-base-surface2 px-3 py-2 text-center">
             <p className="text-[10px] text-ink-muted">Промокод победителям: <span className="font-mono font-semibold text-rarity-covert">{p.promoCode}</span></p>
           </div>
-          <button onClick={submit} disabled={submitting || scoreA === '' || scoreB === ''}
+          <button onClick={submit} disabled={submitting}
             className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white disabled:opacity-50">
             {submitting ? 'Отправка…' : 'Отправить прогноз'}
           </button>

@@ -20,8 +20,8 @@ export default function StreamerPage() {
   const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '' });
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState(null); // { prediction, winners }
-  const [resultA, setResultA] = useState('');
-  const [resultB, setResultB] = useState('');
+  const [resultA, setResultA] = useState('0');
+  const [resultB, setResultB] = useState('0');
   const [submittingResult, setSubmittingResult] = useState(false);
 
   function load() {
@@ -48,6 +48,10 @@ export default function StreamerPage() {
 
   async function submitResult(p) {
     if (resultA === '' || resultB === '') return showAlert('Введите счёт.');
+    const max = FORMAT_MAX[p.format];
+    const a = Number(resultA), b = Number(resultB);
+    if (a === b) return showAlert('Ничья невозможна.');
+    if (a !== max && b !== max) return showAlert(`Один из счётов должен быть ${max}.`);
     const ok = await showConfirm(`Завершить прогноз? Правильный счёт: ${resultA}-${resultB}`);
     if (!ok) return;
     setSubmittingResult(true);
@@ -219,16 +223,30 @@ export default function StreamerPage() {
                         </>
                       ) : (
                         <>
-                          <select value={resultA} onChange={e=>setResultA(e.target.value)}
+                          <select value={resultA} onChange={e => {
+                            const v = e.target.value;
+                            setResultA(v);
+                            const mx = FORMAT_MAX[p.format];
+                            if (Number(v) === mx && Number(resultB) === mx) setResultB(String(mx - 1));
+                          }}
                             className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
-                            <option value="">-</option>
-                            {opts.map(v=><option key={v} value={v}>{v}</option>)}
+                            {(Number(resultB) === FORMAT_MAX[p.format]
+                              ? Array.from({ length: FORMAT_MAX[p.format] }, (_, i) => i)
+                              : opts
+                            ).map(v => <option key={v} value={v}>{v}</option>)}
                           </select>
                           <span className="font-mono text-ink-muted">:</span>
-                          <select value={resultB} onChange={e=>setResultB(e.target.value)}
+                          <select value={resultB} onChange={e => {
+                            const v = e.target.value;
+                            setResultB(v);
+                            const mx = FORMAT_MAX[p.format];
+                            if (Number(v) === mx && Number(resultA) === mx) setResultA(String(mx - 1));
+                          }}
                             className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
-                            <option value="">-</option>
-                            {opts.map(v=><option key={v} value={v}>{v}</option>)}
+                            {(Number(resultA) === FORMAT_MAX[p.format]
+                              ? Array.from({ length: FORMAT_MAX[p.format] }, (_, i) => i)
+                              : opts
+                            ).map(v => <option key={v} value={v}>{v}</option>)}
                           </select>
                         </>
                       )}
