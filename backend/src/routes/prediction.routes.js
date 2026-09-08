@@ -126,6 +126,17 @@ router.post('/', requireAuth, requireStreamer, async (req, res) => {
   res.status(201).json(p);
 });
 
+// Prediction o'chirish — faqat yaratuvchi, faqat ACTIVE yoki CANCELLED holat
+router.delete('/:id', requireAuth, requireStreamer, async (req, res) => {
+  const p = await prisma.prediction.findUnique({ where: { id: req.params.id } });
+  if (!p || p.createdById !== req.user.id) return res.status(404).json({ error: 'Не найдено.' });
+  if (p.status === 'COMPLETED') return res.status(400).json({ error: 'Завершённый прогноз удалить нельзя.' });
+  await prisma.predictionEntry.deleteMany({ where: { predictionId: p.id } });
+  await prisma.predictionWinner.deleteMany({ where: { predictionId: p.id } });
+  await prisma.prediction.delete({ where: { id: p.id } });
+  res.json({ ok: true });
+});
+
 // Prediction holatini yangilash (bekor qilish, yopish)
 router.patch('/:id/status', requireAuth, requireStreamer, async (req, res) => {
   const { status } = req.body || {};

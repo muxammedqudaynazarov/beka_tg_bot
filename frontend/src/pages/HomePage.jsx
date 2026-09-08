@@ -61,8 +61,8 @@ export default function HomePage() {
           )}
         </div>
       </header>
-      <PredictionBanner />
       <AdBanner />
+      <PredictionBanner />
 
       <main className="flex-1 px-3 pt-3">
         {loading ? (

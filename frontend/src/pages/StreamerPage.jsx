@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Plus, Trophy, Link2 } from 'lucide-react';
+import { ChevronLeft, Plus, Trophy, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { showAlert, showConfirm, hapticNotification } from '../telegram';
@@ -74,6 +74,19 @@ export default function StreamerPage() {
       setDetail((d) => d ? { ...d, winners: data.winners || [] } : d);
     } catch (err) {
       showAlert(err.response?.data?.error || 'Ошибка.');
+    }
+  }
+
+  async function deletePrediction(p) {
+    const ok = await showConfirm(`Удалить прогноз «${p.title}»? Все данные будут потеряны.`);
+    if (!ok) return;
+    try {
+      await api.delete(`/predictions/${p.id}`);
+      hapticNotification('success');
+      if (detail?.prediction?.id === p.id) setDetail(null);
+      load();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Ошибка при удалении.');
     }
   }
 
@@ -179,7 +192,14 @@ export default function StreamerPage() {
                     <p className="truncate font-display text-sm font-bold text-ink-primary">{p.title}</p>
                     <p className="text-[10px] text-ink-muted">{p.format} · {p._count?.entries ?? 0} участников</p>
                   </div>
-                  <span className={`shrink-0 rounded px-2 py-0.5 text-[9px] font-bold ${STATUS_COLORS[p.status]}`}>{STATUS_LABELS[p.status]}</span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className={`rounded px-2 py-0.5 text-[9px] font-bold ${STATUS_COLORS[p.status]}`}>{STATUS_LABELS[p.status]}</span>
+                    {p.status !== 'COMPLETED' && (
+                      <button onClick={() => deletePrediction(p)} className="text-ink-muted hover:text-signal-danger">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="mb-3 font-mono text-[10px] text-ink-secondary">Промо: <span className="font-bold text-ink-primary">{p.promoCode}</span></p>
 
@@ -187,17 +207,31 @@ export default function StreamerPage() {
                   <div>
                     <p className="mb-1.5 text-[11px] text-ink-secondary">Введите правильный счёт:</p>
                     <div className="flex items-center gap-2">
-                      <select value={resultA} onChange={e=>setResultA(e.target.value)}
-                        className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
-                        <option value="">-</option>
-                        {opts.map(v=><option key={v} value={v}>{v}</option>)}
-                      </select>
-                      <span className="font-mono text-ink-muted">:</span>
-                      <select value={resultB} onChange={e=>setResultB(e.target.value)}
-                        className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
-                        <option value="">-</option>
-                        {opts.map(v=><option key={v} value={v}>{v}</option>)}
-                      </select>
+                      {p.format === 'BO1' ? (
+                        <>
+                          <input type="number" inputMode="numeric" min="0" max="99"
+                            value={resultA} onChange={e=>setResultA(e.target.value)} placeholder="13"
+                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold focus:outline-none" />
+                          <span className="font-mono text-ink-muted">:</span>
+                          <input type="number" inputMode="numeric" min="0" max="99"
+                            value={resultB} onChange={e=>setResultB(e.target.value)} placeholder="8"
+                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold focus:outline-none" />
+                        </>
+                      ) : (
+                        <>
+                          <select value={resultA} onChange={e=>setResultA(e.target.value)}
+                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
+                            <option value="">-</option>
+                            {opts.map(v=><option key={v} value={v}>{v}</option>)}
+                          </select>
+                          <span className="font-mono text-ink-muted">:</span>
+                          <select value={resultB} onChange={e=>setResultB(e.target.value)}
+                            className="h-10 w-14 rounded-lg border border-base-border bg-base-surface2 text-center font-mono text-lg font-bold text-ink-primary focus:outline-none">
+                            <option value="">-</option>
+                            {opts.map(v=><option key={v} value={v}>{v}</option>)}
+                          </select>
+                        </>
+                      )}
                       <button onClick={() => submitResult(p)} disabled={submittingResult}
                         className="flex-1 rounded-lg bg-rarity-covert py-2 font-display text-xs font-bold text-white disabled:opacity-50">
                         {submittingResult ? '…' : 'Завершить'}

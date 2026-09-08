@@ -122,3 +122,20 @@ body {
     animation: none;
   }
 }
+
+/* Prediction banner — animatsion glow effekti */
+@keyframes pred-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1) translateX(-10%); }
+  50% { opacity: 0.55; transform: scale(1.08) translateX(8%); }
+}
+@keyframes pred-glow2 {
+  0%, 100% { opacity: 0.2; transform: scale(1.05) translateX(15%); }
+  50% { opacity: 0.4; transform: scale(0.95) translateX(-5%); }
+}
+@keyframes pred-pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+.animate-pred-glow { animation: pred-glow 3.5s ease-in-out infinite; }
+.animate-pred-glow2 { animation: pred-glow2 4.2s ease-in-out infinite; }
+.animate-pred-dot { animation: pred-pulse-dot 1s ease-in-out infinite; }

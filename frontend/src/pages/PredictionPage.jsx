@@ -142,38 +142,59 @@ export default function PredictionPage() {
         <div className="rounded-xl bg-base-surface px-3.5 py-4">
           <h2 className="mb-4 font-display text-sm font-bold text-ink-primary">Ваш прогноз ({p.format})</h2>
           <div className="mb-5 flex items-center justify-center gap-4">
-            <div className="text-center">
-              <p className="mb-1.5 text-[10px] text-ink-secondary">Команда А</p>
-              <select
-                value={scoreA}
-                onChange={(e) => setScoreA(e.target.value)}
-                className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none"
-              >
-                <option value="">—</option>
-                {options.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
-            <span className="mt-4 font-mono text-2xl font-bold text-ink-muted">:</span>
-            <div className="text-center">
-              <p className="mb-1.5 text-[10px] text-ink-secondary">Команда Б</p>
-              <select
-                value={scoreB}
-                onChange={(e) => setScoreB(e.target.value)}
-                className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none"
-              >
-                <option value="">—</option>
-                {options.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
+            {p.format === 'BO1' ? (
+              /* BO1: qo'lda yozish — CS2 xaritada hisoblar 16-14 singari bo'ladi */
+              <>
+                <div className="text-center">
+                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда А</p>
+                  <input
+                    type="number" inputMode="numeric" min="0" max="99"
+                    value={scoreA}
+                    onChange={(e) => setScoreA(e.target.value)}
+                    placeholder="0"
+                    className="h-14 w-16 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none"
+                  />
+                </div>
+                <span className="mt-4 font-mono text-2xl font-bold text-ink-muted">:</span>
+                <div className="text-center">
+                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда Б</p>
+                  <input
+                    type="number" inputMode="numeric" min="0" max="99"
+                    value={scoreB}
+                    onChange={(e) => setScoreB(e.target.value)}
+                    placeholder="0"
+                    className="h-14 w-16 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:border-rarity-covert focus:outline-none"
+                  />
+                </div>
+              </>
+            ) : (
+              /* BO3/BO5: select dropdown */
+              <>
+                <div className="text-center">
+                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда А</p>
+                  <select value={scoreA} onChange={(e) => setScoreA(e.target.value)}
+                    className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+                    <option value="">—</option>
+                    {options.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <span className="mt-4 font-mono text-2xl font-bold text-ink-muted">:</span>
+                <div className="text-center">
+                  <p className="mb-1.5 text-[10px] text-ink-secondary">Команда Б</p>
+                  <select value={scoreB} onChange={(e) => setScoreB(e.target.value)}
+                    className="h-14 w-14 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+                    <option value="">—</option>
+                    {options.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
           <div className="mb-4 rounded-lg bg-base-surface2 px-3 py-2 text-center">
             <p className="text-[10px] text-ink-muted">Промокод победителям: <span className="font-mono font-semibold text-rarity-covert">{p.promoCode}</span></p>
           </div>
-          <button
-            onClick={submit}
-            disabled={submitting || scoreA === '' || scoreB === ''}
-            className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white disabled:opacity-50"
-          >
+          <button onClick={submit} disabled={submitting || scoreA === '' || scoreB === ''}
+            className="w-full rounded-xl bg-rarity-covert py-3 font-display text-sm font-bold text-white disabled:opacity-50">
             {submitting ? 'Отправка…' : 'Отправить прогноз'}
           </button>
           <p className="mt-2 text-center text-[10px] text-ink-muted">Один прогноз на одного участника. Изменить нельзя.</p>
