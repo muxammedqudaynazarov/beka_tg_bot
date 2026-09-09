@@ -606,8 +606,10 @@ model Prediction {
   streamUrl     String?          @db.VarChar(500) // ixtiyoriy stream havolasi
   promoCode     String           @db.VarChar(64)  // avtogeneratsiya, tahrirlanadi
   promoAmount   Int              @default(20000)  // g'olibga beriladigan summa (max 40000 uzs)
-  teamAImage    String?          @db.VarChar(500) // Jamoa A logosi URL (ixtiyoriy)
-  teamBImage    String?          @db.VarChar(500) // Jamoa B logosi URL (ixtiyoriy)
+  teamAImage    String?          @db.VarChar(500)
+  teamAName     String?          @db.VarChar(100) // jamoa A nomi (reestrdagi nom bilan mos)
+  teamBImage    String?          @db.VarChar(500)
+  teamBName     String?          @db.VarChar(100) // jamoa B nomi
   correctResult String?          @db.VarChar(10)  // "2-1" — natija kiritilganda
   endsAt        DateTime         // tahmin yozish tugash vaqti
   createdBy     User             @relation("PredictionCreator", fields: [createdById], references: [id])
@@ -647,4 +649,17 @@ model PredictionWinner {
 
   @@unique([predictionId, position])
   @@unique([predictionId, userId])
+}
+
+// ===========================================================================
+// JAMOA REESTRI — bir marta saqlangan jamoa nomi va logotipi keyingi safar
+// avtomatik to'ldiriladi. nameLower — qidiruv uchun (furia=Furia=FURIA).
+// ===========================================================================
+model Team {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(100)          // ko'rsatish uchun (asl harflar)
+  nameLower String   @unique @db.VarChar(100)  // qidiruv uchun (kichik harflar)
+  imageUrl  String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

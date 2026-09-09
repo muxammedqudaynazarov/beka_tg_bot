@@ -3,6 +3,7 @@ import { ChevronLeft, Plus, Trophy, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { showAlert, showConfirm, hapticNotification } from '../telegram';
+import TeamInput from '../components/TeamInput';
 
 const FORMAT_MAX = { BO1: 1, BO3: 2, BO5: 3 };
 const STATUS_LABELS = { ACTIVE: 'Активен', CLOSED: 'Закрыт', COMPLETED: 'Завершён', CANCELLED: 'Отменён' };
@@ -102,7 +103,7 @@ export default function StreamerPage() {
   const [archived, setArchived] = useState(null);
   const [showArchive, setShowArchive] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000', teamAImage: '', teamBImage: '' });
+  const [form, setForm] = useState({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000', teamAImage: '', teamBImage: '', teamAName: '', teamBName: '' });
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState(null);
 
@@ -123,7 +124,7 @@ export default function StreamerPage() {
       await api.post('/predictions', { ...form, promoAmount: Number(form.promoAmount) });
       hapticNotification('success');
       setCreating(false);
-      setForm({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000', teamAImage: '', teamBImage: '' });
+      setForm({ title: '', format: 'BO3', streamUrl: '', promoCode: genCode(), endsAt: '', promoAmount: '20000', teamAImage: '', teamBImage: '', teamAName: '', teamBName: '' });
       load();
     } catch (err) {
       showAlert(err.response?.data?.error || 'Ошибка.');
@@ -225,18 +226,22 @@ export default function StreamerPage() {
               placeholder="https://t.me/..." className={inputCls} />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block text-[11px] text-ink-secondary">Логотип команды А (URL)</label>
-              <input value={form.teamAImage}
-                onChange={e => setForm({ ...form, teamAImage: e.target.value })}
-                placeholder="https://..." className={inputCls} />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] text-ink-secondary">Логотип команды Б (URL)</label>
-              <input value={form.teamBImage}
-                onChange={e => setForm({ ...form, teamBImage: e.target.value })}
-                placeholder="https://..." className={inputCls} />
-            </div>
+            <TeamInput
+              label="Команда А"
+              name={form.teamAName}
+              imageUrl={form.teamAImage}
+              placeholder="Furia, NaVi..."
+              onChangeName={v => setForm({ ...form, teamAName: v })}
+              onChangeImage={v => setForm({ ...form, teamAImage: v })}
+            />
+            <TeamInput
+              label="Команда Б"
+              name={form.teamBName}
+              imageUrl={form.teamBImage}
+              placeholder="Astralis, G2..."
+              onChangeName={v => setForm({ ...form, teamBName: v })}
+              onChangeImage={v => setForm({ ...form, teamBImage: v })}
+            />
           </div>
           <div className="flex gap-2">
             <button onClick={() => setCreating(false)}

@@ -121,7 +121,7 @@ router.post('/:id/entries', requireAuth, async (req, res) => {
 
 // Yangi prediction yaratish
 router.post('/', requireAuth, requireStreamer, async (req, res) => {
-  const { title, format, streamUrl, promoCode, endsAt, promoAmount, teamAImage, teamBImage } = req.body || {};
+  const { title, format, streamUrl, promoCode, endsAt, promoAmount, teamAImage, teamBImage, teamAName, teamBName } = req.body || {};
   if (!title?.trim()) return res.status(400).json({ error: 'Введите название матча.' });
   if (!['BO1', 'BO3', 'BO5'].includes(format)) return res.status(400).json({ error: 'Формат: BO1, BO3 или BO5.' });
   if (!endsAt) return res.status(400).json({ error: 'Укажите время окончания приёма прогнозов.' });
@@ -149,11 +149,26 @@ router.post('/', requireAuth, requireStreamer, async (req, res) => {
       streamUrl: streamUrl?.trim() || null,
       promoCode: code, promoAmount: amount,
       teamAImage: teamAImage?.trim() || null,
+      teamAName: teamAName?.trim() || null,
       teamBImage: teamBImage?.trim() || null,
+      teamBName: teamBName?.trim() || null,
       endsAt: new Date(endsAt),
       createdById: req.user.id,
     },
   });
+
+  // Jamoa reestriga avtomatik saqlash — keyingi safar boshqa strimer
+  // xuddi shu nom bilan jamoa yaratganda logotipi avto to'ldiriladi.
+  const upsertTeam = async (name, imageUrl) => {
+    if (!name?.trim()) return;
+    const nameLower = name.trim().toLowerCase();
+    await prisma.team.upsert({
+      where: { nameLower },
+      create: { name: name.trim(), nameLower, imageUrl: imageUrl?.trim() || null },
+      update: imageUrl?.trim() ? { name: name.trim(), imageUrl: imageUrl.trim() } : { name: name.trim() },
+    });
+  };
+  await Promise.all([upsertTeam(teamAName, teamAImage), upsertTeam(teamBName, teamBImage)]);
   res.status(201).json(p);
 });
 
