@@ -125,6 +125,11 @@ router.post('/', requireAuth, requireStreamer, async (req, res) => {
   if (!title?.trim()) return res.status(400).json({ error: 'Введите название матча.' });
   if (!['BO1', 'BO3', 'BO5'].includes(format)) return res.status(400).json({ error: 'Формат: BO1, BO3 или BO5.' });
   if (!endsAt) return res.status(400).json({ error: 'Укажите время окончания приёма прогнозов.' });
+  const endsAtDate = new Date(endsAt);
+  if (endsAtDate <= new Date()) return res.status(400).json({ error: 'Время окончания должно быть в будущем.' });
+  if (endsAtDate > new Date(Date.now() + 12 * 60 * 60 * 1000)) {
+    return res.status(400).json({ error: 'Максимум 12 часов от текущего момента.' });
+  }
 
   const amount = Number(promoAmount) || 20000;
   if (amount < 1000 || amount > 40000) return res.status(400).json({ error: 'Сумма промокода: от 1 000 до 40 000 сум.' });

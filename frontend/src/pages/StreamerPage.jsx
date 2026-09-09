@@ -119,6 +119,14 @@ export default function StreamerPage() {
   async function create() {
     if (!form.title.trim()) return showAlert('Введите название матча.');
     if (!form.endsAt) return showAlert('Укажите время окончания приёма прогнозов.');
+    // Maksimum 12 soat oldinga — bugungi strimlar uchun
+    const maxEndsAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
+    if (new Date(form.endsAt) > maxEndsAt) {
+      return showAlert('Максимальное время — 12 часов от текущего момента. Прогнозы создаются только на текущий день.');
+    }
+    if (new Date(form.endsAt) <= new Date()) {
+      return showAlert('Время окончания должно быть в будущем.');
+    }
     setSaving(true);
     try {
       await api.post('/predictions', { ...form, promoAmount: Number(form.promoAmount) });
@@ -196,9 +204,11 @@ export default function StreamerPage() {
             ))}
           </div>
           <div>
-            <label className="mb-1 block text-[11px] text-ink-secondary">Приём прогнозов до</label>
+            <label className="mb-1 block text-[11px] text-ink-secondary">Приём прогнозов до (макс. 12 часов)</label>
             <input type="datetime-local" value={form.endsAt}
-              onChange={e => setForm({ ...form, endsAt: e.target.value })} className={inputCls} />
+              min={new Date(Date.now() + 60000).toISOString().slice(0,16)}
+              max={new Date(Date.now() + 12 * 3600000).toISOString().slice(0,16)}
+              onChange={e => setForm(f => ({ ...f, endsAt: e.target.value }))} className={inputCls} />
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-ink-secondary">Сумма призового промо-кода (макс. 40 000 сум)</label>

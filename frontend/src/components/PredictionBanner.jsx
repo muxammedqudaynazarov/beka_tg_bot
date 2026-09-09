@@ -4,17 +4,35 @@ import { api } from '../api';
 import teamAPlaceholder from '../assets/team-a-placeholder.png';
 import teamBPlaceholder from '../assets/team-b-placeholder.png';
 
+// HH:MM:SS formatida qolgan vaqtni chiqaradi
+function formatCountdown(endsAt) {
+  const diff = Math.max(0, new Date(endsAt) - Date.now());
+  if (diff === 0) return null;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
 export default function PredictionBanner() {
   const [items, setItems] = useState([]);
   const [current, setCurrent] = useState(0);
   const [animDir, setAnimDir] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const navigate = useNavigate();
+  const [tick, setTick] = useState(0); // har soniyada yangilanadi
   const timerRef = useRef(null);
+  const tickRef = useRef(null);
   const touchStartX = useRef(null);
 
   useEffect(() => {
     api.get('/predictions/active').then(({ data }) => setItems(data.items || [])).catch(() => {});
+  }, []);
+
+  // Har soniyada re-render — countdown uchun
+  useEffect(() => {
+    tickRef.current = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(tickRef.current);
   }, []);
 
   function goTo(idx, dir) {
@@ -46,7 +64,8 @@ export default function PredictionBanner() {
   const streamerTag = p.createdBy?.username
     ? `@${p.createdBy.username}`
     : p.createdBy?.firstName || 'стример';
-  const remaining = Math.max(0, Math.floor((new Date(p.endsAt) - Date.now()) / 60000));
+  const countdown = formatCountdown(p.endsAt);
+  const isUrgent = countdown && countdown < '00:10:00';
 
   // Jamoalar nomi: teamAName/teamBName bo'lsa ularni, bo'lmasa title'dan ajratamiz
   const hasTeams = p.teamAName || p.teamBName;
@@ -150,8 +169,8 @@ export default function PredictionBanner() {
             <span className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
               👥 {p._count?.entries ?? 0}
             </span>
-            <span className="text-[10px]" style={{ color: remaining > 10 ? 'rgba(255,255,255,0.4)' : '#f5a623' }}>
-              ⏱ {remaining > 0 ? `${remaining} мин.` : 'Скоро закрывается'}
+            <span className="font-mono text-[10px]" style={{ color: isUrgent ? '#f5a623' : 'rgba(255,255,255,0.4)' }}>
+              ⏱ {countdown ?? 'Закрывается'}
             </span>
             {p.promoAmount > 0 && (
               <span className="ml-auto rounded-full px-2.5 py-0.5 font-display text-[10px] font-bold"
