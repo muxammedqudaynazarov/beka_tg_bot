@@ -160,8 +160,8 @@ export default function PredictionBanner() {
 
           {/* Turnir nomi (title) + streamer */}
           <p className="mb-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {p.title}{' '}
-            <span style={{ color: 'rgba(255,255,255,0.3)' }}>· прогноз: {streamerTag}</span>
+            <span style="width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{p.title}{' '}</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>· <small>({streamerTag})</small></span>
           </p>
 
           {/* Meta qator */}
