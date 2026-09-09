@@ -186,7 +186,7 @@ export default function StreamerPage() {
         <div className="mb-5 space-y-3 rounded-xl bg-base-surface p-4">
           <h2 className="font-display text-sm font-bold text-ink-primary">Новый прогноз</h2>
           <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-            placeholder="Название матча (напр. NaVi vs Astralis)" className={inputCls} />
+            placeholder="Название турнира или матча (напр. FISSURE Playground 3)" className={inputCls} />
           <div className="grid grid-cols-3 gap-2">
             {['BO1', 'BO3', 'BO5'].map(f => (
               <button key={f} onClick={() => setForm({ ...form, format: f })}
