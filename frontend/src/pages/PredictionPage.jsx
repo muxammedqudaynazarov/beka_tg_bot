@@ -58,7 +58,10 @@ export default function PredictionPage() {
   const p = prediction;
   const isActive = p.status === 'ACTIVE' && new Date(p.endsAt) > Date.now();
   const isCompleted = p.status === 'COMPLETED';
-  const streamer = p.createdBy?.username ? `@${p.createdBy.username}` : p.createdBy?.firstName || 'Стример';
+  const streamerTag = p.createdBy?.username
+    ? `@${p.createdBy.username.toUpperCase()}`
+    : p.createdBy?.firstName?.toUpperCase() || 'СТРИМЕР';
+  const streamerInitial = (p.createdBy?.username || p.createdBy?.firstName || 'S')[0].toUpperCase();
   const max = FORMAT_MAX[p.format];
   const options = Array.from({ length: max + 1 }, (_, i) => i);
 
@@ -71,31 +74,25 @@ export default function PredictionPage() {
         <h1 className="font-display text-base font-bold text-ink-primary">Прогноз точного счёта</h1>
       </header>
 
-      {/* Streamer info */}
-      <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-base-surface px-3.5 py-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rarity-covert/20 font-display text-sm font-bold text-rarity-covert">
-          {streamer[0]?.toUpperCase() || 'S'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-ink-secondary">Стример</p>
-          <p className="truncate font-display text-sm font-semibold text-ink-primary">{streamer}</p>
-        </div>
-        {p.streamUrl && (
-          <button onClick={() => openLink(p.streamUrl)} className="text-ink-muted">
-            <ExternalLink size={16} />
-          </button>
-        )}
-      </div>
-
-      {/* Match info */}
+      {/* Match info — sarlavha + streamer birgalikda */}
       <div className="mb-4 rounded-xl bg-base-surface px-3.5 py-3">
         <div className="mb-2 flex items-center justify-between">
           <span className={`rounded px-2 py-0.5 font-display text-[10px] font-bold ${isActive ? 'bg-signal-success/15 text-signal-success' : isCompleted ? 'bg-rarity-covert/15 text-rarity-covert' : 'bg-signal-warning/15 text-signal-warning'}`}>
             {isActive ? 'ИДЁТ ПРИЁМ' : isCompleted ? 'ЗАВЕРШЁН' : 'ЗАКРЫТ'}
           </span>
-          <span className="rounded bg-base-surface2 px-2 py-0.5 font-mono text-[10px] text-ink-secondary">{p.format}</span>
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-base-surface2 px-2 py-0.5 font-mono text-[10px] text-ink-secondary">{p.format}</span>
+            {p.streamUrl && (
+              <button onClick={() => openLink(p.streamUrl)} className="text-ink-muted">
+                <ExternalLink size={14} />
+              </button>
+            )}
+          </div>
         </div>
-        <p className="mb-1.5 font-display text-base font-bold text-ink-primary">{p.title}</p>
+        <p className="mb-1.5 font-display text-base font-bold leading-snug text-ink-primary">
+          {p.title}{' '}
+          <span className="font-normal text-sm text-ink-muted">(стрим: {streamerTag})</span>
+        </p>
         <div className="flex items-center gap-4 text-[10px] text-ink-secondary">
           <span className="flex items-center gap-1"><Users size={11} /> {p._count?.entries ?? 0} участников</span>
           <span className="flex items-center gap-1"><Clock size={11} /> до {new Date(p.endsAt).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>

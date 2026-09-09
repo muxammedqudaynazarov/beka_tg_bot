@@ -58,7 +58,9 @@ export default function PredictionBanner() {
 
   if (!items.length) return null;
   const p = items[current];
-  const streamer = p.createdBy?.username ? `@${p.createdBy.username}` : p.createdBy?.firstName || 'Стример';
+  const streamerTag = p.createdBy?.username
+    ? `@${p.createdBy.username.toUpperCase()}`
+    : p.createdBy?.firstName?.toUpperCase() || 'СТРИМЕР';
   const remaining = Math.max(0, Math.floor((new Date(p.endsAt) - Date.now()) / 60000));
 
   // Slide animatsiya stili
@@ -118,14 +120,12 @@ export default function PredictionBanner() {
             </span>
           </div>
 
-          {/* Streamer */}
-          <p className="mb-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-            {streamer} стримида
-          </p>
-
-          {/* Match */}
+          {/* Sarlavha + streamer birlashtirilib */}
           <p className="font-display text-[15px] font-bold leading-snug" style={{ color: 'rgba(255,255,255,0.93)' }}>
-            {p.title}
+            {p.title}{' '}
+            <span className="font-normal text-[12px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              (стрим: {streamerTag})
+            </span>
           </p>
 
           {/* Meta */}
