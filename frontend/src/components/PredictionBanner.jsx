@@ -164,7 +164,7 @@ export default function PredictionBanner() {
               {p.title}
             </span>
             <span className="shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>
-              · <small>({streamerTag})</small>
+              / {streamerTag}
             </span>
           </p>
 
