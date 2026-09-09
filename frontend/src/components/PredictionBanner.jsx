@@ -159,16 +159,14 @@ export default function PredictionBanner() {
           )}
 
           {/* Turnir nomi (title) + streamer */}
-         <p className="mb-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          <span style={{ display: 'inline-block', width: '70%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' }}>
-            {p.title}{' '}
-          </span>
-          <span style={{ color: 'rgba(255,255,255,0.3)' }}>
-            · <small style={{ display: 'inline-block', width: '30%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' }}>
-              ({streamerTag})
-            </small>
-          </span>
-        </p>
+         <p className="mb-2 text-[11px] flex items-center gap-1 w-full overflow-hidden" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            <span className="truncate min-w-0 flex-1">
+              {p.title}
+            </span>
+            <span className="shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              · <small>({streamerTag})</small>
+            </span>
+          </p>
 
           {/* Meta qator */}
           <div className="flex items-center gap-2 flex-wrap">
