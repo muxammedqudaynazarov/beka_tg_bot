@@ -231,16 +231,16 @@ export default function StreamerPage() {
               name={form.teamAName}
               imageUrl={form.teamAImage}
               placeholder="Furia, NaVi..."
-              onChangeName={v => setForm({ ...form, teamAName: v })}
-              onChangeImage={v => setForm({ ...form, teamAImage: v })}
+              onChangeName={v => setForm(f => ({ ...f, teamAName: v }))}
+              onChangeImage={v => setForm(f => ({ ...f, teamAImage: v }))}
             />
             <TeamInput
               label="Команда Б"
               name={form.teamBName}
               imageUrl={form.teamBImage}
               placeholder="Astralis, G2..."
-              onChangeName={v => setForm({ ...form, teamBName: v })}
-              onChangeImage={v => setForm({ ...form, teamBImage: v })}
+              onChangeName={v => setForm(f => ({ ...f, teamBName: v }))}
+              onChangeImage={v => setForm(f => ({ ...f, teamBImage: v }))}
             />
           </div>
           <div className="flex gap-2">
@@ -355,7 +355,16 @@ export default function StreamerPage() {
               <div key={p.id} className="rounded-xl bg-base-surface px-4 py-3">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-display text-sm font-bold text-ink-primary">{p.title}</p>
+                    {p.teamAName && p.teamBName ? (
+                      <>
+                        <p className="font-display text-sm font-bold text-ink-primary">
+                          {p.teamAName} <span className="text-ink-muted">vs</span> {p.teamBName}
+                        </p>
+                        <p className="text-[10px] text-ink-muted">{p.title}</p>
+                      </>
+                    ) : (
+                      <p className="truncate font-display text-sm font-bold text-ink-primary">{p.title}</p>
+                    )}
                     <p className="text-[10px] text-ink-muted">{p.format} · {p._count?.entries ?? 0} участников</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">

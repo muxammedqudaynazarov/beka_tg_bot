@@ -44,8 +44,8 @@ export default function PredictionBanner() {
   const p = items[current];
 
   const streamerTag = p.createdBy?.username
-    ? `@${p.createdBy.username.toUpperCase()}`
-    : p.createdBy?.firstName?.toUpperCase() || 'СТРИМЕР';
+    ? `@${p.createdBy.username}`
+    : p.createdBy?.firstName || 'стример';
   const remaining = Math.max(0, Math.floor((new Date(p.endsAt) - Date.now()) / 60000));
 
   // Jamoalar nomi: teamAName/teamBName bo'lsa ularni, bo'lmasa title'dan ajratamiz
@@ -142,7 +142,7 @@ export default function PredictionBanner() {
           {/* Turnir nomi (title) + streamer */}
           <p className="mb-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {p.title}{' '}
-            <span style={{ color: 'rgba(255,255,255,0.3)' }}>· стрим: {streamerTag}</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>· прогноз: {streamerTag}</span>
           </p>
 
           {/* Meta qator */}

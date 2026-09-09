@@ -59,8 +59,8 @@ export default function PredictionPage() {
   const isActive = p.status === 'ACTIVE' && new Date(p.endsAt) > Date.now();
   const isCompleted = p.status === 'COMPLETED';
   const streamerTag = p.createdBy?.username
-    ? `@${p.createdBy.username.toUpperCase()}`
-    : p.createdBy?.firstName?.toUpperCase() || 'СТРИМЕР';
+    ? `@${p.createdBy.username}`
+    : p.createdBy?.firstName || 'стример';
   const streamerInitial = (p.createdBy?.username || p.createdBy?.firstName || 'S')[0].toUpperCase();
   const max = FORMAT_MAX[p.format];
   const options = Array.from({ length: max + 1 }, (_, i) => i);
@@ -146,9 +146,9 @@ export default function PredictionPage() {
 
           {/* Labels */}
           <div className="mb-1.5 flex items-center px-1">
-            <span className="w-[72px] text-center text-[10px] text-ink-muted">Команда А</span>
+            <span className="w-[72px] text-center text-[10px] font-semibold text-ink-secondary">{p.teamAName || 'Команда А'}</span>
             <div className="flex-1" />
-            <span className="w-[72px] text-center text-[10px] text-ink-muted">Команда Б</span>
+            <span className="w-[72px] text-center text-[10px] font-semibold text-ink-secondary">{p.teamBName || 'Команда Б'}</span>
           </div>
 
           {/* Logo | Score : Score | Logo — bitta qatorda */}
@@ -171,7 +171,7 @@ export default function PredictionPage() {
               <select value={scoreA} onChange={e => {
                 const v = e.target.value; setScoreA(v);
                 if (Number(v) === max && Number(scoreB) === max) setScoreB(String(max - 1));
-              }} className="h-14 w-14 shrink-0 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+              }} className="h-14 w-14 shrink-0 appearance-none rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
                 {(Number(scoreB) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
                   <option key={v} value={v}>{v}</option>)}
               </select>
@@ -192,7 +192,7 @@ export default function PredictionPage() {
               <select value={scoreB} onChange={e => {
                 const v = e.target.value; setScoreB(v);
                 if (Number(v) === max && Number(scoreA) === max) setScoreA(String(max - 1));
-              }} className="h-14 w-14 shrink-0 rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
+              }} className="h-14 w-14 shrink-0 appearance-none rounded-xl border border-base-border bg-base-surface2 text-center font-mono text-2xl font-bold text-ink-primary focus:outline-none">
                 {(Number(scoreA) === max ? Array.from({ length: max }, (_, i) => i) : options).map(v =>
                   <option key={v} value={v}>{v}</option>)}
               </select>
