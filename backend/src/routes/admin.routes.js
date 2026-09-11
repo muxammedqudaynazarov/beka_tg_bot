@@ -968,9 +968,15 @@ router.post('/sales/:id/mark-paid', async (req, res) => {
 
 router.get('/steam-inventory', async (req, res) => {
     const {listBotInventory} = require('../services/steamBotService');
+    // ?refresh=1 — keshni o'chirib, Steam'dan qayta yuklaydi.
+    // Trade ban'dan chiqqan narsalar shu orqali ko'rinadi.
+    if (req.query.refresh === '1') {
+        const svc = require('../services/steamBotService');
+        if (svc.clearInventoryCache) svc.clearInventoryCache();
+    }
     const result = await listBotInventory();
     if (!result.ok) return res.status(400).json({error: result.error});
-    res.json({items: result.items});
+    res.json({items: result.items, cached: result.cached || false});
 });
 
 // ===========================================================================

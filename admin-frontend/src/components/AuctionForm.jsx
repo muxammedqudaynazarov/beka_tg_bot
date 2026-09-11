@@ -25,12 +25,14 @@ function SteamInventoryPicker({ onPick }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState(null);
   const [query, setQuery] = useState('');
+  const [showAll, setShowAll] = useState(false); // tradable bo'lmaganlarni ham ko'rsatish
 
-  async function load() {
+  async function load(forceRefresh = false) {
     setOpen(true);
-    if (items) return;
+    if (items && !forceRefresh) return;
+    setItems(null);
     try {
-      const { data } = await api.get('/admin/steam-inventory');
+      const { data } = await api.get(`/admin/steam-inventory${forceRefresh ? '?refresh=1' : ''}`);
       setItems(data.items || []);
     } catch (err) {
       showAlert(err.response?.data?.error || 'Не удалось получить инвентарь бота.');
@@ -41,9 +43,12 @@ function SteamInventoryPicker({ onPick }) {
   const filtered = useMemo(() => {
     if (!items) return [];
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((it) => it.name.toLowerCase().includes(q));
-  }, [items, query]);
+    // showAll=false bo'lsa faqat tradable'larni ko'rsatamiz,
+    // showAll=true bo'lsa barchasini (trade ban'dagi ham)
+    const base = showAll ? items : items.filter(it => it.tradable !== false);
+    if (!q) return base;
+    return base.filter((it) => it.name.toLowerCase().includes(q));
+  }, [items, query, showAll]);
 
   return (
     <div>
@@ -65,8 +70,18 @@ function SteamInventoryPicker({ onPick }) {
               placeholder="Поиск по названию…"
               className="w-full bg-transparent text-xs text-ink placeholder:text-muted focus:outline-none"
             />
+            <button type="button" onClick={() => load(true)} title="Обновить из Steam" className="shrink-0 text-muted hover:text-accent text-[10px]">↻</button>
             <button type="button" onClick={() => setOpen(false)} className="shrink-0 text-muted"><X size={13} /></button>
           </div>
+          {items && (
+            <div className="mb-1.5 flex items-center gap-2 text-[10px] text-muted">
+              <span>Всего: {items.length} · Доступно: {items.filter(i=>i.tradable).length}</span>
+              <button type="button" onClick={() => setShowAll(v => !v)}
+                className={`ml-auto rounded px-1.5 py-0.5 border text-[10px] ${showAll ? 'border-accent text-accent' : 'border-border text-muted'}`}>
+                {showAll ? 'Все предметы' : 'Только доступные'}
+              </button>
+            </div>
+          )}
           {items === null ? (
             <p className="px-1 py-2 text-xs text-muted">Загрузка…</p>
           ) : filtered.length ? (

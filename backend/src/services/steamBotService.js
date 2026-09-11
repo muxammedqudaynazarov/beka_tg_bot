@@ -256,4 +256,8 @@ async function listBotInventory() {
   });
 }
 
-module.exports = { initSteamBot, isConfigured, validateTradeUrl, sendItemAutomatically, listBotInventory };
+function clearInventoryCache() {
+  inventoryCache = { items: null, expiresAt: 0 };
+}
+
+module.exports = { initSteamBot, isConfigured, validateTradeUrl, sendItemAutomatically, listBotInventory, clearInventoryCache };
