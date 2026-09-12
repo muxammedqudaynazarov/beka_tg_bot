@@ -44,7 +44,7 @@ export default function HomePage() {
   const loading = items === null;
 
   return (
-    <div className="flex min-h-screen flex-col pb-32">
+    <div className="flex min-h-screen flex-col pb-28">
       <header className="sticky top-0 z-10 space-y-2.5 border-b border-base-border bg-base-bg/95 px-4 pb-3 pt-4 backdrop-blur">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-base font-bold tracking-wide text-ink-primary">

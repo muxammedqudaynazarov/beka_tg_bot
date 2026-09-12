@@ -35,8 +35,11 @@ function SideLink({ to, label, icon: Icon, end }) {
 // turadigan (ko'tarilgan, aylana) tugma sifatida.
 export default function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-base-border bg-base-surface/95 backdrop-blur">
-      <div className="mx-auto flex max-w-md items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)]">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-base-border bg-base-surface/95 backdrop-blur"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
+      <div className="mx-auto flex max-w-md items-stretch justify-around px-1">
         {SIDE_ITEMS_LEFT.map((item) => <SideLink key={item.to} {...item} />)}
 
         <NavLink to="/wheel" className="relative flex flex-1 flex-col items-center">

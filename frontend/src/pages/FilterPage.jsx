@@ -82,7 +82,7 @@ export default function FilterPage() {
       <AdBanner />
 
       {loading ? (
-        <main className="space-y-6 px-4 pb-36 pt-5">
+        <main className="space-y-6 px-4 pb-28 pt-5">
           {[0, 1, 2].map((i) => (
             <div key={i} className="space-y-2">
               <div className="h-3 w-24 animate-pulse rounded bg-base-surface" />
@@ -95,7 +95,7 @@ export default function FilterPage() {
           ))}
         </main>
       ) : (
-        <main className="space-y-6 px-4 pb-36 pt-5">
+        <main className="space-y-6 px-4 pb-28 pt-5">
           {/* Kategoriya (ko'p tanlovli) */}
           <section>
             <SectionTitle>Тип</SectionTitle>

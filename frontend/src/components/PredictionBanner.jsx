@@ -120,7 +120,7 @@ export default function PredictionBanner() {
                   src={p.teamAImage || teamAPlaceholder}
                   alt={teamA}
                   onError={e => { e.target.src = teamAPlaceholder; }}
-                  className="h-10 w-10 object-contain"
+                  className="h-10 w-10 object-contain" style={{ filter: 'drop-shadow(-1px 0 0 rgba(255,255,255,0.7)) drop-shadow(1px 0 0 rgba(255,255,255,0.7)) drop-shadow(0 -1px 0 rgba(255,255,255,0.7)) drop-shadow(0 1px 0 rgba(255,255,255,0.7))' }}
                 />
                 <span className="w-full truncate text-center font-display text-[13px] font-bold leading-tight"
                   style={{ color: 'rgba(255,255,255,0.92)' }}>
@@ -142,7 +142,7 @@ export default function PredictionBanner() {
                   src={p.teamBImage || teamBPlaceholder}
                   alt={teamB}
                   onError={e => { e.target.src = teamBPlaceholder; }}
-                  className="h-10 w-10 object-contain"
+                  className="h-10 w-10 object-contain" style={{ filter: 'drop-shadow(-1px 0 0 rgba(255,255,255,0.7)) drop-shadow(1px 0 0 rgba(255,255,255,0.7)) drop-shadow(0 -1px 0 rgba(255,255,255,0.7)) drop-shadow(0 1px 0 rgba(255,255,255,0.7))' }}
                 />
                 <span className="w-full truncate text-center font-display text-[13px] font-bold leading-tight"
                   style={{ color: 'rgba(255,255,255,0.92)' }}>

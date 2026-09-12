@@ -159,7 +159,7 @@ export default function PredictionPage() {
               src={p.teamAImage || teamAPlaceholder}
               alt="А"
               onError={e => { e.target.src = teamAPlaceholder; }}
-              className="h-12 w-12 shrink-0 object-contain"
+              className="h-12 w-12 shrink-0 object-contain" style={{ filter: 'drop-shadow(-1px 0 0 rgba(255,255,255,0.65)) drop-shadow(1px 0 0 rgba(255,255,255,0.65)) drop-shadow(0 -1px 0 rgba(255,255,255,0.65)) drop-shadow(0 1px 0 rgba(255,255,255,0.65))' }}
             />
 
             {/* Score A */}
@@ -203,7 +203,7 @@ export default function PredictionPage() {
               src={p.teamBImage || teamBPlaceholder}
               alt="Б"
               onError={e => { e.target.src = teamBPlaceholder; }}
-              className="h-12 w-12 shrink-0 object-contain"
+              className="h-12 w-12 shrink-0 object-contain" style={{ filter: 'drop-shadow(-1px 0 0 rgba(255,255,255,0.65)) drop-shadow(1px 0 0 rgba(255,255,255,0.65)) drop-shadow(0 -1px 0 rgba(255,255,255,0.65)) drop-shadow(0 1px 0 rgba(255,255,255,0.65))' }}
             />
 
           </div>
