@@ -203,7 +203,7 @@ export default function FilterPage() {
 
       <div
         className="fixed inset-x-0 z-20 flex gap-3 border-t border-base-border bg-base-bg/95 px-4 py-3 backdrop-blur"
-        style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}
+        style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <button onClick={clearAll} className="flex-1 rounded-xl bg-base-surface py-2.5 font-display text-sm font-semibold text-ink-secondary">
           Сбросить

@@ -29,7 +29,8 @@ export default function LiveTicker() {
   const loopItems = [...items, ...items];
 
   return (
-    <div className="fixed inset-x-0 bottom-[60px] z-20 overflow-hidden border-t border-base-border bg-base-bg/95 py-1.5 backdrop-blur">
+    <div className="fixed inset-x-0 z-20 overflow-hidden border-t border-base-border bg-base-bg/95 py-1.5 backdrop-blur"
+      style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}>
       <div className="flex w-max animate-marquee gap-6 px-3">
         {loopItems.map((item, idx) => {
           const meta = RARITY_META[item.rarity] || RARITY_META.CONSUMER;
