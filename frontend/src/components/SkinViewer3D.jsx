@@ -9,9 +9,8 @@ const WEAPON_MODELS = {
 
 function getModelUrl(skinName) {
   const lower = (skinName || '').toLowerCase();
-  const base  = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   for (const [key, file] of Object.entries(WEAPON_MODELS)) {
-    if (lower.includes(key)) return `${base}/models/${file}`;
+    if (lower.includes(key)) return `/models/${file}`; // frontend static, CORS yo'q
   }
   return null;
 }
@@ -83,7 +82,7 @@ function CssViewer({ imageUrl }) {
 }
 
 // ─── Three.js GLTF viewer ─────────────────────────────────────────────────
-function GltfViewer({ imageUrl, modelUrl, onFail }) {
+function GltfViewer({ imageUrl, modelUrl, onFail, onLoad }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -177,6 +176,7 @@ function GltfViewer({ imageUrl, modelUrl, onFail }) {
           });
         });
         scene.add(model);
+        onLoad?.();
 
         const animate = () => {
           animId = requestAnimationFrame(animate);
@@ -199,7 +199,7 @@ function GltfViewer({ imageUrl, modelUrl, onFail }) {
     };
   }, [modelUrl, imageUrl, onFail]);
 
-  return <div ref={mountRef} className="flex-1 touch-none" />;
+  return <div ref={mountRef} className="h-full w-full touch-none" />;
 }
 
 // ─── Ana komponent ────────────────────────────────────────────────────────
@@ -241,20 +241,19 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
 
       {/* Viewer */}
       {mode === 'gltf' && modelUrl ? (
-        <>
+        <div className="relative flex-1">
           {loading && (
-            <div className="flex flex-1 items-center justify-center">
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
             </div>
           )}
-          <div className={`flex-1 ${loading ? 'hidden' : 'block'}`}>
-            <GltfViewer
-              imageUrl={imageUrl}
-              modelUrl={modelUrl}
-              onFail={handleFail}
-            />
-          </div>
-        </>
+          <GltfViewer
+            imageUrl={imageUrl}
+            modelUrl={modelUrl}
+            onFail={handleFail}
+            onLoad={() => setLoading(false)}
+          />
+        </div>
       ) : (
         <CssViewer imageUrl={imageUrl} />
       )}
