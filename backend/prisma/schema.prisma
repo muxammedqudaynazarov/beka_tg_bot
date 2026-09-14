@@ -187,6 +187,7 @@ model Auction {
   // asset ID'sini kiritsa, tizim yetkazishni TO'LIQ AVTOMATLASHTIRISHI mumkin
   // (steamBotService.js). Bo'sh qoldirilsa, yetkazish avvalgidek qo'lda amalga oshadi.
   steamAssetId    String?        @db.VarChar(64)
+  inspectLink     String?        @db.VarChar(1000) // Steam inspect havolasi (3D ko'rish uchun)
 
   startPrice      Decimal        @db.Decimal(14, 2)
   currentPrice    Decimal        @db.Decimal(14, 2)

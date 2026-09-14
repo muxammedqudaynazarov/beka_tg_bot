@@ -187,6 +187,7 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
             imageUrl: it.imageUrl || f.imageUrl,
             steamAssetId: it.assetId,
             isStatTrak: it.isStatTrak,
+            ...(it.inspectLink ? { inspectLink: it.inspectLink } : {}),
             ...(it.floatValue !== null ? { floatValue: it.floatValue } : {}),
             ...(it.paintSeed !== null ? { paintSeed: it.paintSeed } : {}),
             // 1-band: nomdagi "(Field-Tested)" kabi qismidan avtomatik aniqlangan
@@ -280,6 +281,18 @@ export default function AuctionForm({ initial, submitLabel, onSubmit }) {
           onChange={(e) => set('steamAssetId', e.target.value)}
           placeholder="ID предмета в инвентаре бота — если пусто, отправка будет вручную"
         />
+      </Field>
+
+      <Field label="Inspect-ссылка (для 3D просмотра, необязательно)">
+        <input
+          className={inputCls}
+          value={form.inspectLink ?? ''}
+          onChange={(e) => set('inspectLink', e.target.value)}
+          placeholder="steam://rungame/730/76561202255233023/..."
+        />
+        <p className="mt-1 text-[10px] text-muted">
+          Копируется из Steam — правой кнопкой на предмет → «Inspect»
+        </p>
       </Field>
 
       <Field label="StatTrak™">

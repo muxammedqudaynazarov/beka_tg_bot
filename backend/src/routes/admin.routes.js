@@ -112,10 +112,11 @@ router.post('/auctions', async (req, res) => {
         isStatTrak,
         paintSeed,
         steamAssetId,
+        inspectLink,
         startPrice,
         buyNowPrice,
         durationMinutes,
-        stickers, // [{ name, imageUrl }] — 9-band, soni oldindan noma'lum
+        stickers,
     } = req.body || {};
 
     if (!skinName || !imageUrl || !subcategoryId || !rarity || !startPrice || !durationMinutes) {
@@ -142,6 +143,7 @@ router.post('/auctions', async (req, res) => {
             isStatTrak: Boolean(isStatTrak),
             paintSeed: paintSeed === '' || paintSeed === undefined || paintSeed === null ? null : Number(paintSeed),
             steamAssetId: steamAssetId || null,
+            inspectLink: inspectLink || null,
             startPrice,
             currentPrice: startPrice,
             buyNowPrice: buyNowPrice || null,
@@ -311,6 +313,7 @@ router.patch('/auctions/:id', async (req, res) => {
     if (isStatTrak !== undefined) data.isStatTrak = Boolean(isStatTrak);
     if (paintSeed !== undefined) data.paintSeed = paintSeed === '' || paintSeed === null ? null : Number(paintSeed);
     if (steamAssetId !== undefined) data.steamAssetId = steamAssetId || null;
+    if (inspectLink !== undefined) data.inspectLink = inspectLink || null;
     if (buyNowPrice !== undefined) data.buyNowPrice = buyNowPrice === '' || buyNowPrice === null ? null : Number(buyNowPrice);
     if (startPrice !== undefined) {
         // Hali taklif yo'q bo'lgani uchun currentPrice ham startPrice bilan birga yangilanadi

@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Gavel, Lock, TrendingUp, Clock, CheckCircle2, XCircle, Zap, Heart } from 'lucide-react';
+import { ChevronLeft, Gavel, Lock, TrendingUp, Clock, CheckCircle2, XCircle, Zap, Heart, Box } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
 import { useAuth } from '../AuthContext';
 import { useAuctionSocket } from '../hooks/useAuctionSocket';
 import { useCountdownDHMS } from '../hooks/useCountdown';
+import { openLink } from '../telegram';
 import { hapticNotification, showAlert } from '../telegram';
 import RarityBadge from '../components/RarityBadge';
 import FloatGauge from '../components/FloatGauge';
@@ -201,6 +202,15 @@ export default function AuctionDetailPage() {
             fill={auction.isFavorited ? 'currentColor' : 'none'}
           />
         </button>
+        {auction.inspectLink && (
+          <button
+            onClick={() => openLink(`https://cs2inspect.com/inspect?url=${encodeURIComponent(auction.inspectLink)}`)}
+            className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur transition-opacity active:opacity-70"
+          >
+            <Box size={13} className="text-white" />
+            <span className="font-display text-[11px] font-semibold text-white">3D</span>
+          </button>
+        )}
       </div>
 
       <div className="space-y-4 px-4 pt-4">

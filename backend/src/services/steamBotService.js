@@ -248,6 +248,10 @@ async function listBotInventory() {
           tradable: Boolean(item.tradable),
           wearCondition: detectWearFromName(fullName), // 1-band
           accessories: extractAccessories(item), // 2-band
+          // 3D viewer uchun inspect havolasi
+          inspectLink: item.actions?.[0]?.link
+            ? item.actions[0].link.replace('%owner_steamid%', '76561202255233023').replace('%assetid%', item.assetid)
+            : null,
         };
       });
       inventoryCache = { items, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 daqiqa keshlanadi
