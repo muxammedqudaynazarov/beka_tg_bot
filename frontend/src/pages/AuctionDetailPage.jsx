@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Gavel, Lock, TrendingUp, Clock, CheckCircle2, XCircle, Zap, Heart, Box } from 'lucide-react';
 import { api } from '../api';
 import AdBanner from '../components/AdBanner';
+import SkinViewer3D from '../components/SkinViewer3D';
 import { useAuth } from '../AuthContext';
 import { useAuctionSocket } from '../hooks/useAuctionSocket';
 import { useCountdownDHMS } from '../hooks/useCountdown';
@@ -107,6 +108,7 @@ export default function AuctionDetailPage() {
   const [placing, setPlacing] = useState(false);
   const [pulse, setPulse] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
+  const [show3D, setShow3D] = useState(false);
 
   const load = useCallback(() => {
     api.get(`/auctions/${id}`).then(({ data }) => setAuction(data)).finally(() => setLoading(false));
@@ -177,6 +179,14 @@ export default function AuctionDetailPage() {
   }
 
   return (
+    <>
+      {show3D && (
+        <SkinViewer3D
+          imageUrl={auction.imageUrl}
+          skinName={auction.skinName}
+          onClose={() => setShow3D(false)}
+        />
+      )}
     <div className="min-h-screen pb-28">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-base-border bg-base-bg/95 px-4 py-3.5 backdrop-blur">
         <button onClick={() => navigate(-1)} className="text-ink-secondary">
@@ -204,7 +214,7 @@ export default function AuctionDetailPage() {
         </button>
         {auction.inspectLink && (
           <button
-            onClick={() => openLink(`https://cs2inspect.com/inspect?url=${encodeURIComponent(auction.inspectLink)}`)}
+            onClick={() => setShow3D(true)}
             className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur transition-opacity active:opacity-70"
           >
             <Box size={13} className="text-white" />
@@ -361,5 +371,6 @@ export default function AuctionDetailPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
