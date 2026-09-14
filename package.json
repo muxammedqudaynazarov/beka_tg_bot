@@ -1,0 +1,21 @@
+{
+  "name": "cs2-skins-auction",
+  "version": "1.0.0",
+  "description": "CS2 (Counter-Strike 2) skinlari uchun Telegram Mini App ko'rinishidagi auksion (kim ko'p taklif — o'sha oladi) savdo tizimi. Foydalanuvchilar alohida bot orqali, administratorlar alohida bot orqali kirishadi, lekin ikkalasi ham bitta backend va bitta ma'lumotlar bazasidan foydalanadi.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muxammedqudaynazarov/beka_tg_bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/muxammedqudaynazarov/beka_tg_bot/issues"
+  },
+  "homepage": "https://github.com/muxammedqudaynazarov/beka_tg_bot#readme"
+}

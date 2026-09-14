@@ -82,7 +82,7 @@ export default function FilterPage() {
       <AdBanner />
 
       {loading ? (
-        <main className="space-y-6 px-4 pb-36 pt-5">
+        <main className="space-y-6 px-4 pb-28 pt-5">
           {[0, 1, 2].map((i) => (
             <div key={i} className="space-y-2">
               <div className="h-3 w-24 animate-pulse rounded bg-base-surface" />
@@ -95,7 +95,7 @@ export default function FilterPage() {
           ))}
         </main>
       ) : (
-        <main className="space-y-6 px-4 pb-36 pt-5">
+        <main className="space-y-6 px-4 pb-28 pt-5">
           {/* Kategoriya (ko'p tanlovli) */}
           <section>
             <SectionTitle>Тип</SectionTitle>
@@ -203,7 +203,7 @@ export default function FilterPage() {
 
       <div
         className="fixed inset-x-0 z-20 flex gap-3 border-t border-base-border bg-base-bg/95 px-4 py-3 backdrop-blur"
-        style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}
+        style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <button onClick={clearAll} className="flex-1 rounded-xl bg-base-surface py-2.5 font-display text-sm font-semibold text-ink-secondary">
           Сбросить

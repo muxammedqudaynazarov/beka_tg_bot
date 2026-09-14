@@ -65,6 +65,9 @@ router.post('/telegram', async (req, res) => {
       holdBalance: user.holdBalance,
       ratingScore: user.ratingScore,
       discountPct: user.discountPct,
+      isStreamer: user.isStreamer,
+      streamerDailyLimit: user.streamerDailyLimit,
+      streamerExpiresAt: user.streamerExpiresAt,
     },
   });
 });

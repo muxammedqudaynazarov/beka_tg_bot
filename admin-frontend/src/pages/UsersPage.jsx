@@ -179,7 +179,9 @@ function UserCard({ user, onChanged, autoExpand }) {
   const [detail, setDetail] = useState(null);
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [showBanForm, setShowBanForm] = useState(false);
-  const [showDiscountForm, setShowDiscountForm] = useState(false);
+  const [showStreamerForm, setShowStreamerForm] = useState(false);
+  const [streamerDailyLimit, setStreamerDailyLimit] = useState('3');
+  const [streamerDurationDays, setStreamerDurationDays] = useState('30');
   const lastActive = formatLastActive(user.lastActiveAt);
 
   async function loadDetail() {
@@ -204,7 +206,7 @@ function UserCard({ user, onChanged, autoExpand }) {
     await loadDetail();
     setShowSaleForm(false);
     setShowBanForm(false);
-    setShowDiscountForm(false);
+    setShowStreamerForm(false);
     onChanged();
   }
 
@@ -215,6 +217,36 @@ function UserCard({ user, onChanged, autoExpand }) {
       await api.post(`/admin/users/${user.id}/unban`);
       showAlert('✅ Разблокирован.');
       refreshDetail();
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Произошла ошибка.');
+    }
+  }
+
+  async function toggleStreamer() {
+    if (user.isStreamer) {
+      const ok = await showConfirm(`Убрать роль стримера у ${userLabel(user)}?`);
+      if (!ok) return;
+      try {
+        await api.post(`/admin/users/${user.id}/toggle-streamer`);
+        showAlert('✅ Роль стримера снята.');
+        onChanged();
+      } catch (err) {
+        showAlert(err.response?.data?.error || 'Произошла ошибка.');
+      }
+    } else {
+      setShowStreamerForm(true);
+    }
+  }
+
+  async function applyStreamerRole() {
+    try {
+      await api.post(`/admin/users/${user.id}/toggle-streamer`, {
+        dailyLimit: streamerDailyLimit ? Number(streamerDailyLimit) : null,
+        durationDays: streamerDurationDays ? Number(streamerDurationDays) : null,
+      });
+      showAlert('✅ Роль стримера выдана.');
+      setShowStreamerForm(false);
+      onChanged();
     } catch (err) {
       showAlert(err.response?.data?.error || 'Произошла ошибка.');
     }
@@ -236,6 +268,27 @@ function UserCard({ user, onChanged, autoExpand }) {
         <div role="button" tabIndex={0} onClick={toggle} onKeyDown={(e) => e.key === 'Enter' && toggle()} className="min-w-0 flex-1 text-left">
           <p className="truncate text-sm font-medium text-ink">
             {userLabel(user)} {user.firstName && <span className="font-normal text-muted">· {user.firstName}</span>}
+            {user.isStreamer && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const ok = await showConfirm(`Снять роль стримера у ${userLabel(user)}?`);
+                  if (!ok) return;
+                  try {
+                    await api.post(`/admin/users/${user.id}/toggle-streamer`);
+                    showAlert('✅ Роль стримера снята.');
+                    onChanged();
+                  } catch (err) {
+                    showAlert(err.response?.data?.error || 'Произошла ошибка.');
+                  }
+                }}
+                className="ml-1.5 rounded px-1 py-0.5 text-[9px] font-semibold hover:opacity-70"
+                style={{ background: 'var(--bg-accent)', color: 'var(--text-accent)' }}
+                title="Нажмите чтобы снять роль стримера"
+              >
+                СТРИМЕР ✕
+              </button>
+            )}
           </p>
           <p className="text-[10px] text-muted">Баланс: {formatSom(user.balance)} · Сделок: {user._count?.soldItems ?? 0}</p>
           <p className={`text-[10px] font-medium ${lastActive.tone}`}>🕐 {lastActive.text}</p>
@@ -263,13 +316,25 @@ function UserCard({ user, onChanged, autoExpand }) {
                 <Plus size={13} /> Продажа
               </button>
             )}
-            {!showDiscountForm && (
-              <button
-                onClick={() => setShowDiscountForm(true)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-success/40 px-3 py-1.5 text-xs text-success"
-              >
-                <Gift size={13} /> Скидка
-              </button>
+            {/* Streamer toggle */}
+            {!showBanForm && !showStreamerForm && (
+              user.isStreamer ? (
+                <button
+                  onClick={toggleStreamer}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-accent/50 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                  Снять стримера
+                </button>
+              ) : (
+                <button
+                  onClick={toggleStreamer}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                  Стример
+                </button>
+              )
             )}
             {!showBanForm && (
               detail.isBanned ? (
@@ -296,10 +361,31 @@ function UserCard({ user, onChanged, autoExpand }) {
               <RecordSaleForm userId={user.id} onDone={refreshDetail} />
             </div>
           )}
-          {showDiscountForm && (
-            <div className="relative">
-              <button onClick={() => setShowDiscountForm(false)} className="absolute -right-1 -top-1 text-muted"><X size={14} /></button>
-              <DiscountForm userId={user.id} onDone={refreshDetail} />
+          {/* Streamer rol berish formasi */}
+          {showStreamerForm && (
+            <div className="rounded-md border border-accent/30 bg-accent/5 p-2.5 space-y-2">
+              <p className="text-[10px] font-semibold text-accent">Настройки роли стримера</p>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <p className="mb-1 text-[9px] text-muted">Лимит прогнозов в день</p>
+                  <input type="number" min="1" max="20" value={streamerDailyLimit}
+                    onChange={e => setStreamerDailyLimit(e.target.value)}
+                    className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-ink" />
+                </div>
+                <div className="flex-1">
+                  <p className="mb-1 text-[9px] text-muted">Срок роли (дней)</p>
+                  <input type="number" min="1" value={streamerDurationDays}
+                    onChange={e => setStreamerDurationDays(e.target.value)}
+                    placeholder="∞"
+                    className="w-full rounded border border-border bg-surface px-2 py-1 text-xs text-ink" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowStreamerForm(false)}
+                  className="flex-1 rounded border border-border py-1 text-xs text-muted">Отмена</button>
+                <button onClick={applyStreamerRole}
+                  className="flex-1 rounded bg-accent py-1 text-xs font-semibold text-white">Выдать роль</button>
+              </div>
             </div>
           )}
           {showBanForm && (

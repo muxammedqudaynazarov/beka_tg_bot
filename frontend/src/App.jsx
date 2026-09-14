@@ -13,6 +13,8 @@ import WheelPage from './pages/WheelPage';
 import AuctionDetailPage from './pages/AuctionDetailPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import PurchasedSkinsPage from './pages/PurchasedSkinsPage';
+import PredictionPage from './pages/PredictionPage';
+import StreamerPage from './pages/StreamerPage';
 
 // 7-band: kanaldagi "Перейти к лоту" tugmasi t.me/BOT/APP?startapp=auction_ID
 // ko'rinishida ochiladi — Telegram bu qiymatni Mini App'ga start_param
@@ -74,6 +76,8 @@ export default function App() {
               <Route path="/auction/:id" element={<AuctionDetailPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/purchased-skins" element={<PurchasedSkinsPage />} />
+              <Route path="/prediction/:id" element={<PredictionPage />} />
+              <Route path="/streamer" element={<StreamerPage />} />
             </Routes>
             <BottomNav />
           </BrowserRouter>

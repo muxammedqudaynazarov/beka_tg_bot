@@ -29,6 +29,8 @@ const profileRoutes = require('./routes/profile.routes');
 const favoritesRoutes = require('./routes/favorites.routes');
 const adsRoutes = require('./routes/ads.routes');
 const promoRoutes = require('./routes/promo.routes');
+const predictionRoutes = require('./routes/prediction.routes');
+const teamsRoutes = require('./routes/teams.routes');
 const mediaRoutes = require('./routes/media.routes');
 const adminRoutes = require('./routes/admin.routes');
 
@@ -88,6 +90,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ type: ['application/json', 'text/json'] }));
 // Rasm yuklash bo'limi orqali optimallashtirilgan fayllar shu yerdan xizmat qiladi
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/models', express.static(path.join(__dirname, '../public/models')));
 
 app.get('/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 // 6-band: zaklad foizi (va kelajakda shunga o'xshash sozlamalar) FAQAT
@@ -112,6 +115,8 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/promo', promoRoutes);
+app.use('/api/predictions', predictionRoutes);
+app.use('/api/teams', teamsRoutes);
 app.use('/api/admin/media', mediaRoutes);
 app.use('/api/admin', adminRoutes);
 
