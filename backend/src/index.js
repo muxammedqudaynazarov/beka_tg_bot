@@ -118,12 +118,13 @@ app.use('/api/promo', promoRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/teams', teamsRoutes);
 
-// CSFloat API proxy — CORS muammosini hal qiladi.
+// CSFloat API proxy
 app.get('/api/cs2inspect', async (req, res) => {
   const { url } = req.query;
+  console.log('[cs2inspect] so\'rov:', url?.slice(0, 80));
   if (!url) return res.status(400).json({ error: 'url parametri kerak.' });
-  // Noto'g'ri format linkni tekshiramiz
   if (!url.startsWith('steam://rungame/730/')) {
+    console.log('[cs2inspect] noto\'g\'ri format:', url.slice(0, 50));
     return res.status(400).json({ error: 'Noto\'g\'ri inspect link formati.' });
   }
   try {
@@ -132,11 +133,12 @@ app.get('/api/cs2inspect', async (req, res) => {
       `https://api.csfloat.com/?url=${encodeURIComponent(url)}`,
       { timeout: 10000, headers: { 'User-Agent': 'cs2-auction-bot/1.0' } }
     );
+    console.log('[cs2inspect] muvaffaqiyat:', data?.iteminfo?.full_item_name);
     res.json(data);
   } catch (err) {
     const status = err.response?.status || 500;
     const msg    = err.response?.data?.message || err.message || 'CSFloat API xatosi.';
-    console.error('[cs2inspect]', status, msg);
+    console.error('[cs2inspect] xato:', status, msg);
     res.status(status).json({ error: msg });
   }
 });

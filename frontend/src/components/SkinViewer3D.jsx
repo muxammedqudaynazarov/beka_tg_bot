@@ -298,6 +298,11 @@ export default function SkinViewer3D({ imageUrl, skinName, inspectLink, onClose 
         {useGltf ? 'Вращайте · Зумируйте' : 'Перетащите для вращения'}
       </p>
 
+      {/* DEBUG — inspectLink qiymatini ko'rish uchun, ishlagach o'chiriladi */}
+      <p className="px-3 pb-1 text-[9px] text-yellow-400/60 break-all">
+        🔍 link: {inspectLink ? inspectLink.slice(0, 60) + '...' : 'NULL'}
+      </p>
+
       {/* CSFloat skin info panel */}
       <SkinInfoPanel inspectLink={inspectLink} fallbackImageUrl={imageUrl} />
     </div>
