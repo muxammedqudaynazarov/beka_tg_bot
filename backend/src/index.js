@@ -90,6 +90,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ type: ['application/json', 'text/json'] }));
 // Rasm yuklash bo'limi orqali optimallashtirilgan fayllar shu yerdan xizmat qiladi
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/models', express.static(path.join(__dirname, '../public/models')));
 
 app.get('/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 // 6-band: zaklad foizi (va kelajakda shunga o'xshash sozlamalar) FAQAT
