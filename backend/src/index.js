@@ -129,16 +129,22 @@ app.get('/api/cs2inspect', async (req, res) => {
   }
   try {
     const axios = require('axios');
-    const { data } = await axios.get(
-      `https://api.csfloat.com/?url=${encodeURIComponent(url)}`,
-      { timeout: 10000, headers: { 'User-Agent': 'cs2-auction-bot/1.0' } }
-    );
-    console.log('[cs2inspect] muvaffaqiyat:', data?.iteminfo?.full_item_name);
+    // MUHIM: url allaqachon to'g'ri encoded (%20 bor) — encodeURIComponent yana
+    // ishlatilsa %2520 bo'lib qoladi (ikki marta encode). Shuning uchun to'g'ridan-to'g'ri
+    // concat qilamiz — Express query param'ni avtomatik decode qilgan, shuning uchun
+    // url = original inspect link (bir marta encoded).
+    const apiUrl = `https://api.csfloat.com/?url=${encodeURIComponent(url)}`;
+    console.log('[cs2inspect] CSFloat URL:', apiUrl.slice(0, 100));
+    const { data } = await axios.get(apiUrl, {
+      timeout: 12000,
+      headers: { 'User-Agent': 'Mozilla/5.0 cs2-auction/1.0' },
+    });
+    console.log('[cs2inspect] javob:', data?.iteminfo?.full_item_name || 'ma\'lumot yo\'q');
     res.json(data);
   } catch (err) {
     const status = err.response?.status || 500;
-    const msg    = err.response?.data?.message || err.message || 'CSFloat API xatosi.';
-    console.error('[cs2inspect] xato:', status, msg);
+    const msg    = JSON.stringify(err.response?.data) || err.message || 'CSFloat xatosi';
+    console.error('[cs2inspect] xato', status, ':', msg.slice(0, 200));
     res.status(status).json({ error: msg });
   }
 });

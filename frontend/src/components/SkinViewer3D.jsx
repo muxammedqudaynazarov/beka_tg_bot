@@ -156,9 +156,9 @@ function GltfViewer({ modelUrl, onFail, onLoad }) {
 
     (async () => {
       try {
-        const check = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
-        if (!check?.ok) throw new Error(`404: ${modelUrl}`);
-
+        // HEAD tekshiruvi olib tashlandi — nginx try_files /index.html HTML
+        // qaytarishi mumkin edi va bu false 404 xatosiga sabab bo'lar edi.
+        // GLTFLoader o'zi xatoni to'g'ri ko'taradi.
         const THREE               = await import('three');
         const { GLTFLoader }      = await import('three/examples/jsm/loaders/GLTFLoader.js');
         const { OrbitControls }   = await import('three/examples/jsm/controls/OrbitControls.js');
