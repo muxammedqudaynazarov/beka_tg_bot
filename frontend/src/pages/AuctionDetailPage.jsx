@@ -212,7 +212,7 @@ export default function AuctionDetailPage() {
             fill={auction.isFavorited ? 'currentColor' : 'none'}
           />
         </button>
-        {auction.inspectLink && (
+        {auction.imageUrl && (
           <button
             onClick={() => setShow3D(true)}
             className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur transition-opacity active:opacity-70"
