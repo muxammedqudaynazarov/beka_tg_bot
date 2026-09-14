@@ -117,6 +117,26 @@ app.use('/api/ads', adsRoutes);
 app.use('/api/promo', promoRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/teams', teamsRoutes);
+
+// CSFloat API proxy — CORS muammosini hal qiladi.
+// Frontend to'g'ridan-to'g'ri api.csfloat.com'ga murojaat qila olmaydi,
+// shuning uchun backend orqali proxy qilamiz.
+app.get('/api/cs2inspect', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url parametri kerak.' });
+  try {
+    const response = await fetch(
+      `https://api.csfloat.com/?url=${encodeURIComponent(url)}`,
+      { headers: { 'User-Agent': 'cs2-auction-bot/1.0' }, signal: AbortSignal.timeout(10000) }
+    );
+    if (!response.ok) return res.status(response.status).json({ error: 'CSFloat API xatosi.' });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[cs2inspect]', err.message);
+    res.status(500).json({ error: 'CSFloat API dan ma\'lumot olishda xato.' });
+  }
+});
 app.use('/api/admin/media', mediaRoutes);
 app.use('/api/admin', adminRoutes);
 
