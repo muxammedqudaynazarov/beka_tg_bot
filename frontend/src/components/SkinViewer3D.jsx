@@ -1,26 +1,90 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 
-// Qurol nomi → model fayli
+// Qurol nomi → model fayli xaritasi
 const WEAPON_MODELS = {
   'tec-9': 'tec-9.glb',
   'tec9':  'tec-9.glb',
 };
 
-function getModelUrl(skinName, base) {
+function getModelUrl(skinName) {
   const lower = (skinName || '').toLowerCase();
+  const base  = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
   for (const [key, file] of Object.entries(WEAPON_MODELS)) {
     if (lower.includes(key)) return `${base}/models/${file}`;
   }
   return null;
 }
 
-export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
-  const mountRef  = useRef(null);
-  const [status, setStatus] = useState('loading');
+// ─── CSS 3D viewer (fallback) ─────────────────────────────────────────────
+function CssViewer({ imageUrl }) {
+  const [rotY, setRotY] = useState(-15);
+  const r    = useRef({ y: -15, auto: true, px: 0 });
+  const raf  = useRef(null);
+  const vel  = useRef(0);
 
-  const base     = (import.meta.env.VITE_API_URL || '').replace('/api', '');
-  const modelUrl = getModelUrl(skinName, base);
+  useEffect(() => {
+    const tick = () => {
+      if (r.current.auto) {
+        r.current.y += 0.4;
+        setRotY(r.current.y);
+      }
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, []);
+
+  const onStart = (x) => { r.current.auto = false; r.current.px = x; vel.current = 0; };
+  const onMove  = (x) => {
+    const dx = x - r.current.px;
+    vel.current = dx;
+    r.current.y += dx * 0.5;
+    setRotY(r.current.y);
+    r.current.px = x;
+  };
+  const onEnd   = () => {
+    const glide = () => {
+      vel.current *= 0.93;
+      if (Math.abs(vel.current) > 0.3) {
+        r.current.y += vel.current * 0.5;
+        setRotY(r.current.y);
+        requestAnimationFrame(glide);
+      } else {
+        setTimeout(() => { r.current.auto = true; }, 1200);
+      }
+    };
+    requestAnimationFrame(glide);
+  };
+
+  return (
+    <div
+      className="flex flex-1 items-center justify-center overflow-hidden touch-none select-none"
+      style={{ perspective: '900px', cursor: 'grab' }}
+      onTouchStart={e => onStart(e.touches[0].clientX)}
+      onTouchMove={e  => onMove(e.touches[0].clientX)}
+      onTouchEnd={onEnd}
+      onMouseDown={e  => onStart(e.clientX)}
+      onMouseMove={e  => e.buttons && onMove(e.clientX)}
+      onMouseUp={onEnd}
+    >
+      <div style={{ transform: `rotateY(${rotY}deg)`, transition: 'none' }}>
+        <img
+          src={imageUrl}
+          alt=""
+          style={{
+            width: 240, height: 240, objectFit: 'contain',
+            filter: 'drop-shadow(0 0 28px rgba(80,140,255,0.35)) drop-shadow(0 0 8px rgba(255,255,255,0.12))',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Three.js GLTF viewer ─────────────────────────────────────────────────
+function GltfViewer({ imageUrl, modelUrl, onFail }) {
+  const mountRef = useRef(null);
 
   useEffect(() => {
     const el = mountRef.current;
@@ -28,122 +92,134 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
 
     let animId, renderer, controls;
 
-    // Three.js ni lazy import qilamiz — asosiy bundle kichik qoladi
-    import('three').then(async (THREE) => {
-      const { GLTFLoader }    = await import('three/examples/jsm/loaders/GLTFLoader.js');
-      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
-      const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js');
+    (async () => {
+      try {
+        const THREE           = await import('three');
+        const { GLTFLoader }  = await import('three/examples/jsm/loaders/GLTFLoader.js');
+        const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
+        const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js');
 
-      const W = el.clientWidth  || window.innerWidth;
-      const H = el.clientHeight || window.innerHeight - 110;
+        const W = el.clientWidth  || window.innerWidth;
+        const H = el.clientHeight || window.innerHeight - 110;
 
-      // Renderer
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(W, H);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.shadowMap.enabled = true;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.2;
-      el.appendChild(renderer.domElement);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(W, H);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        el.appendChild(renderer.domElement);
 
-      const scene  = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, W / H, 0.01, 1000);
-      camera.position.set(0, 0.05, 0.5);
+        const scene  = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, W / H, 0.001, 1000);
+        camera.position.set(0, 0.05, 0.5);
 
-      // OrbitControls
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping   = true;
-      controls.dampingFactor   = 0.08;
-      controls.autoRotate      = true;
-      controls.autoRotateSpeed = 2.5;
-      controls.enableZoom      = true;
-      controls.minDistance     = 0.15;
-      controls.maxDistance     = 1.5;
-      controls.maxPolarAngle   = Math.PI * 0.75;
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping   = true;
+        controls.dampingFactor   = 0.08;
+        controls.autoRotate      = true;
+        controls.autoRotateSpeed = 2.5;
+        controls.enableZoom      = true;
+        controls.minDistance     = 0.1;
+        controls.maxDistance     = 2;
 
-      // Yorug'liklar
-      scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-      const key = new THREE.DirectionalLight(0xffffff, 2.5);
-      key.position.set(1, 2, 2); key.castShadow = true;
-      scene.add(key);
-      const fill = new THREE.DirectionalLight(0x4488ff, 0.8);
-      fill.position.set(-2, 0, 1); scene.add(fill);
-      const rim = new THREE.DirectionalLight(0xff8844, 0.5);
-      rim.position.set(0, -1, -2); scene.add(rim);
+        // Yorug'lik
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        const key  = new THREE.DirectionalLight(0xffffff, 3);
+        key.position.set(2, 3, 3); scene.add(key);
+        const fill = new THREE.DirectionalLight(0x6699ff, 1);
+        fill.position.set(-2, 0, 1); scene.add(fill);
+        const rim  = new THREE.DirectionalLight(0xff8844, 0.6);
+        rim.position.set(0, -2, -2); scene.add(rim);
 
-      // Environment (RoomEnvironment to'g'ri import)
-      const pmremGen = new THREE.PMREMGenerator(renderer);
-      scene.environment = pmremGen.fromScene(new RoomEnvironment(), 0.04).texture;
+        // RoomEnvironment
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-      const animate = () => {
-        animId = requestAnimationFrame(animate);
-        controls.update();
-        renderer.render(scene, camera);
-      };
-
-      if (modelUrl) {
-        // GLTF model
-        const texLoader = new THREE.TextureLoader();
-        texLoader.crossOrigin = 'anonymous';
-        const skinTex = texLoader.load(imageUrl);
-        skinTex.flipY = false;
-        skinTex.colorSpace = THREE.SRGBColorSpace;
-
-        const loader = new GLTFLoader();
-        loader.load(modelUrl, (gltf) => {
-          const model = gltf.scene;
-          const box    = new THREE.Box3().setFromObject(model);
-          const center = box.getCenter(new THREE.Vector3());
-          const size   = box.getSize(new THREE.Vector3());
-          const scale  = 0.35 / Math.max(size.x, size.y, size.z);
-          model.scale.setScalar(scale);
-          model.position.sub(center.multiplyScalar(scale));
-
-          model.traverse((child) => {
-            if (!child.isMesh) return;
-            child.castShadow = true;
-            const orig = child.material;
-            child.material = new THREE.MeshStandardMaterial({
-              map:             skinTex,
-              normalMap:       orig?.normalMap || null,
-              roughness:       orig?.roughness  ?? 0.35,
-              metalness:       orig?.metalness  ?? 0.7,
-              envMapIntensity: 1.2,
-            });
-          });
-          scene.add(model);
-          setStatus('model');
-          animate();
-        }, undefined, () => {
-          setStatus('fallback');
-          loadFallback(THREE, scene, camera);
-          animate();
+        // Skin teksturasi (canvas orqali — CORS muammosini hal qiladi)
+        const skinTex = await new Promise((res) => {
+          const img    = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || 512;
+            canvas.height= img.naturalHeight || 512;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            const t = new THREE.CanvasTexture(canvas);
+            t.flipY = false;
+            t.colorSpace = THREE.SRGBColorSpace;
+            res(t);
+          };
+          img.onerror = () => res(null);
+          img.src = imageUrl;
         });
-      } else {
-        setStatus('fallback');
-        loadFallback(THREE, scene, camera);
-        animate();
-      }
-    });
 
-    function loadFallback(THREE, scene, camera) {
-      const texLoader = new THREE.TextureLoader();
-      texLoader.crossOrigin = 'anonymous';
-      texLoader.load(imageUrl, (tex) => {
-        const geo  = new THREE.PlaneGeometry(0.6, 0.6);
-        const mat  = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-        scene.add(new THREE.Mesh(geo, mat));
-        camera.position.set(0, 0, 1);
-      });
-    }
+        // Model yuklash
+        const gltf = await new Promise((res, rej) => {
+          new GLTFLoader().load(modelUrl, res, undefined, rej);
+        });
+
+        const model = gltf.scene;
+        const box   = new THREE.Box3().setFromObject(model);
+        const size  = box.getSize(new THREE.Vector3());
+        const scale = 0.35 / Math.max(size.x, size.y, size.z);
+        model.scale.setScalar(scale);
+        model.position.sub(box.getCenter(new THREE.Vector3()).multiplyScalar(scale));
+
+        model.traverse((child) => {
+          if (!child.isMesh) return;
+          const orig = child.material;
+          child.material = new THREE.MeshStandardMaterial({
+            map:             skinTex || orig?.map || null,
+            normalMap:       orig?.normalMap || null,
+            roughness:       0.3,
+            metalness:       0.6,
+            envMapIntensity: 1.5,
+          });
+        });
+        scene.add(model);
+
+        const animate = () => {
+          animId = requestAnimationFrame(animate);
+          controls.update();
+          renderer.render(scene, camera);
+        };
+        animate();
+
+      } catch (err) {
+        console.error('[SkinViewer3D] GLTF error:', err);
+        onFail();
+      }
+    })();
 
     return () => {
       cancelAnimationFrame(animId);
       controls?.dispose();
-      if (renderer && el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
+      if (renderer && el?.contains(renderer.domElement)) el.removeChild(renderer.domElement);
       renderer?.dispose();
     };
-  }, [imageUrl, modelUrl]);
+  }, [modelUrl, imageUrl, onFail]);
+
+  return <div ref={mountRef} className="flex-1 touch-none" />;
+}
+
+// ─── Ana komponent ────────────────────────────────────────────────────────
+export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
+  const modelUrl = getModelUrl(skinName);
+  const [mode, setMode] = useState(modelUrl ? 'gltf' : 'css');
+  const [loading, setLoading] = useState(!!modelUrl);
+
+  const handleFail = useCallback(() => {
+    setMode('css');
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'gltf') {
+      // 8 soniyadan keyin yuklanmasa fallback
+      const t = setTimeout(() => { setMode('css'); setLoading(false); }, 8000);
+      return () => clearTimeout(t);
+    }
+  }, [mode]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col"
@@ -153,12 +229,8 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
       <div className="flex items-center justify-between px-4 py-3">
         <div className="mr-3 min-w-0">
           <p className="truncate font-display text-sm font-bold text-white/90">{skinName}</p>
-          <p className={`text-[10px] ${
-            status === 'model'    ? 'text-emerald-400' :
-            status === 'fallback' ? 'text-yellow-400/70' : 'text-white/40'
-          }`}>
-            {status === 'model'    ? '● 3D модель' :
-             status === 'fallback' ? '● Нет 3D-модели' : '● Загрузка...'}
+          <p className={`text-[10px] ${mode === 'gltf' ? 'text-emerald-400' : 'text-white/40'}`}>
+            {mode === 'gltf' ? '● 3D модель' : '● Просмотр'}
           </p>
         </div>
         <button onClick={onClose}
@@ -167,22 +239,32 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
         </button>
       </div>
 
-      {/* Canvas */}
-      <div ref={mountRef} className="flex-1 touch-none" />
+      {/* Viewer */}
+      {mode === 'gltf' && modelUrl ? (
+        <>
+          {loading && (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+            </div>
+          )}
+          <div className={`flex-1 ${loading ? 'hidden' : 'block'}`}>
+            <GltfViewer
+              imageUrl={imageUrl}
+              modelUrl={modelUrl}
+              onFail={handleFail}
+            />
+          </div>
+        </>
+      ) : (
+        <CssViewer imageUrl={imageUrl} />
+      )}
 
       {/* Hint */}
       <div className="pb-5 text-center">
-        {status === 'loading' && (
-          <div className="mb-2 flex justify-center">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
-          </div>
-        )}
         <p className="text-[11px] text-white/35">
-          {status === 'model'
+          {mode === 'gltf'
             ? 'Вращайте · Зумируйте двумя пальцами'
-            : status === 'fallback'
-            ? '3D-модель этого оружия пока не добавлена'
-            : 'Загрузка 3D-модели...'}
+            : 'Перетащите для вращения'}
         </p>
       </div>
     </div>
