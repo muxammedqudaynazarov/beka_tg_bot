@@ -233,25 +233,37 @@ async function listBotInventory() {
   return new Promise((resolve) => {
     community.getUserInventoryContents(client.steamID, 730, 2, false, 'russian', (err, inventory) => {
       if (err) return resolve({ ok: false, error: err.message });
+
+      // Bot ning haqiqiy SteamID64 — inspectLink uchun kerak
+      const botSteamId = client.steamID.getSteamID64();
+
       const items = inventory.map((item) => {
         const props = item.asset_properties || [];
         const paintSeedProp = props.find((p) => p.propertyid === 1);
         const floatProp = props.find((p) => p.propertyid === 2);
         const fullName = item.market_hash_name || item.name;
+
+        // CS2 inspect link to'g'ri formati:
+        // steam://rungame/730/{STEAMID}/+csgo_econ_action_preview%20S{STEAMID}A{ASSETID}D{CLASSID}
+        // item.actions[0].link template o'zgaruvchilari noto'g'ri qaytadi,
+        // shuning uchun assetid + classid dan qo'lda quramiz.
+        const assetId = item.assetid;
+        const classId = item.classid;
+        const inspectLink = botSteamId && assetId && classId
+          ? `steam://rungame/730/${botSteamId}/+csgo_econ_action_preview%20S${botSteamId}A${assetId}D${classId}`
+          : null;
+
         return {
-          assetId: item.assetid,
+          assetId,
           name: fullName,
           imageUrl: item.icon_url ? `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}` : null,
           floatValue: floatProp ? Number(floatProp.float_value) : null,
           paintSeed: paintSeedProp ? Number(paintSeedProp.int_value) : null,
           isStatTrak: /^StatTrak™/.test(fullName || ''),
           tradable: Boolean(item.tradable),
-          wearCondition: detectWearFromName(fullName), // 1-band
-          accessories: extractAccessories(item), // 2-band
-          // 3D viewer uchun inspect havolasi
-          inspectLink: item.actions?.[0]?.link
-            ? item.actions[0].link.replace('%owner_steamid%', '76561202255233023').replace('%assetid%', item.assetid)
-            : null,
+          wearCondition: detectWearFromName(fullName),
+          accessories: extractAccessories(item),
+          inspectLink,
         };
       });
       inventoryCache = { items, expiresAt: Date.now() + 5 * 60 * 1000 }; // 5 daqiqa keshlanadi
