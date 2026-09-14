@@ -88,24 +88,9 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
         const pmrem = new THREE.PMREMGenerator(renderer);
         scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-        // Skin teksturasi (canvas orqali CORS muammosi yo'q)
-        setMsg('Загрузка текстуры...');
-        const skinTex = await new Promise((res) => {
-          const img        = new Image();
-          img.crossOrigin  = 'anonymous';
-          img.onload = () => {
-            const cvs = document.createElement('canvas');
-            cvs.width  = img.naturalWidth  || 512;
-            cvs.height = img.naturalHeight || 512;
-            cvs.getContext('2d').drawImage(img, 0, 0);
-            const t = new THREE.CanvasTexture(cvs);
-            t.flipY      = false;
-            t.colorSpace = THREE.SRGBColorSpace;
-            res(t);
-          };
-          img.onerror = () => res(null);
-          img.src = imageUrl;
-        });
+        // Skin teksturasini yuklash shart emas — Steam CDN rasmi 2D preview,
+        // UV-mapped texture emas, shuning uchun modelga qo'llash noto'g'ri ko'rinadi.
+        // Modelning asl materiallari to'g'ri va chiroyli ko'rinadi.
 
         // GLTF yuklash
         setMsg('Загрузка модели...');
@@ -122,16 +107,14 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
         model.scale.setScalar(scale);
         model.position.sub(box.getCenter(new THREE.Vector3()).multiplyScalar(scale));
 
-        // Materialga tekstura qo'yish
+        // Asl materiallarni saqlab, faqat muhit xaritasini qo'shamiz
         model.traverse(child => {
           if (!child.isMesh) return;
-          const o = child.material;
-          child.material = new THREE.MeshStandardMaterial({
-            map:             skinTex || o?.map || null,
-            normalMap:       o?.normalMap   || null,
-            roughness:       o?.roughness   ?? 0.3,
-            metalness:       o?.metalness   ?? 0.65,
-            envMapIntensity: 1.5,
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          mats.forEach(m => {
+            if (!m) return;
+            m.envMapIntensity = 1.3;
+            m.needsUpdate     = true;
           });
         });
 
@@ -208,6 +191,13 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
             </div>
           )}
           <div ref={mountRef} className="h-full w-full touch-none" />
+          {/* Skin ko'rinishi — pastki chap burchakda */}
+          {!msg && (
+            <div className="absolute bottom-3 left-3 overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur"
+              style={{ width: 68, height: 68 }}>
+              <img src={imageUrl} alt="skin" className="h-full w-full object-contain p-1 opacity-90" />
+            </div>
+          )}
         </div>
       ) : (
         /* CSS 3D fallback */
