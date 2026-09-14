@@ -8,6 +8,7 @@ import { useAuth } from '../AuthContext';
 import { useAuctionSocket } from '../hooks/useAuctionSocket';
 import { useCountdownDHMS } from '../hooks/useCountdown';
 import { openLink } from '../telegram';
+import { getWeaponModelUrl } from '../weaponModels';
 import { hapticNotification, showAlert } from '../telegram';
 import RarityBadge from '../components/RarityBadge';
 import FloatGauge from '../components/FloatGauge';
@@ -212,7 +213,7 @@ export default function AuctionDetailPage() {
             fill={auction.isFavorited ? 'currentColor' : 'none'}
           />
         </button>
-        {auction.imageUrl && (
+        {getWeaponModelUrl(auction.skinName) && (
           <button
             onClick={() => setShow3D(true)}
             className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur transition-opacity active:opacity-70"
