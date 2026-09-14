@@ -79,13 +79,17 @@ function SkinInfoPanel({ inspectLink, fallbackImageUrl }) {
               )}
             </>) : err ? (
               <div>
-                <p className="text-[11px] text-white/50 mb-1">Точные данные недоступны</p>
-                <p className="text-[10px] text-white/30">Укажите inspect-ссылку в аукционе</p>
+                <p className="text-[11px] text-orange-400/80">Не удалось загрузить данные</p>
+                <p className="text-[10px] text-white/30">Проверьте inspect-ссылку</p>
+              </div>
+            ) : !inspectLink ? (
+              <div>
+                <p className="text-[11px] text-white/50">Inspect-ссылка не указана</p>
+                <p className="text-[10px] text-white/30">Добавьте её в аукционе</p>
               </div>
             ) : (
               <div>
-                <p className="text-[11px] text-white/50">Inspect-ссылка не указана</p>
-                <p className="text-[10px] text-white/30">Добавьте её при создании аукциона</p>
+                <p className="text-[11px] text-white/40">Загрузка данных...</p>
               </div>
             )}
           </div>
