@@ -278,6 +278,7 @@ router.patch('/auctions/:id', async (req, res) => {
         isStatTrak,
         paintSeed,
         steamAssetId,
+        inspectLink,
         startPrice,
         buyNowPrice,
         stickers
@@ -300,6 +301,7 @@ router.patch('/auctions/:id', async (req, res) => {
     if (isStatTrak !== undefined) data.isStatTrak = Boolean(isStatTrak);
     if (paintSeed !== undefined) data.paintSeed = paintSeed === '' || paintSeed === null ? null : Number(paintSeed);
     if (steamAssetId !== undefined) data.steamAssetId = steamAssetId || null;
+    if (inspectLink !== undefined) data.inspectLink = inspectLink || null;
     if (buyNowPrice !== undefined) data.buyNowPrice = buyNowPrice === '' || buyNowPrice === null ? null : Number(buyNowPrice);
     if (startPrice !== undefined) {
         // Hali taklif yo'q bo'lgani uchun currentPrice ham startPrice bilan birga yangilanadi
