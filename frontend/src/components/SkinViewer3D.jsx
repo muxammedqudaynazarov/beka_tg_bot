@@ -153,16 +153,26 @@ function GltfViewer({ modelUrl, onFail, onLoad }) {
 
 // ─── Ana komponent ─────────────────────────────────────────────────────────
 export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
-  const modelUrl = getWeaponModelUrl(skinName);
+  const modelUrl    = getWeaponModelUrl(skinName);
   const [mode,    setMode]    = useState(modelUrl ? 'gltf' : 'css');
   const [loading, setLoading] = useState(!!modelUrl);
+  const timeoutRef  = useRef(null);
 
-  // 12 soniyada yuklanmasa CSS ga o'tish
   useEffect(() => {
     if (mode !== 'gltf') return;
-    const t = setTimeout(() => { setMode('css'); setLoading(false); }, 12000);
-    return () => clearTimeout(t);
+    // Model yuklanmasa 12 soniyadan keyin CSS ga o'tish
+    timeoutRef.current = setTimeout(() => {
+      setMode('css');
+      setLoading(false);
+    }, 12000);
+    return () => clearTimeout(timeoutRef.current);
   }, [mode]);
+
+  const handleLoad = () => {
+    // Model muvaffaqiyatli yuklandi — timeoutni bekor qilamiz
+    clearTimeout(timeoutRef.current);
+    setLoading(false);
+  };
 
   const useGltf = mode === 'gltf' && !!modelUrl;
 
@@ -197,8 +207,8 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
             )}
             <GltfViewer
               modelUrl={modelUrl}
-              onFail={() => { setMode('css'); setLoading(false); }}
-              onLoad={() => setLoading(false)}
+              onFail={() => { clearTimeout(timeoutRef.current); setMode('css'); setLoading(false); }}
+              onLoad={handleLoad}
             />
           </>
         ) : (
