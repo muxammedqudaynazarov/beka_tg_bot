@@ -6,7 +6,6 @@ import PredictionBanner from '../components/PredictionBanner';
 import SearchBar from '../components/SearchBar';
 import TabPills from '../components/TabPills';
 import AuctionListItem from '../components/AuctionListItem';
-import LiveTicker from '../components/LiveTicker';
 import { useFilters } from '../FiltersContext';
 
 export default function HomePage() {
@@ -85,7 +84,6 @@ export default function HomePage() {
         )}
       </main>
 
-      <LiveTicker />
     </div>
   );
 }
