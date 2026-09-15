@@ -310,17 +310,15 @@ export default function AuctionDetailPage() {
             const auctionNow = Number(auction.currentPrice || auction.startPrice || 0);
             const pct        = auctionNow > 0 ? Math.round(((inflated - auctionNow) / inflated) * 100) : null;
             return (
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-signal-success/8 border border-signal-success/20 px-3 py-2">
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-signal-success/8 px-3 py-2">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-semibold uppercase tracking-wide text-signal-success/70">
-                    Цена Steam
-                  </span>
-                  <span className="font-mono text-xs font-bold text-ink-primary">
+                  <span className="text-[10px] text-ink-muted">Цена Steam</span>
+                  <span className="font-mono text-xs font-semibold text-ink-muted">
                     {Number(inflated).toLocaleString('ru-RU')} сум
                   </span>
                 </div>
                 {pct !== null && pct > 0 && (
-                  <span className="rounded-lg bg-signal-success px-2.5 py-0.5 font-display text-[11px] font-bold text-white shadow-sm">
+                  <span className="rounded-lg bg-signal-success/15 px-2.5 py-0.5 font-display text-[11px] font-semibold text-signal-success">
                     −{pct}% дешевле
                   </span>
                 )}
