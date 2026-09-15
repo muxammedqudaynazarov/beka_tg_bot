@@ -6,7 +6,7 @@ export const WEAPON_MODELS = {
   'ak-47':         '/models/ak-47.glb',
   'ak47':          '/models/ak-47.glb',
   'awp':           '/models/awp.glb',
-  'desert eagle':  '/models/desert-eagle.glb',
+  'desert eagle':  '/models/desert-eagle.glb',  // texture bilan (Valve rasmiy .tga → GLB)
   'deagle':        '/models/desert-eagle.glb',
   'm4a1-s':        '/models/m4a1-s.glb',
   'm4a1s':         '/models/m4a1-s.glb',
