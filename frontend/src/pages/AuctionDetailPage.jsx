@@ -110,9 +110,18 @@ export default function AuctionDetailPage() {
   const [pulse, setPulse] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
   const [show3D, setShow3D] = useState(false);
+  const [steamPrice, setSteamPrice] = useState(null); // { medianUzs, lowestUzs, volume }
 
   const load = useCallback(() => {
-    api.get(`/auctions/${id}`).then(({ data }) => setAuction(data)).finally(() => setLoading(false));
+    api.get(`/auctions/${id}`).then(({ data }) => {
+      setAuction(data);
+      // Steam narxini yuklash (skinName ma'lum bo'lganda)
+      if (data?.skinName) {
+        api.get(`/steam-price?name=${encodeURIComponent(data.skinName)}`)
+          .then(({ data: sp }) => { if (sp?.available) setSteamPrice(sp); })
+          .catch(() => {}); // narx yuklanmasa auksion ishlayveradi
+      }
+    }).finally(() => setLoading(false));
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -224,6 +233,33 @@ export default function AuctionDetailPage() {
           </button>
         )}
       </div>
+
+      {/* Steam Market narxi + taqqoslash */}
+      {steamPrice?.medianUzs && (
+        <div className="mx-4 mt-3">
+          {(() => {
+            const currentPrice = Number(auction.currentPrice || auction.startPrice || 0);
+            const diff = steamPrice.medianUzs - currentPrice;
+            const pct  = currentPrice > 0 ? Math.round((diff / steamPrice.medianUzs) * 100) : null;
+            const cheaper = diff > 0; // auksion arzonroq
+            return (
+              <div className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 ${cheaper ? 'bg-signal-success/10 border border-signal-success/25' : 'bg-base-surface border border-base-border'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-ink-muted">Цена Steam</span>
+                  <span className="font-mono text-xs font-semibold text-ink-primary">
+                    {Number(steamPrice.medianUzs).toLocaleString('ru-RU')} сум
+                  </span>
+                </div>
+                {pct !== null && (
+                  <span className={`rounded-full px-2 py-0.5 font-display text-[10px] font-bold ${cheaper ? 'bg-signal-success/20 text-signal-success' : 'bg-signal-danger/15 text-signal-danger'}`}>
+                    {cheaper ? `−${pct}% дешевле` : `+${Math.abs(pct)}% дороже`}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       <div className="space-y-4 px-4 pt-4">
         <div className="flex flex-wrap items-center gap-2">

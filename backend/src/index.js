@@ -118,6 +118,71 @@ app.use('/api/promo', promoRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/teams', teamsRoutes);
 
+// ── Steam Market narxi + UZS konvertatsiya ────────────────────────────────
+// Keshlar: exchange rate 1 soat, skin narxi 15 daqiqa
+const priceCache = new Map(); // key → { value, expiresAt }
+
+function getCache(key) {
+  const entry = priceCache.get(key);
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return entry.value;
+}
+function setCache(key, value, ttlMs) {
+  priceCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+app.get('/api/steam-price', async (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: 'name parametri kerak.' });
+
+  const axios = require('axios');
+
+  // 1. USD → UZS kursi (1 soat kesh)
+  let uzsRate = getCache('usd_uzs');
+  if (!uzsRate) {
+    try {
+      const { data } = await axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 8000 });
+      uzsRate = data?.rates?.UZS;
+      if (uzsRate) setCache('usd_uzs', uzsRate, 60 * 60 * 1000);
+    } catch (e) {
+      console.error('[steam-price] kurs xatosi:', e.message);
+    }
+  }
+
+  // 2. Steam Market narxi (15 daqiqa kesh)
+  const cacheKey = `steam:${name}`;
+  let steamData = getCache(cacheKey);
+  if (!steamData) {
+    try {
+      const url = `https://steamcommunity.com/market/priceoverview/?appid=730&currency=1&market_hash_name=${encodeURIComponent(name)}`;
+      const { data } = await axios.get(url, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (data?.success && data?.median_price) {
+        steamData = data;
+        setCache(cacheKey, steamData, 15 * 60 * 1000);
+      }
+    } catch (e) {
+      console.error('[steam-price] Steam xatosi:', e.message);
+    }
+  }
+
+  if (!steamData) return res.json({ available: false });
+
+  // USD narxini parse qilish: "$3.57" → 3.57
+  const parseUsd = (str) => parseFloat((str || '').replace(/[^0-9.]/g, '')) || null;
+  const medianUsd = parseUsd(steamData.median_price);
+  const lowestUsd = parseUsd(steamData.lowest_price);
+
+  res.json({
+    available:   true,
+    medianUsd,
+    lowestUsd,
+    volume:      steamData.volume || null,
+    medianUzs:   uzsRate && medianUsd ? Math.round(medianUsd * uzsRate) : null,
+    lowestUzs:   uzsRate && lowestUsd ? Math.round(lowestUsd * uzsRate) : null,
+    uzsRate:     uzsRate || null,
+  });
+});
+
 // CSFloat API proxy
 app.get('/api/cs2inspect', async (req, res) => {
   const { url } = req.query;
