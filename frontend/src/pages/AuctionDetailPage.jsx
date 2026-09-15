@@ -194,7 +194,6 @@ export default function AuctionDetailPage() {
         <SkinViewer3D
           imageUrl={auction.imageUrl}
           skinName={auction.skinName}
-          inspectLink={auction.inspectLink}
           onClose={() => setShow3D(false)}
         />
       )}

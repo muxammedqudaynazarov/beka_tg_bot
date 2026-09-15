@@ -1,112 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { getWeaponModelUrl } from '../weaponModels';
-import { api } from '../api';
 
-// ─── CSFloat panel ────────────────────────────────────────────────────────
-function SkinInfoPanel({ inspectLink, fallbackImageUrl }) {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [err,     setErr]     = useState(null);
-
-  useEffect(() => {
-    if (!inspectLink) return;
-    setLoading(true);
-    api.get(`/cs2inspect?url=${encodeURIComponent(inspectLink)}`)
-      .then(({ data: d }) => { setData(d?.iteminfo || null); })
-      .catch(() => setErr(true))
-      .finally(() => setLoading(false));
-  }, [inspectLink]);
-
-  const info = data;
-  const imgSrc = info?.imageurl || fallbackImageUrl;
-
-  return (
-    <div className="flex flex-col border-t border-white/10 bg-black/40"
-      style={{ minHeight: 140 }}>
-
-      {loading && (
-        <div className="flex flex-1 items-center justify-center gap-2 py-4">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-          <span className="text-[11px] text-white/40">Загрузка данных...</span>
-        </div>
-      )}
-
-      {!loading && (
-        <div className="flex gap-3 px-3 py-3">
-          {/* Exact skin render */}
-          <div className="shrink-0 overflow-hidden rounded-xl bg-white/5"
-            style={{ width: 110, height: 110 }}>
-            {imgSrc && (
-              <img src={imgSrc} alt="skin" className="h-full w-full object-contain p-1" />
-            )}
-          </div>
-
-          {/* Info */}
-          <div className="flex flex-col justify-center gap-1.5 min-w-0">
-            {info ? (<>
-              <p className="text-xs font-bold text-white/90 truncate">{info.full_item_name || info.market_hash_name}</p>
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {info.floatvalue != null && (
-                  <div>
-                    <p className="text-[9px] text-white/40 uppercase tracking-wide">Float</p>
-                    <p className="font-mono text-[12px] font-bold text-emerald-400">
-                      {Number(info.floatvalue).toFixed(6)}
-                    </p>
-                  </div>
-                )}
-                {info.paintseed != null && (
-                  <div>
-                    <p className="text-[9px] text-white/40 uppercase tracking-wide">Pattern</p>
-                    <p className="font-mono text-[12px] font-bold text-sky-400">{info.paintseed}</p>
-                  </div>
-                )}
-                {info.rarity_name && (
-                  <div>
-                    <p className="text-[9px] text-white/40 uppercase tracking-wide">Редкость</p>
-                    <p className="text-[11px] text-white/70">{info.rarity_name}</p>
-                  </div>
-                )}
-              </div>
-              {/* Sticker'lar */}
-              {info.stickers?.length > 0 && (
-                <div className="flex gap-1 mt-0.5">
-                  {info.stickers.map((s, i) => s?.imageurl ? (
-                    <img key={i} src={s.imageurl} alt={s.name || ''} title={s.name || ''}
-                      className="h-7 w-7 object-contain rounded bg-white/5" />
-                  ) : null)}
-                </div>
-              )}
-            </>) : err ? (
-              <div>
-                <p className="text-[11px] text-orange-400/80">Не удалось загрузить данные</p>
-                <p className="text-[10px] text-white/30">Проверьте inspect-ссылку</p>
-              </div>
-            ) : !inspectLink ? (
-              <div>
-                <p className="text-[11px] text-white/50">Inspect-ссылка не указана</p>
-                <p className="text-[10px] text-white/30">Добавьте её в аукционе</p>
-              </div>
-            ) : (
-              <div>
-                <p className="text-[11px] text-white/40">Загрузка данных...</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── CSS 3D fallback ──────────────────────────────────────────────────────
+// ─── CSS 3D (3D model yo'q bo'lganda) ────────────────────────────────────
 function CssViewer({ imageUrl }) {
   const rotRef  = useRef(0);
   const prevRef = useRef(0);
   const autoRef = useRef(true);
   const rafRef  = useRef(null);
-  const [rotY, setRotY]   = useState(0);
-  const [drag, setDrag]   = useState(false);
+  const [rotY, setRotY] = useState(0);
+  const [drag, setDrag] = useState(false);
 
   useEffect(() => {
     const tick = () => {
@@ -124,7 +27,7 @@ function CssViewer({ imageUrl }) {
     setRotY(rotRef.current);
     prevRef.current = x;
   };
-  const end   = () => { setDrag(false); setTimeout(() => { autoRef.current = true; }, 1500); };
+  const end = () => { setDrag(false); setTimeout(() => { autoRef.current = true; }, 1500); };
 
   return (
     <div className="flex flex-1 items-center justify-center touch-none select-none"
@@ -137,9 +40,9 @@ function CssViewer({ imageUrl }) {
       onMouseUp={end}
     >
       <img src={imageUrl} alt="" style={{
-        width: 220, height: 220, objectFit: 'contain',
+        width: 240, height: 240, objectFit: 'contain',
         transform: `rotateY(${rotY}deg)`,
-        filter: 'drop-shadow(0 0 24px rgba(80,140,255,0.3))',
+        filter: 'drop-shadow(0 0 28px rgba(80,140,255,0.3))',
       }} />
     </div>
   );
@@ -156,17 +59,14 @@ function GltfViewer({ modelUrl, onFail, onLoad }) {
 
     (async () => {
       try {
-        // HEAD tekshiruvi olib tashlandi — nginx try_files /index.html HTML
-        // qaytarishi mumkin edi va bu false 404 xatosiga sabab bo'lar edi.
-        // GLTFLoader o'zi xatoni to'g'ri ko'taradi.
         const THREE               = await import('three');
         const { GLTFLoader }      = await import('three/examples/jsm/loaders/GLTFLoader.js');
         const { OrbitControls }   = await import('three/examples/jsm/controls/OrbitControls.js');
         const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js');
         if (cancelled) return;
 
-        const W = el.clientWidth || window.innerWidth;
-        const H = el.clientHeight || 280;
+        const W = el.clientWidth  || window.innerWidth;
+        const H = el.clientHeight || 400;
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(W, H);
@@ -187,18 +87,25 @@ function GltfViewer({ modelUrl, onFail, onLoad }) {
         controls.enableZoom      = true;
         controls.minDistance     = 0.1;
         controls.maxDistance     = 2;
+        controls.maxPolarAngle   = Math.PI * 0.8;
 
+        // Yorug'lik
         scene.add(new THREE.AmbientLight(0xffffff, 1.8));
         const d1 = new THREE.DirectionalLight(0xffffff, 3);
         d1.position.set(2, 3, 3); scene.add(d1);
-        scene.add(Object.assign(new THREE.DirectionalLight(0x8899ff, 1), { position: { set: () => {} } }));
         const d2 = new THREE.DirectionalLight(0x8899ff, 1);
         d2.position.set(-3, 0, 1); scene.add(d2);
+        const d3 = new THREE.DirectionalLight(0xff8844, 0.5);
+        d3.position.set(0, -2, -2); scene.add(d3);
 
+        // Environment map
         const pmrem = new THREE.PMREMGenerator(renderer);
         scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-        const gltf  = await new Promise((res, rej) => new GLTFLoader().load(modelUrl, res, undefined, rej));
+        // Model yuklash
+        const gltf = await new Promise((res, rej) =>
+          new GLTFLoader().load(modelUrl, res, undefined, rej)
+        );
         if (cancelled) return;
 
         const model = gltf.scene;
@@ -207,12 +114,14 @@ function GltfViewer({ modelUrl, onFail, onLoad }) {
         const scale = 0.38 / Math.max(size.x, size.y, size.z);
         model.scale.setScalar(scale);
         model.position.sub(box.getCenter(new THREE.Vector3()).multiplyScalar(scale));
+
+        // Modelning asl materiallarini saqlaymiz, faqat env map qo'shamiz
         model.traverse(c => {
-          if (c.isMesh && c.material) {
-            const mats = Array.isArray(c.material) ? c.material : [c.material];
-            mats.forEach(m => { m.envMapIntensity = 1.3; m.needsUpdate = true; });
-          }
+          if (!c.isMesh) return;
+          const mats = Array.isArray(c.material) ? c.material : [c.material];
+          mats.forEach(m => { if (m) { m.envMapIntensity = 1.3; m.needsUpdate = true; } });
         });
+
         scene.add(model);
         onLoad?.();
 
@@ -223,8 +132,9 @@ function GltfViewer({ modelUrl, onFail, onLoad }) {
           renderer.render(scene, camera);
         };
         animate();
+
       } catch (err) {
-        console.error('[GltfViewer]', err);
+        console.error('[GltfViewer] yuklanmadi:', err?.message || err);
         if (!cancelled) onFail?.();
       }
     })();
@@ -241,15 +151,16 @@ function GltfViewer({ modelUrl, onFail, onLoad }) {
   return <div ref={mountRef} className="h-full w-full touch-none" />;
 }
 
-// ─── Ana komponent ────────────────────────────────────────────────────────
-export default function SkinViewer3D({ imageUrl, skinName, inspectLink, onClose }) {
+// ─── Ana komponent ─────────────────────────────────────────────────────────
+export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
   const modelUrl = getWeaponModelUrl(skinName);
   const [mode,    setMode]    = useState(modelUrl ? 'gltf' : 'css');
   const [loading, setLoading] = useState(!!modelUrl);
 
+  // 12 soniyada yuklanmasa CSS ga o'tish
   useEffect(() => {
     if (mode !== 'gltf') return;
-    const t = setTimeout(() => { setMode('css'); setLoading(false); }, 10000);
+    const t = setTimeout(() => { setMode('css'); setLoading(false); }, 12000);
     return () => clearTimeout(t);
   }, [mode]);
 
@@ -264,7 +175,9 @@ export default function SkinViewer3D({ imageUrl, skinName, inspectLink, onClose 
         <div className="mr-3 min-w-0">
           <p className="truncate font-display text-sm font-bold text-white/90">{skinName}</p>
           <p className={`text-[10px] ${useGltf ? 'text-emerald-400' : 'text-white/40'}`}>
-            {useGltf ? (loading ? '● Загрузка модели...' : '● 3D модель') : '● Просмотр'}
+            {useGltf
+              ? (loading ? '● Загрузка...' : '● 3D модель')
+              : '● Просмотр'}
           </p>
         </div>
         <button onClick={onClose}
@@ -273,7 +186,7 @@ export default function SkinViewer3D({ imageUrl, skinName, inspectLink, onClose 
         </button>
       </div>
 
-      {/* 3D viewer */}
+      {/* Viewer */}
       <div className="relative flex-1">
         {useGltf ? (
           <>
@@ -294,17 +207,9 @@ export default function SkinViewer3D({ imageUrl, skinName, inspectLink, onClose 
       </div>
 
       {/* Hint */}
-      <p className="py-1.5 text-center text-[10px] text-white/30">
-        {useGltf ? 'Вращайте · Зумируйте' : 'Перетащите для вращения'}
+      <p className="py-3 text-center text-[11px] text-white/30">
+        {useGltf ? 'Вращайте · Зумируйте двумя пальцами' : 'Перетащите для вращения'}
       </p>
-
-      {/* DEBUG — inspectLink qiymatini ko'rish uchun, ishlagach o'chiriladi */}
-      <p className="px-3 pb-1 text-[9px] text-yellow-400/60 break-all">
-        🔍 link: {inspectLink ? inspectLink.slice(0, 60) + '...' : 'NULL'}
-      </p>
-
-      {/* CSFloat skin info panel */}
-      <SkinInfoPanel inspectLink={inspectLink} fallbackImageUrl={imageUrl} />
     </div>
   );
 }
