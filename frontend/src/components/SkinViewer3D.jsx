@@ -156,23 +156,9 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
   const modelUrl    = getWeaponModelUrl(skinName);
   const [mode,    setMode]    = useState(modelUrl ? 'gltf' : 'css');
   const [loading, setLoading] = useState(!!modelUrl);
-  const timeoutRef  = useRef(null);
 
-  useEffect(() => {
-    if (mode !== 'gltf') return;
-    // Model yuklanmasa 12 soniyadan keyin CSS ga o'tish
-    timeoutRef.current = setTimeout(() => {
-      setMode('css');
-      setLoading(false);
-    }, 12000);
-    return () => clearTimeout(timeoutRef.current);
-  }, [mode]);
-
-  const handleLoad = () => {
-    // Model muvaffaqiyatli yuklandi — timeoutni bekor qilamiz
-    clearTimeout(timeoutRef.current);
-    setLoading(false);
-  };
+  // Timeout YO'Q — model yuklanmaguncha kutamiz.
+  // Faqat GltfViewer xato chiqarsa CSS ga o'tamiz.
 
   const useGltf = mode === 'gltf' && !!modelUrl;
 
@@ -207,8 +193,8 @@ export default function SkinViewer3D({ imageUrl, skinName, onClose }) {
             )}
             <GltfViewer
               modelUrl={modelUrl}
-              onFail={() => { clearTimeout(timeoutRef.current); setMode('css'); setLoading(false); }}
-              onLoad={handleLoad}
+              onFail={() => { setMode('css'); setLoading(false); }}
+              onLoad={() => setLoading(false)}
             />
           </>
         ) : (
