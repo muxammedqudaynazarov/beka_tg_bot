@@ -293,16 +293,19 @@ export default function AuctionDetailPage() {
               <p className={`font-mono text-2xl font-bold text-ink-primary ${pulse ? 'animate-pulse-price' : ''}`}>
                 {formatSom(auction.currentPrice)}
               </p>
-              {/* Steam narxi (+10%) — auksion qanchalik arzon ekanini ko'rsatish */}
+              {/* Steam narxi (+15%) — auksion qanchalik arzon ekanini ko'rsatish */}
               {steamPrice?.medianUzs && (() => {
-                const inflated    = Math.round(steamPrice.medianUzs * 1.1); // +10%
+                const inflated    = Math.round(steamPrice.medianUzs * 1.15); // +15%
                 const auctionNow  = Number(auction.currentPrice || auction.startPrice || 0);
                 const diff        = inflated - auctionNow;
                 const pct         = auctionNow > 0 ? Math.round((diff / inflated) * 100) : null;
                 return (
                   <div className="mt-1.5 flex items-center gap-2">
                     <span className="text-[10px] text-ink-muted">
-                      Steam: <span className="font-mono text-ink-secondary line-through">{Number(inflated).toLocaleString('ru-RU')} сум</span>
+                      Цена Steam:{' '}
+                      <span className="font-mono text-ink-secondary">
+                        {Number(inflated).toLocaleString('ru-RU')} сум
+                      </span>
                     </span>
                     {pct !== null && pct > 0 && (
                       <span className="rounded-full bg-signal-success/20 px-2 py-0.5 font-display text-[10px] font-bold text-signal-success">
