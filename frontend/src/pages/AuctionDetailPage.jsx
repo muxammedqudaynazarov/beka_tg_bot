@@ -293,28 +293,6 @@ export default function AuctionDetailPage() {
               <p className={`font-mono text-2xl font-bold text-ink-primary ${pulse ? 'animate-pulse-price' : ''}`}>
                 {formatSom(auction.currentPrice)}
               </p>
-              {/* Steam narxi (+15%) — auksion qanchalik arzon ekanini ko'rsatish */}
-              {steamPrice?.medianUzs && (() => {
-                const inflated    = Math.round(steamPrice.medianUzs * 1.15); // +15%
-                const auctionNow  = Number(auction.currentPrice || auction.startPrice || 0);
-                const diff        = inflated - auctionNow;
-                const pct         = auctionNow > 0 ? Math.round((diff / inflated) * 100) : null;
-                return (
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="text-[10px] text-ink-muted">
-                      Цена Steam:{' '}
-                      <span className="font-mono text-ink-secondary">
-                        {Number(inflated).toLocaleString('ru-RU')} сум
-                      </span>
-                    </span>
-                    {pct !== null && pct > 0 && (
-                      <span className="rounded-full bg-signal-success/20 px-2 py-0.5 font-display text-[10px] font-bold text-signal-success">
-                        −{pct}% дешевле
-                      </span>
-                    )}
-                  </div>
-                );
-              })()}
             </div>
             {isBiddingOpen && (
               <div className="text-right">
@@ -325,6 +303,31 @@ export default function AuctionDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Steam narxi — ajratilgan chiroyli blok */}
+          {steamPrice?.medianUzs && (() => {
+            const inflated   = Math.round(steamPrice.medianUzs * 1.15);
+            const auctionNow = Number(auction.currentPrice || auction.startPrice || 0);
+            const pct        = auctionNow > 0 ? Math.round(((inflated - auctionNow) / inflated) * 100) : null;
+            return (
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-signal-success/8 border border-signal-success/20 px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-semibold uppercase tracking-wide text-signal-success/70">
+                    Цена Steam
+                  </span>
+                  <span className="font-mono text-xs font-bold text-ink-primary">
+                    {Number(inflated).toLocaleString('ru-RU')} сум
+                  </span>
+                </div>
+                {pct !== null && pct > 0 && (
+                  <span className="rounded-lg bg-signal-success px-2.5 py-0.5 font-display text-[11px] font-bold text-white shadow-sm">
+                    −{pct}% дешевле
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
           {auction.currentLeader && (
             <p className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-secondary">
               <TrendingUp size={12} />
