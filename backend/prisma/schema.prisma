@@ -664,3 +664,10 @@ model Team {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Tizim keshi — valyuta kursi va boshqa tez-tez o'zgarmaydigan ma'lumotlar
+model SystemCache {
+  key       String   @id          // masalan: "usd_uzs_rate"
+  value     String   @db.Text     // JSON string
+  updatedAt DateTime @updatedAt
+}

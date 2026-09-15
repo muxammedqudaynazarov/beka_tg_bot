@@ -18,6 +18,25 @@ const RARITY_LABELS = {
  * kabi navbat tizimiga ko'chirish tavsiya etiladi.
  */
 function startAuctionScheduler(io) {
+  // Har 3 soatda valyuta kursini DB'ga yangilash
+  const refreshExchangeRate = async () => {
+    try {
+      const axios  = require('axios');
+      const { data } = await axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 8000 });
+      const rate = data?.rates?.UZS;
+      if (rate) {
+        await prisma.systemCache.upsert({
+          where:  { key: 'usd_uzs_rate' },
+          create: { key: 'usd_uzs_rate', value: JSON.stringify({ rate, updatedAt: new Date() }) },
+          update: { value: JSON.stringify({ rate, updatedAt: new Date() }) },
+        });
+        console.log(`[exchange-rate] yangilandi: 1 USD = ${rate.toFixed(0)} UZS`);
+      }
+    } catch (e) { console.error('[exchange-rate] xato:', e.message); }
+  };
+  // Darhol bir marta chaqirish + har 3 soatda
+  refreshExchangeRate();
+  cron.schedule('0 */3 * * *', refreshExchangeRate);
   // 1-band: har soatda ACTIVE (lekin 24 soatdan ortiq ishlatilmagan)
   // FIRST/NEXT_DEPOSIT_BONUS redemption'larini EXPIRED qiladi.
   // Moliyaviy promokodlar faqat 24 soat ichida ishlatilmasa bekor bo'ladi.

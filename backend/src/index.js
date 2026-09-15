@@ -119,67 +119,86 @@ app.use('/api/predictions', predictionRoutes);
 app.use('/api/teams', teamsRoutes);
 
 // ── Steam Market narxi + UZS konvertatsiya ────────────────────────────────
-// Keshlar: exchange rate 1 soat, skin narxi 15 daqiqa
-const priceCache = new Map(); // key → { value, expiresAt }
+// Exchange rate DB'da saqlanadi (3 soatda scheduler yangilaydi)
+// Skin narxi: oddiy Map'da 15 daqiqa keshlanadi
 
-function getCache(key) {
-  const entry = priceCache.get(key);
-  if (!entry || Date.now() > entry.expiresAt) return null;
-  return entry.value;
+const skinPriceCache = new Map(); // key → { value, expiresAt }
+
+function getSkinCache(key) {
+  const e = skinPriceCache.get(key);
+  if (!e || Date.now() > e.expiresAt) return null;
+  return e.value;
 }
-function setCache(key, value, ttlMs) {
-  priceCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+function setSkinCache(key, value, ttlMs) {
+  skinPriceCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+// DB'dan yoki API'dan UZS kursini olish
+async function getUzsRate(axios, prisma) {
+  // 1. DB'dan tekshirish
+  try {
+    const cached = await prisma.systemCache.findUnique({ where: { key: 'usd_uzs_rate' } });
+    if (cached) {
+      const { rate, updatedAt } = JSON.parse(cached.value);
+      const ageMs = Date.now() - new Date(updatedAt).getTime();
+      if (ageMs < 3 * 60 * 60 * 1000) return rate; // 3 soatdan yangi
+    }
+  } catch {}
+
+  // 2. API'dan yuklab, DB'ga yozish
+  try {
+    const { data } = await axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 8000 });
+    const rate = data?.rates?.UZS;
+    if (rate) {
+      await prisma.systemCache.upsert({
+        where:  { key: 'usd_uzs_rate' },
+        create: { key: 'usd_uzs_rate', value: JSON.stringify({ rate, updatedAt: new Date() }) },
+        update: { value: JSON.stringify({ rate, updatedAt: new Date() }) },
+      });
+      return rate;
+    }
+  } catch (e) { console.error('[exchange-rate] yuklab bo\'lmadi:', e.message); }
+  return null;
 }
 
 app.get('/api/steam-price', async (req, res) => {
   const { name } = req.query;
   if (!name) return res.status(400).json({ error: 'name parametri kerak.' });
 
-  const axios = require('axios');
+  const axios  = require('axios');
+  const prisma = require('./db/prisma');
 
-  // 1. USD → UZS kursi (1 soat kesh)
-  let uzsRate = getCache('usd_uzs');
-  if (!uzsRate) {
-    try {
-      const { data } = await axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 8000 });
-      uzsRate = data?.rates?.UZS;
-      if (uzsRate) setCache('usd_uzs', uzsRate, 60 * 60 * 1000);
-    } catch (e) {
-      console.error('[steam-price] kurs xatosi:', e.message);
-    }
-  }
+  // 1. UZS kursi (DB kesh)
+  const uzsRate = await getUzsRate(axios, prisma);
 
-  // 2. Steam Market narxi (15 daqiqa kesh)
-  const cacheKey = `steam:${name}`;
-  let steamData = getCache(cacheKey);
+  // 2. Steam narxi (15 daqiqa xotira keshi)
+  const cacheKey  = `steam:${name}`;
+  let steamData   = getSkinCache(cacheKey);
   if (!steamData) {
     try {
       const url = `https://steamcommunity.com/market/priceoverview/?appid=730&currency=1&market_hash_name=${encodeURIComponent(name)}`;
       const { data } = await axios.get(url, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
       if (data?.success && data?.median_price) {
         steamData = data;
-        setCache(cacheKey, steamData, 15 * 60 * 1000);
+        setSkinCache(cacheKey, steamData, 15 * 60 * 1000);
       }
-    } catch (e) {
-      console.error('[steam-price] Steam xatosi:', e.message);
-    }
+    } catch (e) { console.error('[steam-price]', e.message); }
   }
 
   if (!steamData) return res.json({ available: false });
 
-  // USD narxini parse qilish: "$3.57" → 3.57
-  const parseUsd = (str) => parseFloat((str || '').replace(/[^0-9.]/g, '')) || null;
+  const parseUsd  = (str) => parseFloat((str || '').replace(/[^0-9.]/g, '')) || null;
   const medianUsd = parseUsd(steamData.median_price);
   const lowestUsd = parseUsd(steamData.lowest_price);
 
   res.json({
-    available:   true,
+    available:  true,
     medianUsd,
     lowestUsd,
-    volume:      steamData.volume || null,
-    medianUzs:   uzsRate && medianUsd ? Math.round(medianUsd * uzsRate) : null,
-    lowestUzs:   uzsRate && lowestUsd ? Math.round(lowestUsd * uzsRate) : null,
-    uzsRate:     uzsRate || null,
+    volume:     steamData.volume || null,
+    medianUzs:  uzsRate && medianUsd ? Math.round(medianUsd * uzsRate) : null,
+    lowestUzs:  uzsRate && lowestUsd ? Math.round(lowestUsd * uzsRate) : null,
+    uzsRate:    uzsRate || null,
   });
 });
 

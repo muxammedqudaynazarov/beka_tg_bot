@@ -234,32 +234,7 @@ export default function AuctionDetailPage() {
         )}
       </div>
 
-      {/* Steam Market narxi + taqqoslash */}
-      {steamPrice?.medianUzs && (
-        <div className="mx-4 mt-3">
-          {(() => {
-            const currentPrice = Number(auction.currentPrice || auction.startPrice || 0);
-            const diff = steamPrice.medianUzs - currentPrice;
-            const pct  = currentPrice > 0 ? Math.round((diff / steamPrice.medianUzs) * 100) : null;
-            const cheaper = diff > 0; // auksion arzonroq
-            return (
-              <div className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 ${cheaper ? 'bg-signal-success/10 border border-signal-success/25' : 'bg-base-surface border border-base-border'}`}>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-ink-muted">Цена Steam</span>
-                  <span className="font-mono text-xs font-semibold text-ink-primary">
-                    {Number(steamPrice.medianUzs).toLocaleString('ru-RU')} сум
-                  </span>
-                </div>
-                {pct !== null && (
-                  <span className={`rounded-full px-2 py-0.5 font-display text-[10px] font-bold ${cheaper ? 'bg-signal-success/20 text-signal-success' : 'bg-signal-danger/15 text-signal-danger'}`}>
-                    {cheaper ? `−${pct}% дешевле` : `+${Math.abs(pct)}% дороже`}
-                  </span>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-      )}
+      {/* Steam narx bloki OLIB TASHLANDI — pastdagi kartaga ko'chirildi */}
 
       <div className="space-y-4 px-4 pt-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -318,6 +293,25 @@ export default function AuctionDetailPage() {
               <p className={`font-mono text-2xl font-bold text-ink-primary ${pulse ? 'animate-pulse-price' : ''}`}>
                 {formatSom(auction.currentPrice)}
               </p>
+              {/* Steam narxi (+10%) — auksion qanchalik arzon ekanini ko'rsatish */}
+              {steamPrice?.medianUzs && (() => {
+                const inflated    = Math.round(steamPrice.medianUzs * 1.1); // +10%
+                const auctionNow  = Number(auction.currentPrice || auction.startPrice || 0);
+                const diff        = inflated - auctionNow;
+                const pct         = auctionNow > 0 ? Math.round((diff / inflated) * 100) : null;
+                return (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="text-[10px] text-ink-muted">
+                      Steam: <span className="font-mono text-ink-secondary line-through">{Number(inflated).toLocaleString('ru-RU')} сум</span>
+                    </span>
+                    {pct !== null && pct > 0 && (
+                      <span className="rounded-full bg-signal-success/20 px-2 py-0.5 font-display text-[10px] font-bold text-signal-success">
+                        −{pct}% дешевле
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             {isBiddingOpen && (
               <div className="text-right">
